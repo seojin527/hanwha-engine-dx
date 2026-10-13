@@ -10,9 +10,9 @@
 
 | 구성원 | 역할 |
 | --- | --- |
-| 박수정 | 팀장, eDOCr2 & backend programming |
-| 마서진 | overall sys. building & scribe |
-| 이도연 | frontend main programming  |
+| 박수정 | eDOCr2 |
+| 마서진 | overall system build |
+| 이도연 | frontend |
 | 이종민 | system validation & finalize |
 | 한동현 | mechanical drawing  |
 
