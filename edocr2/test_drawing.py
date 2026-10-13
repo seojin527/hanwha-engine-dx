@@ -1,10 +1,16 @@
 import cv2, time, os
 import numpy as np
+import pytesseract
 from edocr2 import tools
 from pdf2image import convert_from_path
 
-file_path = 'tests/test_samples/Candle_holder.jpg'
+file_path = 'edocr2/tests/test_samples/Candle_holder.jpg'
 language = 'eng'
+
+# Windows Tesseract 실행 파일 경로
+pytesseract.pytesseract.tesseract_cmd = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
 
 #Opening the file        
 if file_path.endswith('.pdf') or file_path.endswith(".PDF"):
@@ -19,10 +25,18 @@ else:
 filename = os.path.splitext(os.path.basename(file_path))[0]
 output_path = os.path.join('.', filename)
 
+# ===== OCR 결과 저장 경로 =====
+result_dir = os.path.join(".", "results")
+os.makedirs(result_dir, exist_ok=True)
+
+txt_path = os.path.join(result_dir, f"{filename}_OCR.txt")
+result_path = os.path.join(result_dir, f"{filename}_result.jpg")
+
 
 #region ############ Segmentation Task ####################
 
-img_boxes, frame, gdt_boxes, tables, dim_boxes  = tools.layer_segm.segment_img(img, autoframe = True, frame_thres=0.7, GDT_thres = 0.02, binary_thres=127)
+img_boxes, frame, gdt_boxes, tables, dim_boxes  = tools.layer_segm.segment_img(img, autoframe = True, frame_thres=0.8
+, GDT_thres = 0.02, binary_thres=127)
 
 #endregion
 
@@ -39,17 +53,17 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 # Load models
-gdt_model = 'edocr2/models/recognizer_gdts.keras'
-dim_model = 'edocr2/models/recognizer_dimensions_2.keras'
-detector_model = None #'edocr2/models/detector_12_46.keras'
+gdt_model = 'edocr2/edocr2/models/recognizer_gdts'
+dim_model = 'edocr2/edocr2/models/recognizer_dimensions_2'
+detector_model = None #'edocr2/models/detector_12_46'
 
 recognizer_gdt = None
 if gdt_boxes:
     recognizer_gdt = Recognizer(alphabet=tools.ocr_pipelines.read_alphabet(gdt_model))
-    recognizer_gdt.model.load_weights(gdt_model)
+    recognizer_gdt.model.load_weights(gdt_model + '.keras')
 alphabet_dim = tools.ocr_pipelines.read_alphabet(dim_model)
 recognizer_dim = Recognizer(alphabet=alphabet_dim)
-recognizer_dim.model.load_weights(dim_model)
+recognizer_dim.model.load_weights(dim_model + '.keras')
 detector = Detector()
 
 if detector_model:
@@ -75,7 +89,7 @@ gdt_results, updated_gdt_boxes, process_img = tools.ocr_pipelines.ocr_gdt(proces
 if frame:
     process_img = process_img[frame.y : frame.y + frame.h, frame.x : frame.x + frame.w]
 process_img_ = process_img.copy()
-dimensions, other_info, process_img, dim_tess = tools.ocr_pipelines.ocr_dimensions(process_img, detector, recognizer_dim, alphabet_dim, frame, dim_boxes, cluster_thres=20, max_img_size=1048, language=language, backg_save=False)
+dimensions, other_info, process_img, dim_tess = tools.ocr_pipelines.ocr_dimensions(process_img, detector, recognizer_dim, alphabet_dim, frame, dim_boxes, cluster_thres=20, max_img_size=2048, language=language, backg_save=False)
 
 #endregion
 
@@ -94,6 +108,56 @@ if qwen:
 
 mask_img = tools.output_tools.mask_img(img, updated_gdt_boxes, updated_tables, dimensions, frame, other_info)
 table_results, gdt_results, dimensions, other_info = tools.output_tools.process_raw_output(output_path, table_results, gdt_results, dimensions, other_info, save=False)
+
+# 1. OCR 결과 이미지 저장
+cv2.imwrite(result_path, mask_img)
+print(f"[SAVED] {result_path}")
+
+# 2. OCR 결과 TXT 저장
+with open(txt_path, "w", encoding="utf-8") as f:
+
+    f.write("=" * 60 + "\n")
+    f.write("eDOCr2 ENGINEERING DRAWING OCR RESULT\n")
+    f.write("=" * 60 + "\n")
+
+    # DIMENSIONS
+    f.write("\n[ DIMENSIONS ]\n")
+    f.write("-" * 60 + "\n")
+    f.write(f"{'No.':<6}{'Recognized Text':<25}{'Position'}\n")
+    f.write("-" * 60 + "\n")
+
+    for i, (text, pos) in enumerate(dimensions, 1):
+        f.write(f"{i:<6}{text:<25}{str(pos)}\n")
+
+    f.write("-" * 60 + "\n")
+    f.write(f"Detected dimensions : {len(dimensions)}\n")
+
+    # GD&T
+    f.write("\n[ GD&T ]\n")
+    f.write("-" * 60 + "\n")
+
+    if gdt_results:
+        for i, item in enumerate(gdt_results, 1):
+            f.write(f"{i:02d}. {item}\n")
+    else:
+        f.write("No GD&T detected.\n")
+
+    # TITLE / TABLE
+    f.write("\n[ TITLE / TABLE ]\n")
+    f.write("-" * 60 + "\n")
+    f.write(f"Detected table regions : {len(table_results)}\n")
+
+    for i, table in enumerate(table_results, 1):
+        f.write(f"table {i}: {table}\n")
+
+    # OTHER INFO
+    f.write("\n[ OTHER TEXT ]\n")
+    for item in other_info:
+        f.write(f"{item}\n")
+
+    f.write("\n" + "=" * 60 + "\n")
+
+print(f"[SAVED] {txt_path}")
 
 #endregion
 
