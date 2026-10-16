@@ -26,13 +26,16 @@ filename = os.path.splitext(os.path.basename(file_path))[0]
 output_path = os.path.join('.', filename)
 
 # ===== OCR 결과 저장 경로 =====
-result_dir = os.path.join(".", "results")
-os.makedirs(result_dir, exist_ok=True)
 
-txt_path = os.path.join(result_dir, f"{filename}_OCR.txt")
-result_path = os.path.join(result_dir, f"{filename}_result.jpg")
+from pathlib import Path
 
+# 프로젝트 최상위 data 폴더
+project_root = Path(__file__).resolve().parent.parent
+result_dir = project_root / "data"
+result_dir.mkdir(parents=True, exist_ok=True)
 
+txt_path = result_dir / f"{filename}_origin.txt"
+result_path = result_dir / f"{filename}_result.jpg"
 #region ############ Segmentation Task ####################
 
 img_boxes, frame, gdt_boxes, tables, dim_boxes  = tools.layer_segm.segment_img(img, autoframe = True, frame_thres=0.8
@@ -75,7 +78,17 @@ print(f"\033[1;33mLoading session took {end_time - start_time:.6f} seconds to ru
 
 #region ############ OCR Tables ###########################
 process_img = img.copy()
-table_results, updated_tables, process_img= tools.ocr_pipelines.ocr_tables(tables, process_img, language)
+
+if tables and any(tables):
+    table_results, updated_tables, process_img = (
+        tools.ocr_pipelines.ocr_tables(
+            tables, process_img, language
+        )
+    )
+else:
+    print("[INFO] No title/table region detected.")
+    table_results = []
+    updated_tables = []
 
 #endregion
 
@@ -113,21 +126,16 @@ table_results, gdt_results, dimensions, other_info = tools.output_tools.process_
 cv2.imwrite(result_path, mask_img)
 print(f"[SAVED] {result_path}")
 
-# 2. OCR 결과 TXT 저장
+# 2. OCR RAW DATA TXT 저장
 with open(txt_path, "w", encoding="utf-8") as f:
 
-    f.write("=" * 60 + "\n")
-    f.write("eDOCr2 ENGINEERING DRAWING OCR RESULT\n")
-    f.write("=" * 60 + "\n")
-
     # DIMENSIONS
-    f.write("\n[ DIMENSIONS ]\n")
+    f.write("[ DIMENSIONS ]\n")
     f.write("-" * 60 + "\n")
-    f.write(f"{'No.':<6}{'Recognized Text':<25}{'Position'}\n")
-    f.write("-" * 60 + "\n")
+    f.write(f"{'No':<5}{'Text':<28}Position (x, y)\n")
 
     for i, (text, pos) in enumerate(dimensions, 1):
-        f.write(f"{i:<6}{text:<25}{str(pos)}\n")
+        f.write(f"{i:<5}{str(text):<28}{str(pos)}\n")
 
     f.write("-" * 60 + "\n")
     f.write(f"Detected dimensions : {len(dimensions)}\n")
@@ -136,11 +144,20 @@ with open(txt_path, "w", encoding="utf-8") as f:
     f.write("\n[ GD&T ]\n")
     f.write("-" * 60 + "\n")
 
-    if gdt_results:
-        for i, item in enumerate(gdt_results, 1):
-            f.write(f"{i:02d}. {item}\n")
-    else:
-        f.write("No GD&T detected.\n")
+    for i, item in enumerate(gdt_results, 1):
+        f.write(f"{i:02d}. {item}\n")
+
+    f.write("-" * 60 + "\n")
+    f.write(f"Detected GD&T : {len(gdt_results)}\n")
+
+    # OTHER TEXT
+    f.write("\n[ OTHER TEXT ]\n")
+    f.write("-" * 60 + "\n")
+
+    for i, item in enumerate(other_info, 1):
+        f.write(f"{i:02d}. {item}\n")
+
+    f.write(f"Detected other text : {len(other_info)}\n")
 
     # TITLE / TABLE
     f.write("\n[ TITLE / TABLE ]\n")
@@ -148,14 +165,15 @@ with open(txt_path, "w", encoding="utf-8") as f:
     f.write(f"Detected table regions : {len(table_results)}\n")
 
     for i, table in enumerate(table_results, 1):
-        f.write(f"table {i}: {table}\n")
+        f.write(f"  table {i}: {table}\n")
 
-    # OTHER INFO
-    f.write("\n[ OTHER TEXT ]\n")
-    for item in other_info:
-        f.write(f"{item}\n")
+    # IMAGE SIZE
+    height, width = img.shape[:2]
 
-    f.write("\n" + "=" * 60 + "\n")
+    f.write(
+        f"\nImage size : {width} x {height} px, "
+        "position = text center, origin top-left\n"
+    )
 
 print(f"[SAVED] {txt_path}")
 
