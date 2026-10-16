@@ -1,0 +1,43 @@
+[ DIMENSIONS ]
+------------------------------------------------------------
+No   Text                        Position (x, y)
+1    C2                          [139, 135]
+2    22                          [524, 145]
+3    5                           [92, 280]
+4    3                           [170, 987]
+5    12                          [301, 1439]
+6    40                          [519, 1439]
+7    31                          [812, 1439]
+8    C2                          [885, 61]
+9    8                           [1038, 143]
+10   C2                          [1294, 174]
+11   R6                          [1374, 531]
+12   R4                          [1379, 622]
+13   2.5                         [1198, 1043]
+14   15                          [1024, 1439]
+15   ⌀30                         [1880, 434]
+16   ⌀18                         [1916, 525]
+17   ⌀14                         [1922, 632]
+------------------------------------------------------------
+Detected dimensions : 17
+
+[ GD&T ]
+------------------------------------------------------------
+01. ['∠|0.0017|A', (104, 593)]
+02. ['⌭|0.002|A', (162, 709)]
+03. ['⏊|0.03|A', (808, 707)]
+04. ['⌖|0.05|A\n◎|0.001', (1416, 386)]
+05. ['⏥|0.002|A\n⫽|0.01', (851, 858)]
+------------------------------------------------------------
+Detected GD&T : 5
+
+[ OTHER TEXT ]
+------------------------------------------------------------
+Detected other text : 0
+
+[ TITLE / TABLE ]
+------------------------------------------------------------
+Detected table regions : 1
+  table 1: [{'text': 'PART', 'left': 1479, 'top': 959, 'width': 79, 'height': 25}, {'text': 'NAME', 'left': 1571, 'top': 959, 'width': 85, 'height': 25}, {'text': 'PISTON', 'left': 1893, 'top': 958, 'width': 114, 'height': 27}, {'text': 'ROD', 'left': 2022, 'top': 958, 'width': 66, 'height': 27}, {'text': 'PART', 'left': 1499, 'top': 1042, 'width': 80, 'height': 25}, {'text': 'NO.', 'left': 1592, 'top': 1041, 'width': 52, 'height': 27}, {'text': 'HX50-PR-1001', 'left': 1881, 'top': 1041, 'width': 217, 'height': 27}, {'text': 'SCALE', 'left': 1525, 'top': 1124, 'width': 94, 'height': 27}, {'text': '1.5:1', 'left': 1953, 'top': 1125, 'width': 74, 'height': 26}, {'text': 'OPERATOR', 'left': 1488, 'top': 1208, 'width': 171, 'height': 27}, {'text': 'DONG', 'left': 1895, 'top': 1208, 'width': 91, 'height': 27}, {'text': 'HYUN', 'left': 2000, 'top': 1209, 'width': 84, 'height': 26}, {'text': 'DATE', 'left': 1533, 'top': 1293, 'width': 80, 'height': 25}, {'text': '2026-10-13', 'left': 1904, 'top': 1292, 'width': 172, 'height': 27}, {'text': 'MATERIAL', 'left': 1495, 'top': 1376, 'width': 157, 'height': 25}, {'text': 'PISTON', 'left': 1893, 'top': 1375, 'width': 114, 'height': 27}, {'text': 'ROD', 'left': 2022, 'top': 1375, 'width': 66, 'height': 27}, {'text': 'SHEET', 'left': 1482, 'top': 1458, 'width': 100, 'height': 27}, {'text': 'SIZE', 'left': 1594, 'top': 1458, 'width': 69, 'height': 27}, {'text': 'A3', 'left': 1970, 'top': 1458, 'width': 38, 'height': 27}, {'text': 'UNIT', 'left': 1535, 'top': 1543, 'width': 76, 'height': 26}, {'text': 'MM', 'left': 1965, 'top': 1543, 'width': 49, 'height': 25}]
+
+Image size : 2339 x 1654 px, position = text center, origin top-left

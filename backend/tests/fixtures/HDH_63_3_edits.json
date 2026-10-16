@@ -1,0 +1,57 @@
+{
+  "reviewer": "이종민",
+  "frame_offset": [
+    56,
+    56
+  ],
+  "gdt": [
+    {
+      "item_id": "G01-1",
+      "value": "0.0035"
+    },
+    {
+      "item_id": "G01-2",
+      "value": "0.012"
+    },
+    {
+      "item_id": "G02-1",
+      "value": "0.0014"
+    },
+    {
+      "item_id": "G02-2",
+      "value": "0.015"
+    },
+    {
+      "item_id": "G03-1",
+      "value": "0.023"
+    },
+    {
+      "item_id": "G03-2",
+      "value": "0.017"
+    },
+    {
+      "item_id": "G04-1",
+      "value": "0.004"
+    },
+    {
+      "item_id": "G04-2",
+      "value": "0.012"
+    },
+    {
+      "item_id": "G05-1",
+      "value": "0.01"
+    }
+  ],
+  "added_dimensions": [
+    {
+      "value": "7",
+      "kind": "length",
+      "tolerance": {
+        "type": "general"
+      },
+      "x": 1267,
+      "y": 1103,
+      "coord": "image"
+    }
+  ]
+}
