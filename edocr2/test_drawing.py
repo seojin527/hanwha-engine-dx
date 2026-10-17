@@ -55,18 +55,56 @@ gpus = tf.config.list_physical_devices('GPU')
 for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
+def load_npz_weights(model, path):
+    print(f"[LOADING] {path}", flush=True)
+
+    with np.load(path) as data:
+        weights = [
+            data[f"arr_{i}"]
+            for i in range(len(data.files))
+        ]
+
+    expected = model.get_weights()
+
+    if len(weights) != len(expected):
+        raise ValueError(
+            f"Weight count mismatch: "
+            f"expected {len(expected)}, got {len(weights)}"
+        )
+
+    for i, (old, new) in enumerate(zip(expected, weights)):
+        if old.shape != new.shape:
+            raise ValueError(
+                f"Weight shape mismatch at {i}: "
+                f"expected {old.shape}, got {new.shape}"
+            )
+
+    model.set_weights(weights)
+    print(f"[OK] Loaded {len(weights)} weight arrays", flush=True)
+
 # Load models
 gdt_model = 'edocr2/edocr2/models/recognizer_gdts'
 dim_model = 'edocr2/edocr2/models/recognizer_dimensions_2'
-detector_model = None #'edocr2/models/detector_12_46'
+detector_model = None
 
 recognizer_gdt = None
 if gdt_boxes:
-    recognizer_gdt = Recognizer(alphabet=tools.ocr_pipelines.read_alphabet(gdt_model))
-    recognizer_gdt.model.load_weights(gdt_model + '.keras')
+    recognizer_gdt = Recognizer(
+        alphabet=tools.ocr_pipelines.read_alphabet(gdt_model)
+    )
+    load_npz_weights(
+        recognizer_gdt.model,
+        gdt_model + '_gpu_weights.npz'
+    )
+
 alphabet_dim = tools.ocr_pipelines.read_alphabet(dim_model)
 recognizer_dim = Recognizer(alphabet=alphabet_dim)
-recognizer_dim.model.load_weights(dim_model + '.keras')
+
+load_npz_weights(
+    recognizer_dim.model,
+    dim_model + '_gpu_weights.npz'
+)
+
 detector = Detector()
 
 if detector_model:
@@ -123,7 +161,7 @@ mask_img = tools.output_tools.mask_img(img, updated_gdt_boxes, updated_tables, d
 table_results, gdt_results, dimensions, other_info = tools.output_tools.process_raw_output(output_path, table_results, gdt_results, dimensions, other_info, save=False)
 
 # 1. OCR 결과 이미지 저장
-cv2.imwrite(result_path, mask_img)
+cv2.imwrite(str(result_path), mask_img)
 print(f"[SAVED] {result_path}")
 
 # 2. OCR RAW DATA TXT 저장
