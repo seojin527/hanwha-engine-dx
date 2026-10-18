@@ -1,19 +1,16 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MeasurementMarker } from "./MeasurementMarker";
 
 interface DrawingViewerProps {
   points: any[];
+  coordinateSize?: { width: number; height: number };
   selectedPointId: number;
   onSelectPoint: (id: number) => void;
   inspectionRecords: Record<number, any>;
   isAnalyzing: boolean;
   analyzingStep: number;
-  drawingUrl?: string;
+  drawingUrl?: string | null;
+  mediaType?: string;
   onDrawingUploaded?: (url: string) => void;
 }
 
@@ -22,100 +19,229 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   selectedPointId,
   onSelectPoint,
   inspectionRecords = {},
-  isAnalyzing,
-  analyzingStep,
   drawingUrl,
-  onDrawingUploaded,
+  mediaType,
+  coordinateSize,
+  isAnalyzing,
 }) => {
   const [zoom, setZoom] = useState(100);
-  
-  // 사용자가 public/images/ 폴더에 넣은 실제 도면 파일(1_image.png)을 기본값으로 지정
-  const [currentDrawing, setCurrentDrawing] = useState<string>(
-    drawingUrl || "/images/1_image.png"
-  );
+  const [panMode, setPanMode] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [loadedImage, setLoadedImage] = useState({ url: '', width: 0, height: 0 });
+  const [errorUrl, setErrorUrl] = useState<string | null>(null);
+  const imageSize = loadedImage.url === drawingUrl ? loadedImage : { width: 0, height: 0 };
+  const imageError = !!drawingUrl && errorUrl === drawingUrl;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setCurrentDrawing(url);
-      if (onDrawingUploaded) onDrawingUploaded(url);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
+
+  const isPdf = mediaType === "application/pdf";
+
+  // 도면 변경 시 확대·이동 상태 초기화
+  useEffect(() => {
+    setZoom(100);
+    setOffset({ x: 0, y: 0 });
+    setDragging(false);
+    dragRef.current = null;
+  }, [drawingUrl]);
+
+  function stopDragging(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+
+    dragRef.current = null;
+    setDragging(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
-  };
+  }
 
   return (
-    <div className="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center min-h-[400px]">
-      {/* Top Interactive Toolbars */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-700 px-3 py-1.5 rounded-lg shadow text-xs text-white">
-        <button className="hover:text-cyan-400 font-bold flex items-center gap-1">📍 선택</button>
-        <span className="text-slate-600">|</span>
-        <button className="hover:text-cyan-400">손바닥 이동</button>
-        <span className="text-slate-600">|</span>
-        <button onClick={() => setZoom((z) => Math.max(z - 10, 50))} className="hover:text-cyan-400 font-bold px-1">-</button>
-        <span className="font-mono text-cyan-300">{zoom}%</span>
-        <button onClick={() => setZoom((z) => Math.min(z + 10, 250))} className="hover:text-cyan-400 font-bold px-1">+</button>
-        <span className="text-slate-600">|</span>
-        <label className="cursor-pointer text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1">
-          📁 도면 변경
-          <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleFileUpload} />
-        </label>
-      </div>
-
-      {/* Drawing Canvas Area */}
-      <div className="relative w-full h-full overflow-auto flex items-center justify-center p-8 select-none">
-        <div 
-          className="relative shadow-2xl rounded border border-slate-700 bg-white transition-transform duration-200"
-          style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center center' }}
+    <div className="relative flex min-h-[160px] flex-1 flex-col overflow-hidden bg-slate-950">
+      <div className="z-20 flex shrink-0 items-center gap-2 border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf}
+          onClick={() => setPanMode(false)}
+          className={`rounded px-2 py-1 disabled:opacity-40 ${
+            !panMode ? "bg-cyan-700" : "bg-slate-800"
+          }`}
         >
-          {/* 실제 로컬 도면 이미지 렌더링 */}
-          <img
-            src={currentDrawing}
-            alt="Piston Rod Engineering Drawing"
-            className="block max-w-none pointer-events-none"
-            style={{ width: '1300px', height: 'auto' }}
-            draggable={false}
-          />
+          선택
+        </button>
 
-          {/* 17 Measurement Markers Positioned over the Drawing */}
-          {points.map((pt) => {
-            if (!pt) return null;
-            const ptId = pt.id || pt.displayNumber;
-            const isSelected = ptId === selectedPointId;
-            const record = inspectionRecords[ptId] || {};
-            const status = record.status || "pending";
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf}
+          onClick={() => setPanMode(true)}
+          className={`rounded px-2 py-1 disabled:opacity-40 ${
+            panMode ? "bg-cyan-700" : "bg-slate-800"
+          }`}
+        >
+          손바닥 이동
+        </button>
 
-            // 원본 해상도(3308x2339) 기준 좌표를 도면 이미지 비율에 맞게 퍼센트로 변환[cite: 8, 10]
-            const leftPercent = (pt.x / 3308) * 100;
-            const topPercent = (pt.y / 2339) * 100;
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf}
+          onClick={() => setZoom((value) => Math.max(25, value - 25))}
+          className="px-2 disabled:opacity-40"
+        >
+          −
+        </button>
 
-            return (
-              <div
-                key={ptId}
-                style={{
-                  position: 'absolute',
-                  left: `${leftPercent}%`,
-                  top: `${topPercent}%`,
-                }}
-                className="transform -translate-x-1/2 -translate-y-1/2 z-20"
-              >
-                <MeasurementMarker
-                  point={pt}
-                  isSelected={isSelected}
-                  onClick={() => onSelectPoint(ptId)}
-                  status={status}
-                />
-              </div>
-            );
-          })}
-        </div>
+        <span>{isPdf ? "PDF" : `${zoom}%`}</span>
+
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf}
+          onClick={() => setZoom((value) => Math.min(400, value + 25))}
+          className="px-2 disabled:opacity-40"
+        >
+          +
+        </button>
+
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf}
+          onClick={() => {
+            setZoom(100);
+            setOffset({ x: 0, y: 0 });
+          }}
+          className="rounded bg-slate-800 px-2 py-1 disabled:opacity-40"
+        >
+          보기 초기화
+        </button>
+
+        {isPdf && (
+          <span className="text-slate-400">
+            PDF 확대·이동은 PDF 뷰어 도구를 사용하세요.
+          </span>
+        )}
       </div>
 
-      {/* AI OCR Background Pipeline Analyzing Overlay */}
-      {isAnalyzing && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-30 flex flex-col items-center justify-center text-white p-6">
-          <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-sm font-bold text-cyan-300">AI 도면 OCR 자동 파이프라인 백그라운드 실행 중...</p>
-          <p className="text-xs text-slate-400 mt-1">단계 {analyzingStep} / 3 (인풋/아웃풋 디렉토리 정리 및 17개 포인트 좌표 맵핑)</p>
+      {isAnalyzing && <div role="status" className="absolute left-3 top-14 z-30 rounded border border-cyan-600 bg-slate-900/95 px-4 py-2 text-xs text-cyan-200">OCR 추출 결과 적용 중…</div>}
+      {!drawingUrl ? (
+        <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-400">
+          부품에서 도면을 선택하거나 새 도면을 등록해주세요.
+        </div>
+      ) : isPdf ? (
+        <iframe
+          key={drawingUrl}
+          src={drawingUrl}
+          title="등록된 PDF 도면"
+          className="min-h-0 w-full flex-1 border-0 bg-white"
+        />
+      ) : (
+        <div
+          className="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
+          style={{
+            cursor: panMode
+              ? dragging
+                ? "grabbing"
+                : "grab"
+              : "default",
+          }}
+          onPointerDown={(event) => {
+            if (!panMode || event.button !== 0) return;
+
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+
+            dragRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              initialX: offset.x,
+              initialY: offset.y,
+            };
+
+            setDragging(true);
+          }}
+          onPointerMove={(event) => {
+            const drag = dragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) return;
+
+            setOffset({
+              x: drag.initialX + event.clientX - drag.startX,
+              y: drag.initialY + event.clientY - drag.startY,
+            });
+          }}
+          onPointerUp={stopDragging}
+          onPointerCancel={stopDragging}
+          onLostPointerCapture={() => {
+            dragRef.current = null;
+            setDragging(false);
+          }}
+        >
+          {imageError ? (
+            <p role="alert" className="p-4 text-sm text-rose-300">
+              도면 이미지를 불러오지 못했습니다.
+            </p>
+          ) : (
+            <div
+              className="relative w-[90%] max-w-[1300px] shrink-0"
+              style={{
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom / 100})`,
+                transformOrigin: "center",
+              }}
+            >
+              <img
+                key={drawingUrl}
+                src={drawingUrl}
+                alt="선택한 도면"
+                draggable={false}
+                onLoad={(event) => {
+                  setLoadedImage({
+                    url: drawingUrl,
+                    width: event.currentTarget.naturalWidth,
+                    height: event.currentTarget.naturalHeight,
+                  });
+                }}
+                onError={() => setErrorUrl(drawingUrl)}
+                className="pointer-events-none block h-auto w-full bg-white"
+              />
+
+              {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
+                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 PNG의 크기가 달라 마커를 표시하지 않습니다.</div>}
+              {imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
+                points.map((point) => {
+                  const id = point.id ?? point.displayNumber;
+
+                  if (
+                    !Number.isFinite(point.x) ||
+                    !Number.isFinite(point.y)
+                  ) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={id}
+                      className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                      style={{
+                        left: `${(point.x / (coordinateSize?.width || imageSize.width)) * 100}%`,
+                        top: `${(point.y / (coordinateSize?.height || imageSize.height)) * 100}%`,
+                        pointerEvents: panMode ? "none" : "auto",
+                      }}
+                    >
+                      <MeasurementMarker
+                        point={point}
+                        isSelected={id === selectedPointId}
+                        onClick={() => onSelectPoint(id)}
+                        status={inspectionRecords[id]?.status || "pending"}
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
     </div>

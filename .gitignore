@@ -2,3 +2,5 @@ backend/.venv/
 backend/vector_db/
 __pycache__/
 *.pyc
+
+/backend/storage/

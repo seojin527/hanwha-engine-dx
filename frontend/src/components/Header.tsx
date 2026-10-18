@@ -7,6 +7,7 @@ import React from "react";
 import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
+  displayInfo?: { partName: string; drawingName: string };
   onUploadDrawing: (fileName: string) => void;
   onResetData: () => void;
   searchQuery: string;
@@ -14,6 +15,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  displayInfo,
   onUploadDrawing,
   onResetData,
   searchQuery,
@@ -31,30 +33,30 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            {MOCK_PART_INFO?.name || "PISTON ROD (피스톤 로드)"}
+            {displayInfo?.partName || MOCK_PART_INFO?.name || "PISTON ROD (피스톤 로드)"}
           </p>
         </div>
 
         <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 border-l border-slate-700 pl-6">
           <div>
             <span className="text-slate-500 mr-1.5">PART:</span>
-            <span className="font-semibold text-slate-200">{MOCK_PART_INFO?.name}</span>
+            <span className="font-semibold text-slate-200">{displayInfo?.partName || MOCK_PART_INFO?.name}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">PART NO.:</span>
-            <span className="font-semibold text-cyan-300">{MOCK_PART_INFO?.partNo}</span>
+            <span className="font-semibold text-cyan-300">{displayInfo ? "—" : MOCK_PART_INFO?.partNo}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">DRAWING:</span>
-            <span className="font-semibold text-slate-200">{MOCK_PART_INFO?.drawingNo}</span>
+            <span className="font-semibold text-slate-200">{displayInfo?.drawingName || MOCK_PART_INFO?.drawingNo}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">SCALE:</span>
-            <span className="font-semibold text-slate-200">{MOCK_PART_INFO?.scale}</span>
+            <span className="font-semibold text-slate-200">{displayInfo ? "—" : MOCK_PART_INFO?.scale}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">REVISION:</span>
-            <span className="font-semibold text-amber-300">{MOCK_PART_INFO?.revision}</span>
+            <span className="font-semibold text-amber-300">{displayInfo ? "—" : MOCK_PART_INFO?.revision}</span>
           </div>
         </div>
       </div>
@@ -79,18 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
-          onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*,.pdf";
-            input.onchange = (e: any) => {
-              const file = e.target.files[0];
-              if (file) {
-                onUploadDrawing(file.name);
-              }
-            };
-            input.click();
-          }}
+          onClick={() => onUploadDrawing("")}
           className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5"
         >
           📁 도면 업로드

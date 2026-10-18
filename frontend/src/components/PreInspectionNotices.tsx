@@ -1,5 +1,10 @@
 import React from "react";
-import { PreInspectionNotice } from "../data/mockData";
+interface PreInspectionNotice {
+  id: string;
+  numberText: string;
+  title: string;
+  description: string;
+}
 import { Info, AlertCircle } from "lucide-react";
 
 interface PreInspectionNoticesProps {

@@ -11,32 +11,34 @@
   "projection": "3rd angle",
   "drawn_date": "2026-10-11",
   "image": {
-    "file": null,
+    "file": "1_image.png",
     "width_px": 3308,
     "height_px": 2339,
     "dpi": 200,
     "coordinate_origin": "top-left",
-    "coordinate_anchor": "text_center"
+    "coordinate_anchor": "per_item",
+    "frame_offset": null,
+    "coordinate_status": "UNVERIFIED"
   },
   "title_table_raw": "PART NAME PISTON ROD PART NO. PR-04 MATERIAL $US304 QTY 1 SCALE 1:1 UNIT mm PROJECTION 3rd angle DRAWN 2026-10-11",
   "review_reasons": [
-    "재질 $US304는 OCR 원문이며 SUS304 등으로 자동 교정하지 않음"
+    "재질 $US304는 OCR 원문이며 SUS304 등으로 자동 교정하지 않음",
+    "원본 TXT에 Frame offset이 없어 좌표를 보정하지 않고 그대로 보존함. PNG와 좌표 기준 일치 여부 확인 필요."
   ],
   "items": [
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-001",
-      "source_category": "DIMENSION",
-      "source_no": 1,
+      "id": "DIMENSION_001",
+      "category": "DIMENSION",
       "raw_text": "-0.006 ⌀12-.0.017",
       "position": {
-        "x_px": 881,
-        "y_px": 748,
-        "x_normalized": 0.266324,
-        "y_normalized": 0.319795
+        "x": 881,
+        "y": 748,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 881,
+        "y": 748
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "DIAMETER",
       "nominal_value": null,
@@ -50,29 +52,21 @@
       "review_reasons": [
         "표기가 깨졌거나 지원하지 않는 형식: 공차·명목값 자동 확정 금지"
       ],
-      "retrieval_query": "도면 표기 -0.006 ⌀12-.0.017. 검사 특성 DIAMETER. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-001",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNKNOWN",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-002",
-      "source_category": "DIMENSION",
-      "source_no": 2,
+      "id": "DIMENSION_002",
+      "category": "DIMENSION",
       "raw_text": "M10",
       "position": {
-        "x_px": 778,
-        "y_px": 816,
-        "x_normalized": 0.235187,
-        "y_normalized": 0.348867
+        "x": 778,
+        "y": 816,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 778,
+        "y": 816
+      },
       "feature_type": "THREAD",
       "measurement_characteristic": "THREAD_SPEC",
       "nominal_value": 10.0,
@@ -89,29 +83,21 @@
       "thread_pitch": null,
       "thread_class": null,
       "thread_side": null,
-      "retrieval_query": "도면 표기 M10. 검사 특성 THREAD_SPEC. 형상 THREAD. 공차 유형 THREAD_SPEC. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-002",
-        "feature_type": "THREAD",
-        "tol_type": "THREAD_SPEC",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-003",
-      "source_category": "DIMENSION",
-      "source_no": 3,
+      "id": "DIMENSION_003",
+      "category": "DIMENSION",
       "raw_text": "26±0.05",
       "position": {
-        "x_px": 1102,
-        "y_px": 1116,
-        "x_normalized": 0.333132,
-        "y_normalized": 0.477127
+        "x": 1102,
+        "y": 1116,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1102,
+        "y": 1116
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 26.0,
@@ -125,29 +111,21 @@
       "review_reasons": [
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 26±0.05. 검사 특성 LINEAR_DIMENSION. 공차 유형 DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-003",
-        "feature_type": "UNKNOWN",
-        "tol_type": "DIMENSION",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-004",
-      "source_category": "DIMENSION",
-      "source_no": 4,
+      "id": "DIMENSION_004",
+      "category": "DIMENSION",
       "raw_text": "C0.5",
       "position": {
-        "x_px": 1154,
-        "y_px": 660,
-        "x_normalized": 0.348851,
-        "y_normalized": 0.282172
+        "x": 1154,
+        "y": 660,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1154,
+        "y": 660
+      },
       "feature_type": "CHAMFER",
       "measurement_characteristic": "CHAMFER_SIZE",
       "nominal_value": 0.5,
@@ -161,29 +139,21 @@
       "review_reasons": [
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
       ],
-      "retrieval_query": "도면 표기 C0.5. 검사 특성 CHAMFER_SIZE. 형상 CHAMFER. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-004",
-        "feature_type": "CHAMFER",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-005",
-      "source_category": "DIMENSION",
-      "source_no": 5,
+      "id": "DIMENSION_005",
+      "category": "DIMENSION",
       "raw_text": "120",
       "position": {
-        "x_px": 1678,
-        "y_px": 1027,
-        "x_normalized": 0.507255,
-        "y_normalized": 0.439077
+        "x": 1678,
+        "y": 1027,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1678,
+        "y": 1027
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 120.0,
@@ -198,29 +168,21 @@
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 120. 검사 특성 LINEAR_DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-005",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-006",
-      "source_category": "DIMENSION",
-      "source_no": 6,
+      "id": "DIMENSION_006",
+      "category": "DIMENSION",
       "raw_text": "14",
       "position": {
-        "x_px": 1057,
-        "y_px": 1028,
-        "x_normalized": 0.319528,
-        "y_normalized": 0.439504
+        "x": 1057,
+        "y": 1028,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1057,
+        "y": 1028
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 14.0,
@@ -235,29 +197,21 @@
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 14. 검사 특성 LINEAR_DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-006",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-007",
-      "source_category": "DIMENSION",
-      "source_no": 7,
+      "id": "DIMENSION_007",
+      "category": "DIMENSION",
       "raw_text": "12",
       "position": {
-        "x_px": 1158,
-        "y_px": 1028,
-        "x_normalized": 0.35006,
-        "y_normalized": 0.439504
+        "x": 1158,
+        "y": 1028,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1158,
+        "y": 1028
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 12.0,
@@ -272,29 +226,21 @@
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 12. 검사 특성 LINEAR_DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-007",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-008",
-      "source_category": "DIMENSION",
-      "source_no": 8,
+      "id": "DIMENSION_008",
+      "category": "DIMENSION",
       "raw_text": "146±0.05",
       "position": {
-        "x_px": 1575,
-        "y_px": 1232,
-        "x_normalized": 0.476119,
-        "y_normalized": 0.526721
+        "x": 1575,
+        "y": 1232,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1575,
+        "y": 1232
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 146.0,
@@ -308,29 +254,21 @@
       "review_reasons": [
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 146±0.05. 검사 특성 LINEAR_DIMENSION. 공차 유형 DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-008",
-        "feature_type": "UNKNOWN",
-        "tol_type": "DIMENSION",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-009",
-      "source_category": "DIMENSION",
-      "source_no": 9,
+      "id": "DIMENSION_009",
+      "category": "DIMENSION",
       "raw_text": "161±0.1",
       "position": {
-        "x_px": 1634,
-        "y_px": 1334,
-        "x_normalized": 0.493954,
-        "y_normalized": 0.570329
+        "x": 1634,
+        "y": 1334,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1634,
+        "y": 1334
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 161.0,
@@ -344,29 +282,21 @@
       "review_reasons": [
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 161±0.1. 검사 특성 LINEAR_DIMENSION. 공차 유형 DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-009",
-        "feature_type": "UNKNOWN",
-        "tol_type": "DIMENSION",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-010",
-      "source_category": "DIMENSION",
-      "source_no": 10,
+      "id": "DIMENSION_010",
+      "category": "DIMENSION",
       "raw_text": "176±0.2",
       "position": {
-        "x_px": 1694,
-        "y_px": 1438,
-        "x_normalized": 0.512092,
-        "y_normalized": 0.614793
+        "x": 1694,
+        "y": 1438,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1694,
+        "y": 1438
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 176.0,
@@ -380,29 +310,21 @@
       "review_reasons": [
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 176±0.2. 검사 특성 LINEAR_DIMENSION. 공차 유형 DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-010",
-        "feature_type": "UNKNOWN",
-        "tol_type": "DIMENSION",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-011",
-      "source_category": "DIMENSION",
-      "source_no": 11,
+      "id": "DIMENSION_011",
+      "category": "DIMENSION",
       "raw_text": "C0.5",
       "position": {
-        "x_px": 1948,
-        "y_px": 557,
-        "x_normalized": 0.588875,
-        "y_normalized": 0.238136
+        "x": 1948,
+        "y": 557,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 1948,
+        "y": 557
+      },
       "feature_type": "CHAMFER",
       "measurement_characteristic": "CHAMFER_SIZE",
       "nominal_value": 0.5,
@@ -416,29 +338,21 @@
       "review_reasons": [
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
       ],
-      "retrieval_query": "도면 표기 C0.5. 검사 특성 CHAMFER_SIZE. 형상 CHAMFER. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-011",
-        "feature_type": "CHAMFER",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-012",
-      "source_category": "DIMENSION",
-      "source_no": 12,
+      "id": "DIMENSION_012",
+      "category": "DIMENSION",
       "raw_text": "C0.5",
       "position": {
-        "x_px": 2230,
-        "y_px": 650,
-        "x_normalized": 0.674123,
-        "y_normalized": 0.277897
+        "x": 2230,
+        "y": 650,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2230,
+        "y": 650
+      },
       "feature_type": "CHAMFER",
       "measurement_characteristic": "CHAMFER_SIZE",
       "nominal_value": 0.5,
@@ -452,29 +366,21 @@
       "review_reasons": [
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
       ],
-      "retrieval_query": "도면 표기 C0.5. 검사 특성 CHAMFER_SIZE. 형상 CHAMFER. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-012",
-        "feature_type": "CHAMFER",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-013",
-      "source_category": "DIMENSION",
-      "source_no": 13,
+      "id": "DIMENSION_013",
+      "category": "DIMENSION",
       "raw_text": "⌀16±0.01",
       "position": {
-        "x_px": 2441,
-        "y_px": 736,
-        "x_normalized": 0.737908,
-        "y_normalized": 0.314664
+        "x": 2441,
+        "y": 736,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2441,
+        "y": 736
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "DIAMETER",
       "nominal_value": 16.0,
@@ -488,29 +394,21 @@
       "review_reasons": [
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 ⌀16±0.01. 검사 특성 DIAMETER. 공차 유형 DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-013",
-        "feature_type": "UNKNOWN",
-        "tol_type": "DIMENSION",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-014",
-      "source_category": "DIMENSION",
-      "source_no": 14,
+      "id": "DIMENSION_014",
+      "category": "DIMENSION",
       "raw_text": "15",
       "position": {
-        "x_px": 2209,
-        "y_px": 1028,
-        "x_normalized": 0.667775,
-        "y_normalized": 0.439504
+        "x": 2209,
+        "y": 1028,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2209,
+        "y": 1028
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 15.0,
@@ -525,29 +423,21 @@
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 15. 검사 특성 LINEAR_DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-014",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-015",
-      "source_category": "DIMENSION",
-      "source_no": 15,
+      "id": "DIMENSION_015",
+      "category": "DIMENSION",
       "raw_text": "15",
       "position": {
-        "x_px": 2327,
-        "y_px": 1028,
-        "x_normalized": 0.703446,
-        "y_normalized": 0.439504
+        "x": 2327,
+        "y": 1028,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2327,
+        "y": 1028
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "LINEAR_DIMENSION",
       "nominal_value": 15.0,
@@ -562,29 +452,21 @@
         "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
         "문자만으로 실제 형상/측정면 확정 불가"
       ],
-      "retrieval_query": "도면 표기 15. 검사 특성 LINEAR_DIMENSION. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-015",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNSPECIFIED",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-016",
-      "source_category": "DIMENSION",
-      "source_no": 16,
+      "id": "DIMENSION_016",
+      "category": "DIMENSION",
       "raw_text": "⌀ -0.006 12..017",
       "position": {
-        "x_px": 2541,
-        "y_px": 747,
-        "x_normalized": 0.768138,
-        "y_normalized": 0.319367
+        "x": 2541,
+        "y": 747,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2541,
+        "y": 747
+      },
       "feature_type": "UNKNOWN",
       "measurement_characteristic": "DIAMETER",
       "nominal_value": null,
@@ -598,29 +480,21 @@
       "review_reasons": [
         "표기가 깨졌거나 지원하지 않는 형식: 공차·명목값 자동 확정 금지"
       ],
-      "retrieval_query": "도면 표기 ⌀ -0.006 12..017. 검사 특성 DIAMETER. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-016",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNKNOWN",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-DIMENSION-017",
-      "source_category": "DIMENSION",
-      "source_no": 17,
+      "id": "DIMENSION_017",
+      "category": "DIMENSION",
       "raw_text": "M10",
       "position": {
-        "x_px": 2676,
-        "y_px": 817,
-        "x_normalized": 0.808948,
-        "y_normalized": 0.349295
+        "x": 2676,
+        "y": 817,
+        "anchor": "text_center"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
+      "original_position": {
+        "x": 2676,
+        "y": 817
+      },
       "feature_type": "THREAD",
       "measurement_characteristic": "THREAD_SPEC",
       "nominal_value": 10.0,
@@ -637,105 +511,48 @@
       "thread_pitch": null,
       "thread_class": null,
       "thread_side": null,
-      "retrieval_query": "도면 표기 M10. 검사 특성 THREAD_SPEC. 형상 THREAD. 공차 유형 THREAD_SPEC. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-DIMENSION-017",
-        "feature_type": "THREAD",
-        "tol_type": "THREAD_SPEC",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-GDT-001",
-      "source_category": "GDT",
-      "source_no": 1,
+      "id": "GDT_001",
+      "category": "GDT",
       "raw_text": "○|0.05⏊",
       "position": {
-        "x_px": 1708,
-        "y_px": 440,
-        "x_normalized": 0.516324,
-        "y_normalized": 0.188115
+        "x": 1708,
+        "y": 440,
+        "anchor": "frame_top_left"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
-      "feature_type": "UNKNOWN",
-      "measurement_characteristic": "UNKNOWN",
-      "nominal_value": null,
-      "unit": "mm",
-      "tol_type": "UNKNOWN",
-      "tol_value": null,
+      "original_position": {
+        "x": 1708,
+        "y": 440
+      },
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
       "requires_review": true,
       "review_reasons": [
-        "기하공차 프레임 구분/기호/데이텀이 불명확하여 원도면 확인 필요"
+        "기하공차 종류, 기준 데이텀 및 공차역 해석 필요"
       ],
-      "symbol_candidates": [
-        {
-          "symbol": "○",
-          "tol_type": "ROUNDNESS"
-        },
-        {
-          "symbol": "⏊",
-          "tol_type": "PERPENDICULARITY"
-        }
-      ],
-      "retrieval_query": "도면 표기 ○|0.05⏊. 검사 특성 UNKNOWN. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-GDT-001",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNKNOWN",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     },
     {
-      "item_id": "PR-04-DEMO-001-GDT-002",
-      "source_category": "GDT",
-      "source_no": 2,
+      "id": "GDT_002",
+      "category": "GDT",
       "raw_text": "↗|0.015⏊|AB",
       "position": {
-        "x_px": 1354,
-        "y_px": 322,
-        "x_normalized": 0.409311,
-        "y_normalized": 0.137666
+        "x": 1354,
+        "y": 322,
+        "anchor": "frame_top_left"
       },
-      "bbox": null,
-      "datum": null,
-      "linked_feature_item_id": null,
-      "feature_type": "UNKNOWN",
-      "measurement_characteristic": "UNKNOWN",
-      "nominal_value": null,
-      "unit": "mm",
-      "tol_type": "UNKNOWN",
-      "tol_value": null,
+      "original_position": {
+        "x": 1354,
+        "y": 322
+      },
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
       "requires_review": true,
       "review_reasons": [
-        "기하공차 프레임 구분/기호/데이텀이 불명확하여 원도면 확인 필요"
+        "기하공차 종류, 기준 데이텀 및 공차역 해석 필요"
       ],
-      "symbol_candidates": [
-        {
-          "symbol": "⏊",
-          "tol_type": "PERPENDICULARITY"
-        },
-        {
-          "symbol": "↗",
-          "tol_type": "RUNOUT"
-        }
-      ],
-      "retrieval_query": "도면 표기 ↗|0.015⏊|AB. 검사 특성 UNKNOWN. 관련 측정 오류사례와 주의사항 검색",
-      "retrieval_metadata": {
-        "drawing_id": "PR-04-DEMO-001",
-        "item_id": "PR-04-DEMO-001-GDT-002",
-        "feature_type": "UNKNOWN",
-        "tol_type": "UNKNOWN",
-        "requires_review": true
-      }
+      "coordinate_requires_review": true
     }
   ],
-  "counts": {
-    "dimensions": 17,
-    "gdt": 2,
-    "total": 19
-  }
+  "item_count": 19
 }

@@ -7,23 +7,35 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
 
+from drawing_library import router as library_router, init_library
+
+
+from ocr_api import router as ocr_router
+from ocr_results import init_ocr_results
+
 
 BASE_DIR = Path(__file__).resolve().parent
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버 시작 시 한 번만 불러오기
+    # 부품·도면 관리 DB 준비
+    init_library()
+    init_ocr_results()
+
+    # 기존 OCR JSON 불러오기
     json_path = BASE_DIR.parent / "data" / "1_metadata.json"
     app.state.drawing = json.loads(
         json_path.read_text(encoding="utf-8-sig")
     )
 
+    # 검색용 모델 불러오기
     app.state.model = SentenceTransformer(
         "intfloat/multilingual-e5-small",
         device="cpu",
     )
 
+    # 기존 오류사례 벡터DB 연결
     app.state.client = chromadb.PersistentClient(
         path=str(BASE_DIR / "vector_db")
     )
@@ -31,12 +43,17 @@ async def lifespan(app: FastAPI):
         name="error_cases_e5_small_v1",
         embedding_function=None,
     )
+
     yield
 
 
 app = FastAPI(lifespan=lifespan)
 
-# 로컬 프론트 개발 서버에서 API 호출 허용
+# 부품·도면 관리 API 연결
+app.include_router(library_router)
+app.include_router(ocr_router)
+
+# 로컬 프론트에서 조회·등록 요청 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -45,7 +62,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -61,6 +78,7 @@ def get_related_errors(
     top_k: int = Query(default=3, ge=1, le=10),
 ):
     drawing = app.state.drawing
+
     item = next(
         (
             entry for entry in drawing["items"]
@@ -77,6 +95,7 @@ def get_related_errors(
     # 확정된 형상만 필터에 사용
     feature = item.get("feature_type")
     where = None
+
     if feature and feature != "UNKNOWN":
         where = {"feature_type": feature}
 
