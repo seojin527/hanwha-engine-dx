@@ -1,0 +1,790 @@
+{
+  "schema_version": "1.0",
+  "drawing_id": "HDH_63_06",
+  "part_name": "PISTON ROD",
+  "part_no": "HX50-PR-1001",
+  "material_raw": "PISTON ROD",
+  "material_normalized": null,
+  "quantity": null,
+  "drawing_scale": "1.5:1",
+  "unit": "mm",
+  "unit_raw": "MM",
+  "projection": null,
+  "sheet_size": "A3",
+  "drawn_date": "2026-10-16",
+  "operator": "DONG HYUN",
+  "image": {
+    "file": "HDH_63_06_reviewed.jpg",
+    "width_px": 2339,
+    "height_px": 1654,
+    "dpi": 200,
+    "coordinate_origin": "top-left",
+    "coordinate_anchor": "text_center"
+  },
+  "title_table_raw": "PART NAME PISTON ROD | PART NO. HX50-PR-1001 | SCALE 1.5:1 | OPERATOR DONG HYUN | DATE 2026-10-16 | MATERIAL PISTON ROD | SHEET SIZE A3 | UNIT MM",
+  "review_reasons": [
+    "MATERIAL 칸의 값 'PISTON ROD' 이 PART NAME 과 같음: 실제 재질인지 원도면 확인 필요 (자동 확정 안 함)"
+  ],
+  "items": [
+    {
+      "id": "DIMENSION_001",
+      "category": "DIMENSION",
+      "position": {
+        "x": 212,
+        "y": 191
+      },
+      "original_position": {
+        "x": 156,
+        "y": 135
+      },
+      "raw_text": "C2",
+      "feature_type": "CHAMFER",
+      "measurement_characteristic": "CHAMFER_SIZE",
+      "nominal_value": 2.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
+      ]
+    },
+    {
+      "id": "DIMENSION_002",
+      "category": "DIMENSION",
+      "position": {
+        "x": 596,
+        "y": 200
+      },
+      "original_position": {
+        "x": 540,
+        "y": 144
+      },
+      "raw_text": "68",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 68.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_003",
+      "category": "DIMENSION",
+      "position": {
+        "x": 215,
+        "y": 351
+      },
+      "original_position": {
+        "x": 159,
+        "y": 295
+      },
+      "raw_text": "14",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 14.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_004",
+      "category": "DIMENSION",
+      "position": {
+        "x": 289,
+        "y": 1043
+      },
+      "original_position": {
+        "x": 233,
+        "y": 987
+      },
+      "raw_text": "5.5",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 5.5,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_005",
+      "category": "DIMENSION",
+      "position": {
+        "x": 243,
+        "y": 1464
+      },
+      "original_position": {
+        "x": 187,
+        "y": 1408
+      },
+      "raw_text": "24",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 24.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_006",
+      "category": "DIMENSION",
+      "position": {
+        "x": 591,
+        "y": 1464
+      },
+      "original_position": {
+        "x": 535,
+        "y": 1408
+      },
+      "raw_text": "78",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 78.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_007",
+      "category": "DIMENSION",
+      "position": {
+        "x": 958,
+        "y": 117
+      },
+      "original_position": {
+        "x": 902,
+        "y": 61
+      },
+      "raw_text": "C2",
+      "feature_type": "CHAMFER",
+      "measurement_characteristic": "CHAMFER_SIZE",
+      "nominal_value": 2.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
+      ]
+    },
+    {
+      "id": "DIMENSION_008",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1340,
+        "y": 136
+      },
+      "original_position": {
+        "x": 1284,
+        "y": 80
+      },
+      "raw_text": "C2",
+      "feature_type": "CHAMFER",
+      "measurement_characteristic": "CHAMFER_SIZE",
+      "nominal_value": 2.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
+      ]
+    },
+    {
+      "id": "DIMENSION_009",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1109,
+        "y": 200
+      },
+      "original_position": {
+        "x": 1053,
+        "y": 144
+      },
+      "raw_text": "27",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 27.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_010",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1402,
+        "y": 284
+      },
+      "original_position": {
+        "x": 1346,
+        "y": 228
+      },
+      "raw_text": "M10",
+      "feature_type": "THREAD",
+      "measurement_characteristic": "THREAD_SPEC",
+      "nominal_value": 10.0,
+      "unit": "mm",
+      "tol_type": "THREAD_SPEC",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "나사 피치·등급·내외나사 여부는 원도면/적용 규격 확인 필요"
+      ],
+      "thread_pitch": null,
+      "thread_class": null,
+      "thread_side": null
+    },
+    {
+      "id": "DIMENSION_011",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1326,
+        "y": 569
+      },
+      "original_position": {
+        "x": 1270,
+        "y": 513
+      },
+      "raw_text": "R6",
+      "feature_type": "RADIUS",
+      "measurement_characteristic": "RADIUS",
+      "nominal_value": 6.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
+      ]
+    },
+    {
+      "id": "DIMENSION_012",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1318,
+        "y": 726
+      },
+      "original_position": {
+        "x": 1262,
+        "y": 670
+      },
+      "raw_text": "R4",
+      "feature_type": "RADIUS",
+      "measurement_characteristic": "RADIUS",
+      "nominal_value": 4.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지"
+      ]
+    },
+    {
+      "id": "DIMENSION_013",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1270,
+        "y": 1103
+      },
+      "original_position": {
+        "x": 1214,
+        "y": 1047
+      },
+      "raw_text": "6",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 6.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_014",
+      "category": "DIMENSION",
+      "position": {
+        "x": 886,
+        "y": 1464
+      },
+      "original_position": {
+        "x": 830,
+        "y": 1408
+      },
+      "raw_text": "64",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 64.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_015",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1095,
+        "y": 1464
+      },
+      "original_position": {
+        "x": 1039,
+        "y": 1408
+      },
+      "raw_text": "31",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "LINEAR_DIMENSION",
+      "nominal_value": 31.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_016",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1830,
+        "y": 476
+      },
+      "original_position": {
+        "x": 1774,
+        "y": 420
+      },
+      "raw_text": "⌀38",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "DIAMETER",
+      "nominal_value": 38.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_017",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1866,
+        "y": 567
+      },
+      "original_position": {
+        "x": 1810,
+        "y": 511
+      },
+      "raw_text": "⌀24",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "DIAMETER",
+      "nominal_value": 24.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "DIMENSION_018",
+      "category": "DIMENSION",
+      "position": {
+        "x": 1871,
+        "y": 674
+      },
+      "original_position": {
+        "x": 1815,
+        "y": 618
+      },
+      "raw_text": "⌀18",
+      "feature_type": "UNKNOWN",
+      "measurement_characteristic": "DIAMETER",
+      "nominal_value": 18.0,
+      "unit": "mm",
+      "tol_type": "UNSPECIFIED",
+      "upper_deviation": null,
+      "lower_deviation": null,
+      "lower_limit": null,
+      "upper_limit": null,
+      "requires_review": true,
+      "review_reasons": [
+        "개별 공차 없음: 일반공차/규격 확인 전 합격범위 계산 금지",
+        "문자만으로 실제 형상/측정면 확정 불가"
+      ]
+    },
+    {
+      "id": "GDT_001_1",
+      "category": "GDT",
+      "position": {
+        "x": 868,
+        "y": 854
+      },
+      "original_position": {
+        "x": 868,
+        "y": 854
+      },
+      "frame_id": "GDT_001",
+      "row_index": 1,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⏥|0.0031|A",
+      "gdt_symbol": "⏥",
+      "gdt_type": "FLATNESS",
+      "gdt_name_ko": "평면도",
+      "gdt_category": "FORM",
+      "tolerance_value": 0.0031,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [
+        "A"
+      ],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_001_2",
+      "category": "GDT",
+      "position": {
+        "x": 868,
+        "y": 854
+      },
+      "original_position": {
+        "x": 868,
+        "y": 854
+      },
+      "frame_id": "GDT_001",
+      "row_index": 2,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⫽|0.009",
+      "gdt_symbol": "⫽",
+      "gdt_type": "PARALLELISM",
+      "gdt_name_ko": "평행도",
+      "gdt_category": "ORIENTATION",
+      "tolerance_value": 0.009,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_002_1",
+      "category": "GDT",
+      "position": {
+        "x": 1998,
+        "y": 729
+      },
+      "original_position": {
+        "x": 1998,
+        "y": 729
+      },
+      "frame_id": "GDT_002",
+      "row_index": 1,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "○|0.0013|A",
+      "gdt_symbol": "○",
+      "gdt_type": "CIRCULARITY",
+      "gdt_name_ko": "진원도",
+      "gdt_category": "FORM",
+      "tolerance_value": 0.0013,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [
+        "A"
+      ],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_002_2",
+      "category": "GDT",
+      "position": {
+        "x": 1998,
+        "y": 729
+      },
+      "original_position": {
+        "x": 1998,
+        "y": 729
+      },
+      "frame_id": "GDT_002",
+      "row_index": 2,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⌯|0.014",
+      "gdt_symbol": "⌯",
+      "gdt_type": "SYMMETRY",
+      "gdt_name_ko": "대칭도",
+      "gdt_category": "LOCATION",
+      "tolerance_value": 0.014,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_003_1",
+      "category": "GDT",
+      "position": {
+        "x": 1561,
+        "y": 366
+      },
+      "original_position": {
+        "x": 1561,
+        "y": 366
+      },
+      "frame_id": "GDT_003",
+      "row_index": 1,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⌖|0.018|A",
+      "gdt_symbol": "⌖",
+      "gdt_type": "POSITION",
+      "gdt_name_ko": "위치도",
+      "gdt_category": "LOCATION",
+      "tolerance_value": 0.018,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [
+        "A"
+      ],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_003_2",
+      "category": "GDT",
+      "position": {
+        "x": 1561,
+        "y": 366
+      },
+      "original_position": {
+        "x": 1561,
+        "y": 366
+      },
+      "frame_id": "GDT_003",
+      "row_index": 2,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "◎|0.012",
+      "gdt_symbol": "◎",
+      "gdt_type": "CONCENTRICITY",
+      "gdt_name_ko": "동심도",
+      "gdt_category": "LOCATION",
+      "tolerance_value": 0.012,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_004_1",
+      "category": "GDT",
+      "position": {
+        "x": 186,
+        "y": 699
+      },
+      "original_position": {
+        "x": 186,
+        "y": 699
+      },
+      "frame_id": "GDT_004",
+      "row_index": 1,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⌭|0.003|A",
+      "gdt_symbol": "⌭",
+      "gdt_type": "CYLINDRICITY",
+      "gdt_name_ko": "원통도",
+      "gdt_category": "FORM",
+      "tolerance_value": 0.003,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [
+        "A"
+      ],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_004_2",
+      "category": "GDT",
+      "position": {
+        "x": 186,
+        "y": 699
+      },
+      "original_position": {
+        "x": 186,
+        "y": 699
+      },
+      "frame_id": "GDT_004",
+      "row_index": 2,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⏤|0.009",
+      "gdt_symbol": "⏤",
+      "gdt_type": "STRAIGHTNESS",
+      "gdt_name_ko": "진직도",
+      "gdt_category": "FORM",
+      "tolerance_value": 0.009,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    },
+    {
+      "id": "GDT_005_1",
+      "category": "GDT",
+      "position": {
+        "x": 825,
+        "y": 704
+      },
+      "original_position": {
+        "x": 825,
+        "y": 704
+      },
+      "frame_id": "GDT_005",
+      "row_index": 1,
+      "measurement_characteristic": "GEOMETRIC_TOLERANCE",
+      "raw_text": "⏊|0.01|A",
+      "gdt_symbol": "⏊",
+      "gdt_type": "PERPENDICULARITY",
+      "gdt_name_ko": "직각도",
+      "gdt_category": "ORIENTATION",
+      "tolerance_value": 0.01,
+      "tolerance_zone": "WIDTH",
+      "material_condition": null,
+      "datum_references": [
+        "A"
+      ],
+      "requires_review": false,
+      "review_reasons": [],
+      "frame_datum_references": [
+        "A"
+      ]
+    }
+  ],
+  "item_count": 27,
+  "counts": {
+    "dimensions": 18,
+    "gdt_rows": 9,
+    "gdt_frames": 5
+  }
+}

@@ -1,0 +1,592 @@
+{
+  "schema": "ocr-review/1",
+  "drawing": "HDH_63_03",
+  "image": {
+    "width": 2339,
+    "height": 1654,
+    "dpi": 200,
+    "frame_offset": [
+      56,
+      56
+    ]
+  },
+  "summary": {
+    "gdt_rows": 9,
+    "gdt_format_error": 1,
+    "dimensions": 18
+  },
+  "gdt": [
+    {
+      "item_id": "G01-1",
+      "entry_no": 1,
+      "row": 1,
+      "raw": "⏥|0.022|A",
+      "symbol": "⏥",
+      "symbol_name": "평면도",
+      "value": "0.022",
+      "datums": [
+        "A"
+      ],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 868,
+        "y": 854,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.371099,
+        "y": 0.516324
+      }
+    },
+    {
+      "item_id": "G01-2",
+      "entry_no": 1,
+      "row": 2,
+      "raw": "⫽|0.09",
+      "symbol": "⫽",
+      "symbol_name": "평행도",
+      "value": "0.09",
+      "datums": [],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 868,
+        "y": 854,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.371099,
+        "y": 0.516324
+      }
+    },
+    {
+      "item_id": "G02-1",
+      "entry_no": 2,
+      "row": 1,
+      "raw": "○|0.01|A",
+      "symbol": "○",
+      "symbol_name": "진원도",
+      "value": "0.01",
+      "datums": [
+        "A"
+      ],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 1998,
+        "y": 729,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.854211,
+        "y": 0.44075
+      }
+    },
+    {
+      "item_id": "G02-2",
+      "entry_no": 2,
+      "row": 2,
+      "raw": "⌯|0.012",
+      "symbol": "⌯",
+      "symbol_name": "대칭도",
+      "value": "0.012",
+      "datums": [],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 1998,
+        "y": 729,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.854211,
+        "y": 0.44075
+      }
+    },
+    {
+      "item_id": "G03-1",
+      "entry_no": 3,
+      "row": 1,
+      "raw": "⌖|0.21|A",
+      "symbol": "⌖",
+      "symbol_name": "위치도",
+      "value": "0.21",
+      "datums": [
+        "A"
+      ],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 1561,
+        "y": 366,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.667379,
+        "y": 0.221282
+      }
+    },
+    {
+      "item_id": "G03-2",
+      "entry_no": 3,
+      "row": 2,
+      "raw": "◎|0.011",
+      "symbol": "◎",
+      "symbol_name": "동심도",
+      "value": "0.011",
+      "datums": [],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 1561,
+        "y": 366,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.667379,
+        "y": 0.221282
+      }
+    },
+    {
+      "item_id": "G04-1",
+      "entry_no": 4,
+      "row": 1,
+      "raw": "⌭|0.02|A",
+      "symbol": "⌭",
+      "symbol_name": "원통도",
+      "value": "0.02",
+      "datums": [
+        "A"
+      ],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 186,
+        "y": 699,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.079521,
+        "y": 0.422612
+      }
+    },
+    {
+      "item_id": "G04-2",
+      "entry_no": 4,
+      "row": 2,
+      "raw": "⏤|0.08",
+      "symbol": "⏤",
+      "symbol_name": "진직도",
+      "value": "0.08",
+      "datums": [],
+      "status": "check",
+      "message": null,
+      "position": {
+        "x": 186,
+        "y": 699,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.079521,
+        "y": 0.422612
+      }
+    },
+    {
+      "item_id": "G05-1",
+      "entry_no": 5,
+      "row": 1,
+      "raw": "⏊|,.01|A",
+      "symbol": "⏊",
+      "symbol_name": "직각도",
+      "value": ",.01",
+      "datums": [
+        "A"
+      ],
+      "status": "format_error",
+      "message": "숫자 형식이 아님 (글자 깨짐)",
+      "position": {
+        "x": 825,
+        "y": 704,
+        "anchor": "frame_top_left",
+        "coord": "image"
+      },
+      "position_norm": {
+        "x": 0.352715,
+        "y": 0.425635
+      }
+    }
+  ],
+  "dimensions": [
+    {
+      "item_id": "D01",
+      "no": 1,
+      "text": "C1",
+      "status": "auto",
+      "position": {
+        "x": 154,
+        "y": 135,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 210,
+        "y": 191
+      },
+      "position_norm": {
+        "x": 0.089782,
+        "y": 0.115478
+      }
+    },
+    {
+      "item_id": "D02",
+      "no": 2,
+      "text": "65",
+      "status": "auto",
+      "position": {
+        "x": 541,
+        "y": 144,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 597,
+        "y": 200
+      },
+      "position_norm": {
+        "x": 0.255237,
+        "y": 0.120919
+      }
+    },
+    {
+      "item_id": "D03",
+      "no": 3,
+      "text": "14",
+      "status": "auto",
+      "position": {
+        "x": 159,
+        "y": 295,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 215,
+        "y": 351
+      },
+      "position_norm": {
+        "x": 0.09192,
+        "y": 0.212213
+      }
+    },
+    {
+      "item_id": "D04",
+      "no": 4,
+      "text": "4.5",
+      "status": "auto",
+      "position": {
+        "x": 232,
+        "y": 986,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 288,
+        "y": 1042
+      },
+      "position_norm": {
+        "x": 0.12313,
+        "y": 0.629988
+      }
+    },
+    {
+      "item_id": "D05",
+      "no": 5,
+      "text": "22",
+      "status": "auto",
+      "position": {
+        "x": 186,
+        "y": 1408,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 242,
+        "y": 1464
+      },
+      "position_norm": {
+        "x": 0.103463,
+        "y": 0.885127
+      }
+    },
+    {
+      "item_id": "D06",
+      "no": 6,
+      "text": "75",
+      "status": "auto",
+      "position": {
+        "x": 535,
+        "y": 1408,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 591,
+        "y": 1464
+      },
+      "position_norm": {
+        "x": 0.252672,
+        "y": 0.885127
+      }
+    },
+    {
+      "item_id": "D07",
+      "no": 7,
+      "text": "C1",
+      "status": "auto",
+      "position": {
+        "x": 902,
+        "y": 61,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 958,
+        "y": 117
+      },
+      "position_norm": {
+        "x": 0.409577,
+        "y": 0.070738
+      }
+    },
+    {
+      "item_id": "D08",
+      "no": 8,
+      "text": "C1",
+      "status": "auto",
+      "position": {
+        "x": 1283,
+        "y": 80,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1339,
+        "y": 136
+      },
+      "position_norm": {
+        "x": 0.572467,
+        "y": 0.082225
+      }
+    },
+    {
+      "item_id": "D09",
+      "no": 9,
+      "text": "26",
+      "status": "auto",
+      "position": {
+        "x": 1053,
+        "y": 146,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1109,
+        "y": 202
+      },
+      "position_norm": {
+        "x": 0.474134,
+        "y": 0.122128
+      }
+    },
+    {
+      "item_id": "D10",
+      "no": 10,
+      "text": "M10",
+      "status": "auto",
+      "position": {
+        "x": 1346,
+        "y": 228,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1402,
+        "y": 284
+      },
+      "position_norm": {
+        "x": 0.599401,
+        "y": 0.171705
+      }
+    },
+    {
+      "item_id": "D11",
+      "no": 11,
+      "text": "R6",
+      "status": "auto",
+      "position": {
+        "x": 1270,
+        "y": 513,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1326,
+        "y": 569
+      },
+      "position_norm": {
+        "x": 0.566909,
+        "y": 0.344015
+      }
+    },
+    {
+      "item_id": "D12",
+      "no": 12,
+      "text": "R3",
+      "status": "auto",
+      "position": {
+        "x": 1261,
+        "y": 671,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1317,
+        "y": 727
+      },
+      "position_norm": {
+        "x": 0.563061,
+        "y": 0.439541
+      }
+    },
+    {
+      "item_id": "D13",
+      "no": 13,
+      "text": "6",
+      "status": "auto",
+      "position": {
+        "x": 1214,
+        "y": 1047,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1270,
+        "y": 1103
+      },
+      "position_norm": {
+        "x": 0.542967,
+        "y": 0.666868
+      }
+    },
+    {
+      "item_id": "D14",
+      "no": 14,
+      "text": "30",
+      "status": "auto",
+      "position": {
+        "x": 1040,
+        "y": 1407,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1096,
+        "y": 1463
+      },
+      "position_norm": {
+        "x": 0.468576,
+        "y": 0.884522
+      }
+    },
+    {
+      "item_id": "D15",
+      "no": 15,
+      "text": "60",
+      "status": "auto",
+      "position": {
+        "x": 830,
+        "y": 1408,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 886,
+        "y": 1464
+      },
+      "position_norm": {
+        "x": 0.378794,
+        "y": 0.885127
+      }
+    },
+    {
+      "item_id": "D16",
+      "no": 16,
+      "text": "⌀36",
+      "status": "auto",
+      "position": {
+        "x": 1774,
+        "y": 420,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1830,
+        "y": 476
+      },
+      "position_norm": {
+        "x": 0.782386,
+        "y": 0.287787
+      }
+    },
+    {
+      "item_id": "D17",
+      "no": 17,
+      "text": "⌀22",
+      "status": "auto",
+      "position": {
+        "x": 1810,
+        "y": 511,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1866,
+        "y": 567
+      },
+      "position_norm": {
+        "x": 0.797777,
+        "y": 0.342805
+      }
+    },
+    {
+      "item_id": "D18",
+      "no": 18,
+      "text": "⌀16",
+      "status": "auto",
+      "position": {
+        "x": 1815,
+        "y": 618,
+        "anchor": "text_center",
+        "coord": "frame"
+      },
+      "position_image": {
+        "x": 1871,
+        "y": 674
+      },
+      "position_norm": {
+        "x": 0.799914,
+        "y": 0.407497
+      }
+    }
+  ],
+  "other_text": [],
+  "warnings": []
+}

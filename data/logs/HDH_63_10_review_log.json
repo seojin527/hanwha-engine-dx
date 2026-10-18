@@ -1,0 +1,118 @@
+{
+  "schema": "ocr-review-log/1",
+  "drawing": "HDH_63_10",
+  "reviewer": "sj",
+  "reviewed_at": "2026-10-18T16:54:15+00:00",
+  "origin_sha256": "74091d2c60f63b71a8ddefcf78f5c77d80b0ddd896775cfa752b4451fa8c9997",
+  "reviewed_sha256": "0a0714e7f3f97fe61ccd912a61329eedf54ac22dc04d958523ae17199afa8eeb",
+  "frame_offset": [
+    56,
+    56
+  ],
+  "summary": {
+    "gdt_rows": 9,
+    "gdt_confirmed": 5,
+    "gdt_edited": 4,
+    "gdt_unreviewed": 0,
+    "dimensions_ocr": 17,
+    "dimensions_added": 1
+  },
+  "changes": [
+    {
+      "item_id": "G01-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏥|0.038|A",
+      "after": "⏥|0.0038|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G01-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⫽|0.012",
+      "after": "⫽|0.012",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "○|0.016|A",
+      "after": "○|0.0016|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌯|0.018",
+      "after": "⌯|0.018",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-1",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌖|0.026|A",
+      "after": "⌖|0.026|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "◎|0.018",
+      "after": "◎|0.018",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⌭|0.05|A",
+      "after": "⌭|0.005|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⏤|0.013",
+      "after": "⏤|0.013",
+      "format_error": false
+    },
+    {
+      "item_id": "G05-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏊|,.2|A",
+      "after": "⏊|0.02|A",
+      "format_error": true
+    },
+    {
+      "item_id": "D18",
+      "type": "DIMENSION",
+      "action": "added",
+      "before": null,
+      "after": "7",
+      "position_frame": {
+        "x": 1211,
+        "y": 1047
+      },
+      "position_image": {
+        "x": 1267,
+        "y": 1103
+      },
+      "box_image": null,
+      "input": {
+        "value": "7",
+        "kind": "length",
+        "tolerance": {
+          "type": "general"
+        }
+      }
+    }
+  ],
+  "warnings": []
+}
