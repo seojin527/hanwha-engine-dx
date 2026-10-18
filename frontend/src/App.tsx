@@ -3,188 +3,98 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Header } from "./components/Header";
 import { DrawingViewer } from "./components/DrawingViewer";
 import { MeasurementTable } from "./components/MeasurementTable";
 import { MeasurementPanel } from "./components/MeasurementPanel";
-import {
-  MOCK_MEASUREMENT_POINTS,
-} from "./data/mockData";
-import {
-  PointInspectionRecord,
-  DEFAULT_INITIAL_RESULTS,
-  STORAGE_KEYS,
-} from "./lib/inspection";
+import { MOCK_MEASUREMENT_POINTS, MOCK_PART_INFO } from "./data/mockData";
+import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 
-export default function App() {
-  // 1. Selected Point ID state (persisted)
-  const [selectedPointId, setSelectedPointId] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.SELECTED_ID);
-      if (saved) {
-        const id = parseInt(saved, 10);
-        if (id >= 1 && id <= 5) return id;
-      }
-    } catch {
-      // ignore
-    }
-    return 2; // Default to point 2 as in prompt description
-  });
+export function App() {
+  const [selectedPointId, setSelectedPointId] = useState<number>(1);
+  const [selectedItemId, setSelectedItemId] = useState<string>("p1-item");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analyzingStep, setAnalyzingStep] = useState<number>(1);
 
-  // 2. Selected Item ID state
-  const [selectedItemId, setSelectedItemId] = useState<string>(() => {
-    const point = MOCK_MEASUREMENT_POINTS.find((p) => p.id === 2);
-    return point?.items[0]?.id || "p2-mount";
-  });
-
-  // Ensure selectedItemId always belongs to selectedPointId
-  useEffect(() => {
-    const currentPoint = MOCK_MEASUREMENT_POINTS.find((p) => p.id === selectedPointId);
-    if (currentPoint && !currentPoint.items.some((it) => it.id === selectedItemId)) {
-      setSelectedItemId(currentPoint.items[0]?.id || "");
-    }
-  }, [selectedPointId, selectedItemId]);
-
-  // 3. Inspection Records State (persisted per item & point)
-  const [inspectionRecords, setInspectionRecords] = useState<
-    Record<number, PointInspectionRecord>
-  >(() => {
+  // Inspection records state
+  const [inspectionRecords, setInspectionRecords] = useState<Record<number, any>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
     }
     return DEFAULT_INITIAL_RESULTS;
   });
 
-  // 4. Search Filter Query
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // 5. Mock AI Drawing Upload & Analysis State
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzingStep, setAnalyzingStep] = useState(0);
-
-  // Sync selectedPointId to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.SELECTED_ID, selectedPointId.toString());
-    } catch {
-      // ignore
-    }
-  }, [selectedPointId]);
-
-  // Sync inspectionRecords to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(inspectionRecords));
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error(e);
     }
   }, [inspectionRecords]);
 
-  // Handle Point Navigation (Prev / Next)
-  const handleNavigatePoint = useCallback(
-    (delta: number) => {
-      const total = MOCK_MEASUREMENT_POINTS.length;
-      let nextId = selectedPointId + delta;
-      if (nextId < 1) nextId = total;
-      if (nextId > total) nextId = 1;
-      setSelectedPointId(nextId);
-      const nextPoint = MOCK_MEASUREMENT_POINTS.find((p) => p.id === nextId);
-      if (nextPoint && nextPoint.items.length > 0) {
-        setSelectedItemId(nextPoint.items[0].id);
-      }
-    },
-    [selectedPointId]
-  );
-
-  // Handle Select Point and Item together
-  const handleSelectPoint = useCallback((pointId: number) => {
-    setSelectedPointId(pointId);
-    const pt = MOCK_MEASUREMENT_POINTS.find((p) => p.id === pointId);
-    if (pt && !pt.items.some((it) => it.id === selectedItemId)) {
-      setSelectedItemId(pt.items[0]?.id || "");
-    }
-  }, [selectedItemId]);
-
-  const handleSelectItemFromTable = useCallback((pointId: number, itemId: string) => {
-    setSelectedPointId(pointId);
-    setSelectedItemId(itemId);
-  }, []);
-
-  // Handle Save / Update Point Record
-  const handleSaveRecord = useCallback(
-    (updated: PointInspectionRecord) => {
-      setInspectionRecords((prev) => ({
-        ...prev,
-        [updated.pointId]: updated,
-      }));
-    },
-    []
-  );
-
-  // Handle Reset Demo Data
-  const handleResetData = useCallback(() => {
-    if (window.confirm("측정값과 진행 상태를 초기 데모 상태로 재설정하시겠습니까?")) {
-      setInspectionRecords(DEFAULT_INITIAL_RESULTS);
-      setSelectedPointId(2);
-      setSelectedItemId("p2-dia");
-      try {
-        localStorage.removeItem(STORAGE_KEYS.RESULTS);
-        localStorage.removeItem(STORAGE_KEYS.SELECTED_ID);
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  // Handle Mock Drawing Upload & 4-Step Analysis
-  const handleUploadDrawing = useCallback((_fileName: string) => {
+  // Handle drawing upload trigger & background OCR simulation
+  const handleUploadDrawing = (fileName: string) => {
     setIsAnalyzing(true);
-    setAnalyzingStep(0);
+    setAnalyzingStep(1);
 
-    const stepIntervals = [
-      setTimeout(() => setAnalyzingStep(1), 700),
-      setTimeout(() => setAnalyzingStep(2), 1500),
-      setTimeout(() => setAnalyzingStep(3), 2300),
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setSelectedPointId(1);
-        setSelectedItemId("p1-dia");
-      }, 3100),
-    ];
+    setTimeout(() => {
+      setAnalyzingStep(2);
+    }, 1000);
 
-    return () => {
-      stepIntervals.forEach(clearTimeout);
-    };
-  }, []);
+    setTimeout(() => {
+      setAnalyzingStep(3);
+    }, 2000);
 
-  // Filtered points by search query (if user typed something)
-  const displayPoints = useMemo(() => {
-    if (!searchQuery.trim()) return MOCK_MEASUREMENT_POINTS;
-    const q = searchQuery.toLowerCase().trim();
-    return MOCK_MEASUREMENT_POINTS.filter((p) => {
-      return (
-        p.displayNumber.toString().includes(q) ||
-        p.feature.name.toLowerCase().includes(q) ||
-        p.feature.type.toLowerCase().includes(q) ||
-        p.dimension.formatted.toLowerCase().includes(q) ||
-        p.items.some((it) => it.name.toLowerCase().includes(q) || it.fullName.toLowerCase().includes(q))
-      );
-    });
-  }, [searchQuery]);
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      alert(`[도면 업로드 완료] ${fileName} 파일이 성공적으로 업로드되었으며, 백그라운드 OCR 파이프라인을 통해 17개 검사 포인트 좌표 매핑이 완료되었습니다.`);
+    }, 3000);
+  };
 
-  const currentPoint =
-    MOCK_MEASUREMENT_POINTS.find((p) => p.id === selectedPointId) ||
-    MOCK_MEASUREMENT_POINTS[0];
+  const handleResetData = () => {
+    if (window.confirm("모든 검사 데이터를 초기화하시겠습니까?")) {
+      setInspectionRecords(DEFAULT_INITIAL_RESULTS);
+      setSelectedPointId(1);
+    }
+  };
+
+  const filteredPoints = MOCK_MEASUREMENT_POINTS.filter((pt) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const name = (pt.feature?.name || "").toLowerCase();
+    const formatted = (pt.dimension?.formatted || "").toLowerCase();
+    return name.includes(q) || formatted.includes(q) || String(pt.displayNumber).includes(q);
+  });
+
+  const currentPoint = MOCK_MEASUREMENT_POINTS.find((pt) => (pt.id || pt.displayNumber) === selectedPointId) || MOCK_MEASUREMENT_POINTS[0];
+  const currentRecord = inspectionRecords[selectedPointId] || {};
+
+  const handleNavigatePoint = (delta: number) => {
+    const currentIndex = MOCK_MEASUREMENT_POINTS.findIndex((pt) => (pt.id || pt.displayNumber) === selectedPointId);
+    let nextIndex = currentIndex + delta;
+    if (nextIndex < 0) nextIndex = MOCK_MEASUREMENT_POINTS.length - 1;
+    if (nextIndex >= MOCK_MEASUREMENT_POINTS.length) nextIndex = 0;
+    const nextPt = MOCK_MEASUREMENT_POINTS[nextIndex];
+    const nextId = nextPt.id || nextPt.displayNumber;
+    setSelectedPointId(nextId);
+    setSelectedItemId(nextPt.items?.[0]?.id || `p${nextId}-item`);
+  };
+
+  const handleSaveRecord = (updatedRecord: any) => {
+    setInspectionRecords((prev) => ({
+      ...prev,
+      [selectedPointId]: updatedRecord,
+    }));
+  };
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-100 text-slate-800">
-      {/* 1. Header (64px) */}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans">
+      {/* Header */}
       <Header
         onUploadDrawing={handleUploadDrawing}
         onResetData={handleResetData}
@@ -192,38 +102,38 @@ export default function App() {
         onSearchChange={setSearchQuery}
       />
 
-      {/* 2. Main Workspace (60% Left Workspace : 40% Right Detail Panel) */}
-      <div className="flex-1 flex flex-col xl:flex-row overflow-hidden min-h-0">
-        {/* Left Column: 60% Width on >=1440px / xl */}
-        <div className="w-full xl:w-[60%] flex flex-col min-w-0 h-full overflow-hidden border-b xl:border-b-0">
-          {/* Drawing Viewer (Upper ~65-70%) */}
+      {/* Main Split Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Column: Drawing Viewer (Top) + Inspection Table (Bottom) */}
+        <div className="flex-1 flex flex-col min-w-0 border-r border-slate-800">
           <DrawingViewer
-            points={displayPoints}
+            points={filteredPoints}
             selectedPointId={selectedPointId}
-            onSelectPoint={handleSelectPoint}
+            onSelectPoint={(id) => setSelectedPointId(id)}
             inspectionRecords={inspectionRecords}
             isAnalyzing={isAnalyzing}
             analyzingStep={analyzingStep}
           />
-
-          {/* Measurement Table (Lower ~30-35%) */}
           <MeasurementTable
-            points={displayPoints}
+            points={filteredPoints}
             selectedPointId={selectedPointId}
-            onSelectPoint={handleSelectPoint}
+            onSelectPoint={(id) => setSelectedPointId(id)}
             inspectionRecords={inspectionRecords}
             selectedItemId={selectedItemId}
-            onSelectItem={handleSelectItemFromTable}
+            onSelectItem={(ptId, itemId) => {
+              setSelectedPointId(ptId);
+              setSelectedItemId(itemId);
+            }}
           />
         </div>
 
-        {/* Right Column: 40% Width on >=1440px / xl with independent scroll */}
-        <div className="w-full xl:w-[40%] flex flex-col min-w-0 h-full overflow-hidden border-l border-slate-300 bg-white">
+        {/* Right Column: Measurement Panel (Inspection & RAG Guidelines) */}
+        <div className="w-[440px] bg-white flex flex-col shrink-0 border-l border-slate-200 shadow-xl overflow-y-auto">
           <MeasurementPanel
             currentPoint={currentPoint}
             totalPointsCount={MOCK_MEASUREMENT_POINTS.length}
             onNavigatePoint={handleNavigatePoint}
-            record={inspectionRecords[currentPoint.id]}
+            record={currentRecord}
             onSaveRecord={handleSaveRecord}
             selectedItemId={selectedItemId}
             onSelectItemId={setSelectedItemId}
@@ -233,3 +143,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;
