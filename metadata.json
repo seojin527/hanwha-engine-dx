@@ -1,0 +1,6 @@
+{
+  "name": "Drawing AI Measurement Guide",
+  "description": "피스톤 로드(Piston Rod) 기술 도면 분석 기반 측정 포인트, 공차(GD&T), 과거 오류 사례 및 실시간 검사 판정 가이드 시스템",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
