@@ -27,7 +27,7 @@ backend/
 │   ├─ txt_format.py      eDOCr2 TXT 읽기 / 바뀐 줄만 고쳐 쓰기
 │   ├─ logs.py            검수 기록 (이번 기록 TXT·JSON + 누적 CSV)
 │   ├─ files.py           도면 이름으로 data 폴더에서 찾기, 결과 저장
-│   ├─ render.py          고친 곳 표시 이미지 (선택)
+│   ├─ render.py          결과 이미지 (reviewed.jpg / edits_log.jpg, 선택)
 │   ├─ api.py             프론트 연결용 API (FastAPI)
 │   └─ __main__.py        명령줄 실행 (review / apply)
 ├─ demo/                🎬 시연용 (지워도 프로젝트 코드는 멀쩡)
@@ -47,7 +47,7 @@ backend/
 | 기능 | 필요 |
 | --- | --- |
 | 검수 (review / apply / 시연) | 없음 |
-| `도면_reviewed.jpg` 생성 | `pip install pillow` (없으면 건너뜀) |
+| `도면_reviewed.jpg`, `도면_edits_log.jpg` 생성 | `pip install pillow` (없으면 건너뜀) |
 | API 서버 | `pip install fastapi uvicorn` |
 
 ## 실행 (backend 폴더에서)
@@ -97,7 +97,8 @@ python -m unittest discover -s tests -v
 | `도면_review_log.txt` | 사람이 읽는 이번 검수 기록 (누가, 언제, 무엇을 → 무엇으로) | 항상 |
 | `도면_review_log.json` | 같은 기록, 프로그램용 | 항상 |
 | `logs/review_history.csv` | **모든 검수의 모든 항목이 계속 쌓임** (덮어쓰지 않음). 엑셀로 열기 | 항상 |
-| `도면_reviewed.jpg` | 색칠 결과 위에 고친 곳 표시 | `도면_result.jpg`가 옆에 있으면 자동 |
+| `도면_reviewed.jpg` | 검수 끝난 도면. 색칠 결과 + **OCR이 못 읽어서 추가한 치수만** eDOCr2 치수 색으로 형광펜 (라벨 없음) | `도면_result.jpg`가 옆에 있으면 자동 |
+| `도면_edits_log.jpg` | 수정 기록 이미지. OK(그대로 확정) / FIX(OCR값 → 고친값) / ADD(추가) 라벨 | `도면_result.jpg`가 옆에 있으면 자동 |
 
 누적 기록 열: 검수 시각, 도면, 작업자, 항목, 종류, 처리(confirmed/edited/added), 기호, 전, 후, 형식 오류 여부, 좌표, 원본 파일, 원본 지문(sha256).
 → "어떤 기호·값이 자주 틀리나" 통계, 반복 오류 자동 수정 규칙, OCR 정확도 검증에 쓴다.
@@ -149,6 +150,7 @@ python -m unittest discover -s tests -v
 - `kind`: `length` / `diameter`(⌀) / `radius`(R) / `chamfer`(C) / `thread`(M)
 - `tolerance`: `{"type": "general"}` / `{"type": "symmetric", "value": "0.02"}` → `7±0.02` /
   `{"type": "deviation", "upper": "+0.02", "lower": "-0.01"}` → `7 +0.02/-0.01`
+- `box` (선택): 추가한 치수의 글자 영역 `[x1, y1, x2, y2]` (이미지 픽셀). 있으면 그 칸을 형광펜으로 칠하고, 없으면 클릭 위치 주변 글자를 자동으로 찾아 칠한다.
 - `x`, `y`: 작업자가 클릭한 위치 (`coord: "image"` = 색칠 결과 이미지 픽셀). TXT에는 다른 치수와 같은 기준(도면 테두리 기준)으로 바꿔서 적는다.
 
 예시: `tests/fixtures/HDH_61_2_edits.json`, `HDH_62_2_edits.json`, `HDH_63_3_edits.json`

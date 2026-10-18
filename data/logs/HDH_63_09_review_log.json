@@ -1,0 +1,95 @@
+{
+  "schema": "ocr-review-log/1",
+  "drawing": "HDH_63_09",
+  "reviewer": "sj",
+  "reviewed_at": "2026-10-18T16:52:23+00:00",
+  "origin_sha256": "39df6c7e9cc43baefd85fc3ff9d0c4502925361bd69308bed0bb3e2b3aa0f968",
+  "reviewed_sha256": "2c903b83b753829170f965c4a6e80c1aec532e2e887f141f84da46d1256ec834",
+  "frame_offset": [
+    56,
+    56
+  ],
+  "summary": {
+    "gdt_rows": 9,
+    "gdt_confirmed": 3,
+    "gdt_edited": 6,
+    "gdt_unreviewed": 0,
+    "dimensions_ocr": 18,
+    "dimensions_added": 0
+  },
+  "changes": [
+    {
+      "item_id": "G01-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏥|0.062|A",
+      "after": "⏥|0.0062|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G01-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⫽|0.026",
+      "after": "⫽|0.026",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "○|0.025|A",
+      "after": "○|0.0025|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌯|0.031",
+      "after": "⌯|0.031",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⌖|0.42|A",
+      "after": "⌖|0.042|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "◎|0.033",
+      "after": "◎|0.033",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⌭|0.08|A",
+      "after": "⌭|0.008|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-2",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏤|0.025,",
+      "after": "⏤|0.025",
+      "format_error": true
+    },
+    {
+      "item_id": "G05-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏊|,.5|A",
+      "after": "⏊|0.05|A",
+      "format_error": true
+    }
+  ],
+  "warnings": []
+}

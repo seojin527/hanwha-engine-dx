@@ -18,6 +18,8 @@ import os
 import re
 import sys
 from typing import Callable, List, Optional
+import subprocess
+
 
 DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(DEMO_DIR))  # backend 폴더 → ocr_review 를 불러올 수 있게
@@ -129,7 +131,7 @@ def run_check(origin_txt: str, name: str, edits_path: str, save: Callable[[str, 
         print(f" ! {w}")
     labels = {"_reviewed.txt": "결과: 고쳐진 TXT", "_reviewed.json": "결과: 고쳐진 JSON",
               "_review_log.txt": "검수 기록, 읽기용", "_review_log.json": "검수 기록, 프로그램용",
-              "review_history.csv": "누적 기록, 엑셀로 열기", "_reviewed.jpg": "고친 곳 표시 이미지"}
+              "review_history.csv": "누적 기록, 엑셀로 열기", "_reviewed.jpg": "검수 끝난 도면 (추가 치수 형광펜)", "_edits_log.jpg": "수정 기록 이미지 (OK/FIX/ADD)"}
     print(f"\n[SAVED] {edits_path}   (작업자 수정 내용)")
     for path in saved:
         label = next((v for k, v in labels.items() if path.endswith(k)), "")
@@ -167,6 +169,25 @@ def main(argv=None) -> int:
     except FileNotFoundError as e:
         print(f"[ERROR] {e}")
         return 1
+    # 작업자 검수 전 OCR 분석 데이터 자동 생성
+    print("[PREPARE] OCR 검수 데이터 생성 중...")
+
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "ocr_review",
+                "review",
+                os.path.basename(base_of(origin_path)),
+            ],
+            cwd=os.path.dirname(DEMO_DIR),
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] 검수 데이터 생성 실패: {e}")
+        return 1
+    
     name = os.path.basename(base_of(origin_path))
     base = os.path.join(args.out_dir, name)
     offset = [int(v) for v in args.frame_offset.replace(" ", "").split(",")] if args.frame_offset else None

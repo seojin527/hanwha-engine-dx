@@ -35,7 +35,7 @@ pytesseract.pytesseract.tesseract_cmd = (
 
 #Opening the file        
 if file_path.endswith('.pdf') or file_path.endswith(".PDF"):
-    img = convert_from_path(file_path)
+    img = convert_from_path(file_path, dpi=200)
     img = np.array(img[0])
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, img = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
@@ -232,13 +232,13 @@ with open(txt_path, "w", encoding="utf-8") as f:
 
     f.write(
         f"\nImage size : {width} x {height} px, "
-        "position = text center, origin top-left\n"
+        "position = text center, origin top-left, PDF 200 dpi \n"
     )
 
     #Frame OFFSET
     f.write(f"Frame offset : {frame.x if frame else 0}, {frame.y if frame else 0}\n")
 
-    print(f"[SAVED] {txt_path}")
+print(f"[SAVED] {txt_path}")
 
 #endregion
 

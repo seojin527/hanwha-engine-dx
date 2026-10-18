@@ -191,6 +191,46 @@ class TestLogs(unittest.TestCase):
         self.assertEqual(data["dimensions"][-1]["position_image"], {"x": 1267, "y": 1103})
 
 
+class TestImages(unittest.TestCase):
+    """도면_reviewed.jpg = 추가한 치수만 형광펜 / 도면_edits_log.jpg = OK·FIX·ADD 기록"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            raise unittest.SkipTest("Pillow 없음")
+
+    def _make(self, edits_):
+        import tempfile
+        from PIL import Image
+        from ocr_review.render import render_edits_log, render_reviewed
+        reviewed, log = apply_review(origin("HDH_63_3"), edits_)
+        tmp = tempfile.mkdtemp()
+        src = os.path.join(tmp, "result.jpg")
+        Image.new("RGB", (2339, 1654), "white").save(src)        # 흰 도면 (비교 쉽게)
+        a = render_reviewed(src, reviewed, log, os.path.join(tmp, "reviewed.jpg"))
+        b = render_edits_log(src, reviewed, log, os.path.join(tmp, "edits_log.jpg"))
+        return Image.open(a).convert("RGB"), Image.open(b).convert("RGB")
+
+    def test_reviewed_highlights_only_added_dimension(self):
+        from ocr_review.render import DIM_COLOR
+        e = edits("HDH_63_3")
+        e["added_dimensions"][0]["box"] = [1250, 1080, 1290, 1126]
+        reviewed_img, log_img = self._make(e)
+        px = reviewed_img.getpixel((1270, 1100))
+        self.assertTrue(all(abs(p - c) <= 8 for p, c in zip(px, DIM_COLOR)), px)   # 형광펜 색
+        bbox = reviewed_img.convert("L").point(lambda v: 255 if v < 245 else 0).getbbox()
+        self.assertEqual(bbox, (1250, 1080, 1290, 1126))          # 칠한 곳은 추가 치수 칸뿐 (FIX/OK 라벨 없음)
+        self.assertNotEqual(log_img.convert("L").point(lambda v: 255 if v < 245 else 0).getbbox(), bbox)
+
+    def test_bad_box_is_rejected(self):
+        e = edits("HDH_63_3")
+        e["added_dimensions"][0]["box"] = [10, 10, 5, 20]
+        with self.assertRaises(ReviewError):
+            apply_review(origin("HDH_63_3"), e)
+
+
 class TestCompatibility(unittest.TestCase):
     """data/ocr_to_metadata.py 가 reviewed.txt 를 읽을 수 있는지 (정규식 기준)."""
 

@@ -105,7 +105,8 @@ def save_outputs(origin_path: str, base: str, name: str, reviewed: str, log: dic
 
     if result_jpg:
         try:
-            from .render import render_reviewed
+            from .render import render_edits_log, render_reviewed
+            # 검수 끝난 도면: 못 읽어서 추가한 치수만 형광펜 → reviewed/
             saved.append(
                 render_reviewed(
                     result_jpg,
@@ -114,7 +115,16 @@ def save_outputs(origin_path: str, base: str, name: str, reviewed: str, log: dic
                     reviewed_base + "_reviewed.jpg"
                 )
             )
+            # 수정 기록 이미지 (OK / FIX / ADD 라벨) → logs/
+            saved.append(
+                render_edits_log(
+                    result_jpg,
+                    reviewed,
+                    log,
+                    logs_base + "_edits_log.jpg"
+                )
+            )
         except ImportError:
-            print("  ! Pillow가 없어 reviewed.jpg 는 건너뜀 (pip install pillow)")
+            print("  ! Pillow가 없어 reviewed.jpg / edits_log.jpg 는 건너뜀 (pip install pillow)")
 
     return saved

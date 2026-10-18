@@ -12,7 +12,8 @@ apply 가 남기는 파일
     도면_review_log.txt      사람이 읽는 이번 검수 기록
     도면_review_log.json     같은 기록 (프로그램용)
     logs/review_history.csv  모든 검수가 계속 쌓이는 누적 기록
-    도면_reviewed.jpg        고친 곳 표시 이미지 (도면_result.jpg 가 옆에 있으면 자동)
+    도면_reviewed.jpg        검수 끝난 도면: 못 읽어서 추가한 치수만 형광펜   ┐ 도면_result.jpg 가
+    도면_edits_log.jpg       수정 기록 이미지 (OK / FIX / ADD 라벨)          ┘ 옆에 있으면 자동
 
 시연(터미널에서 직접 검수)은 demo/check.py 를 쓴다.
 """

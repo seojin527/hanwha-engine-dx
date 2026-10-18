@@ -213,7 +213,8 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
       "gdt": [{"item_id": "G01-1", "value": "0.0035"}, ...],      # 기하공차 줄마다 확정 값
       "added_dimensions": [{"value": "7", "kind": "length",
                             "tolerance": {"type": "general"},
-                            "x": 1266, "y": 1103, "coord": "image"}],
+                            "x": 1266, "y": 1103, "coord": "image",
+                            "box": [1250, 1080, 1283, 1126]}],             # 선택: 글자 영역 (이미지 픽셀)
       "frame_offset": [56, 56]                                       # 선택
     }
     """
@@ -265,7 +266,16 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
         if doc.width and doc.height and not (0 <= x < doc.width and 0 <= y < doc.height):
             errors.append(f"추가 치수 {k}: 이미지 밖 좌표 ({x}, {y})")
             continue
-        added_specs.append((item, text, x, y))
+        box = item.get("box")
+        if box is not None:
+            try:
+                box = [int(round(float(v))) for v in box]
+            except (TypeError, ValueError):
+                box = []
+            if len(box) != 4 or box[0] >= box[2] or box[1] >= box[3]:
+                errors.append(f"추가 치수 {k}: box 는 [x1, y1, x2, y2] (x1<x2, y1<y2) 형식이어야 함")
+                continue
+        added_specs.append((item, text, x, y, box))
 
     if errors:
         raise ReviewError(errors)
@@ -296,7 +306,7 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
             doc.set_gdt_text(entry, new_text)
 
     # --- 누락 치수 추가
-    for item, text, x, y in added_specs:
+    for item, text, x, y, box in added_specs:
         coord = item.get("coord", "image")
         if coord == "image":
             if off:
@@ -312,6 +322,7 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
             "before": None, "after": text,
             "position_frame": {"x": fx, "y": fy},
             "position_image": {"x": x, "y": y} if coord == "image" else None,
+            "box_image": box if coord == "image" else None,
             "input": {k: item.get(k) for k in ("value", "kind", "tolerance") if k in item},
         })
 
