@@ -3,233 +3,300 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
+import { DrawingLibrary } from "./components/DrawingLibrary";
 import { DrawingViewer } from "./components/DrawingViewer";
 import { MeasurementTable } from "./components/MeasurementTable";
 import { MeasurementPanel } from "./components/MeasurementPanel";
-import {
-  MOCK_MEASUREMENT_POINTS,
-} from "./data/mockData";
-import {
-  PointInspectionRecord,
-  DEFAULT_INITIAL_RESULTS,
-  STORAGE_KEYS,
-} from "./lib/inspection";
+import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
+import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
+import { apiUrl } from './lib/drawingAPI';
+import { useDrawingOcr } from './hooks/useDrawingOcr';
+import { toOcrPoints } from './lib/ocr';
+import { OcrMeasurementTable } from './components/OcrMeasurementTable';
+import { OcrDetailPanel } from './components/OcrDetailPanel';
+import type { Drawing } from "./lib/drawingAPI";
 
-export default function App() {
-  // 1. Selected Point ID state (persisted)
-  const [selectedPointId, setSelectedPointId] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.SELECTED_ID);
-      if (saved) {
-        const id = parseInt(saved, 10);
-        if (id >= 1 && id <= 5) return id;
-      }
-    } catch {
-      // ignore
-    }
-    return 2; // Default to point 2 as in prompt description
-  });
-
-  // 2. Selected Item ID state
-  const [selectedItemId, setSelectedItemId] = useState<string>(() => {
-    const point = MOCK_MEASUREMENT_POINTS.find((p) => p.id === 2);
-    return point?.items[0]?.id || "p2-mount";
-  });
-
-  // Ensure selectedItemId always belongs to selectedPointId
-  useEffect(() => {
-    const currentPoint = MOCK_MEASUREMENT_POINTS.find((p) => p.id === selectedPointId);
-    if (currentPoint && !currentPoint.items.some((it) => it.id === selectedItemId)) {
-      setSelectedItemId(currentPoint.items[0]?.id || "");
-    }
-  }, [selectedPointId, selectedItemId]);
-
-  // 3. Inspection Records State (persisted per item & point)
-  const [inspectionRecords, setInspectionRecords] = useState<
-    Record<number, PointInspectionRecord>
-  >(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_INITIAL_RESULTS;
-  });
-
-  // 4. Search Filter Query
+export function App() {
+  const [selectedPointId, setSelectedPointId] = useState(1);
+  const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 5. Mock AI Drawing Upload & Analysis State
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzingStep, setAnalyzingStep] = useState(0);
+  const [demoMode, setDemoMode] = useState(true);
+  const [selectedDrawing, setSelectedDrawing] =
+    useState<Drawing | null>(null);
+  const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
 
-  // Sync selectedPointId to localStorage
+  const [uploadRequest, setUploadRequest] = useState(0);
+  const ocr = useDrawingOcr(demoMode ? null : selectedDrawing?.drawing_id || null);
+  const document = ocr.snapshot?.result || null;
+  const ocrPoints = document ? toOcrPoints(document) : [];
+  const activeOcrPoint = ocrPoints.find((point) => point.id === selectedPointId) || ocrPoints[0];
+  const filteredOcrPoints = ocrPoints.filter((point) => {
+    const query = searchQuery.toLowerCase();
+    return `${point.displayNumber} ${point.source.raw_text} ${point.feature.name} ${point.source.id}`.toLowerCase().includes(query);
+  });
+  const resultUrl = document && ocr.snapshot?.image_url ? apiUrl(ocr.snapshot.image_url) : drawingUrl;
+
+  function navigateOcr(delta: number) {
+    if (!ocrPoints.length) return;
+    const index = ocrPoints.findIndex((point) => point.id === activeOcrPoint?.id);
+    setSelectedPointId(ocrPoints[(index + delta + ocrPoints.length) % ocrPoints.length].id);
+  }
+
+  async function applyExtractedSample() {
+    if (!selectedDrawing) return;
+    if (!window.confirm(`선택한 「${selectedDrawing.original_filename}」에 1_image.png와 1_metadata.json을 연결합니다. 이 파일들이 선택한 도면의 추출 결과인지 확인해주세요.`)) return;
+    setSelectedPointId(1);
+    await ocr.applySample();
+  }
+
+  // 기존 데모 검사 기록 유지
+  const [inspectionRecords, setInspectionRecords] =
+    useState<Record<number, any>>(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
+        if (saved) return JSON.parse(saved);
+      } catch (error) {
+        console.error(error);
+      }
+      return DEFAULT_INITIAL_RESULTS;
+    });
+
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.SELECTED_ID, selectedPointId.toString());
-    } catch {
-      // ignore
-    }
-  }, [selectedPointId]);
-
-  // Sync inspectionRecords to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(inspectionRecords));
-    } catch {
-      // ignore
+      localStorage.setItem(
+        STORAGE_KEYS.RESULTS,
+        JSON.stringify(inspectionRecords)
+      );
+    } catch (error) {
+      console.error(error);
     }
   }, [inspectionRecords]);
 
-  // Handle Point Navigation (Prev / Next)
-  const handleNavigatePoint = useCallback(
-    (delta: number) => {
-      const total = MOCK_MEASUREMENT_POINTS.length;
-      let nextId = selectedPointId + delta;
-      if (nextId < 1) nextId = total;
-      if (nextId > total) nextId = 1;
-      setSelectedPointId(nextId);
-      const nextPoint = MOCK_MEASUREMENT_POINTS.find((p) => p.id === nextId);
-      if (nextPoint && nextPoint.items.length > 0) {
-        setSelectedItemId(nextPoint.items[0].id);
-      }
-    },
-    [selectedPointId]
-  );
+  function selectPoint(id: number) {
+    const point = MOCK_MEASUREMENT_POINTS.find(
+      (entry) => (entry.id || entry.displayNumber) === id
+    );
 
-  // Handle Select Point and Item together
-  const handleSelectPoint = useCallback((pointId: number) => {
-    setSelectedPointId(pointId);
-    const pt = MOCK_MEASUREMENT_POINTS.find((p) => p.id === pointId);
-    if (pt && !pt.items.some((it) => it.id === selectedItemId)) {
-      setSelectedItemId(pt.items[0]?.id || "");
-    }
-  }, [selectedItemId]);
+    setSelectedPointId(id);
+    setSelectedItemId(point?.items?.[0]?.id || `p${id}-item`);
+  }
 
-  const handleSelectItemFromTable = useCallback((pointId: number, itemId: string) => {
-    setSelectedPointId(pointId);
-    setSelectedItemId(itemId);
-  }, []);
+  function handleResetData() {
+    if (!window.confirm("데모 검사 기록을 초기화하시겠습니까?")) return;
 
-  // Handle Save / Update Point Record
-  const handleSaveRecord = useCallback(
-    (updated: PointInspectionRecord) => {
-      setInspectionRecords((prev) => ({
-        ...prev,
-        [updated.pointId]: updated,
-      }));
-    },
-    []
-  );
+    setInspectionRecords(DEFAULT_INITIAL_RESULTS);
+    selectPoint(1);
+  }
 
-  // Handle Reset Demo Data
-  const handleResetData = useCallback(() => {
-    if (window.confirm("측정값과 진행 상태를 초기 데모 상태로 재설정하시겠습니까?")) {
-      setInspectionRecords(DEFAULT_INITIAL_RESULTS);
-      setSelectedPointId(2);
-      setSelectedItemId("p2-dia");
-      try {
-        localStorage.removeItem(STORAGE_KEYS.RESULTS);
-        localStorage.removeItem(STORAGE_KEYS.SELECTED_ID);
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
+  const filteredPoints = MOCK_MEASUREMENT_POINTS.filter((point) => {
+    if (!searchQuery) return true;
 
-  // Handle Mock Drawing Upload & 4-Step Analysis
-  const handleUploadDrawing = useCallback((_fileName: string) => {
-    setIsAnalyzing(true);
-    setAnalyzingStep(0);
-
-    const stepIntervals = [
-      setTimeout(() => setAnalyzingStep(1), 700),
-      setTimeout(() => setAnalyzingStep(2), 1500),
-      setTimeout(() => setAnalyzingStep(3), 2300),
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setSelectedPointId(1);
-        setSelectedItemId("p1-dia");
-      }, 3100),
-    ];
-
-    return () => {
-      stepIntervals.forEach(clearTimeout);
-    };
-  }, []);
-
-  // Filtered points by search query (if user typed something)
-  const displayPoints = useMemo(() => {
-    if (!searchQuery.trim()) return MOCK_MEASUREMENT_POINTS;
-    const q = searchQuery.toLowerCase().trim();
-    return MOCK_MEASUREMENT_POINTS.filter((p) => {
-      return (
-        p.displayNumber.toString().includes(q) ||
-        p.feature.name.toLowerCase().includes(q) ||
-        p.feature.type.toLowerCase().includes(q) ||
-        p.dimension.formatted.toLowerCase().includes(q) ||
-        p.items.some((it) => it.name.toLowerCase().includes(q) || it.fullName.toLowerCase().includes(q))
-      );
-    });
-  }, [searchQuery]);
+    const query = searchQuery.toLowerCase();
+    return (
+      (point.feature?.name || "").toLowerCase().includes(query) ||
+      (point.dimension?.formatted || "").toLowerCase().includes(query) ||
+      String(point.displayNumber).includes(query)
+    );
+  });
 
   const currentPoint =
-    MOCK_MEASUREMENT_POINTS.find((p) => p.id === selectedPointId) ||
-    MOCK_MEASUREMENT_POINTS[0];
+    MOCK_MEASUREMENT_POINTS.find(
+      (point) => (point.id || point.displayNumber) === selectedPointId
+    ) || MOCK_MEASUREMENT_POINTS[0];
+
+  function handleNavigatePoint(delta: number) {
+    const total = MOCK_MEASUREMENT_POINTS.length;
+    if (!total) return;
+
+    const currentIndex = MOCK_MEASUREMENT_POINTS.findIndex(
+      (point) => (point.id || point.displayNumber) === selectedPointId
+    );
+
+    const nextIndex = (currentIndex + delta + total) % total;
+    const next = MOCK_MEASUREMENT_POINTS[nextIndex];
+    selectPoint(next.id || next.displayNumber);
+  }
+
+  function handleSaveRecord(updatedRecord: any) {
+    setInspectionRecords((previous) => ({
+      ...previous,
+      [selectedPointId]: updatedRecord,
+    }));
+  }
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-100 text-slate-800">
-      {/* 1. Header (64px) */}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
-        onUploadDrawing={handleUploadDrawing}
+        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
+        onUploadDrawing={() => setUploadRequest((value) => value + 1)}
         onResetData={handleResetData}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
 
-      {/* 2. Main Workspace (60% Left Workspace : 40% Right Detail Panel) */}
-      <div className="flex-1 flex flex-col xl:flex-row overflow-hidden min-h-0">
-        {/* Left Column: 60% Width on >=1440px / xl */}
-        <div className="w-full xl:w-[60%] flex flex-col min-w-0 h-full overflow-hidden border-b xl:border-b-0">
-          {/* Drawing Viewer (Upper ~65-70%) */}
+      <DrawingLibrary
+        uploadRequest={uploadRequest}
+        onSelectDrawing={(drawing, url) => {
+          setSelectedPointId(1);
+          setSelectedDrawing(drawing);
+          setDrawingUrl(url);
+          setDemoMode(false);
+        }}
+        onClearDrawing={() => {
+          setSelectedDrawing(null);
+          setDrawingUrl(null);
+          setDemoMode(false);
+        }}
+      />
+
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-1.5 text-xs">
+        <span className="min-w-0 truncate text-slate-300">
+          {demoMode
+            ? "데모 도면 · 샘플 측정항목"
+            : selectedDrawing
+            ? `${selectedDrawing.original_filename} · ${document ? `OCR 추출 ${ocrPoints.length}건` : ocr.status === "applying" ? "OCR 결과 적용 중…" : "OCR 미실행"}`
+            : "등록된 도면을 선택해주세요"}
+        </span>
+
+        {!demoMode && selectedDrawing && <button type="button" disabled={ocr.status === 'loading' || ocr.status === 'applying'}
+          onClick={() => void applyExtractedSample()}
+          className="shrink-0 rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200 disabled:opacity-40">
+          {ocr.status === 'applying' ? 'OCR 결과 적용 중…' : '추출 결과 적용 (1번 샘플)'}
+        </button>}
+        {!demoMode && (
+          <button
+            type="button"
+            onClick={() => setDemoMode(true)}
+            className="shrink-0 text-cyan-300 hover:text-cyan-200"
+          >
+            데모 화면 보기
+          </button>
+        )}
+
+        {demoMode && selectedDrawing && (
+          <button
+            type="button"
+            onClick={() => setDemoMode(false)}
+            className="shrink-0 text-cyan-300 hover:text-cyan-200"
+          >
+            선택한 등록 도면 보기
+          </button>
+        )}
+      </div>
+
+      {!demoMode && ocr.error && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{ocr.error}</p>}
+      {!demoMode && document?.image.coordinate_status === 'UNVERIFIED' && <p className="shrink-0 bg-amber-950 px-4 py-1 text-[11px] text-amber-200">좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.</p>}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col border-r border-slate-800">
           <DrawingViewer
-            points={displayPoints}
-            selectedPointId={selectedPointId}
-            onSelectPoint={handleSelectPoint}
-            inspectionRecords={inspectionRecords}
-            isAnalyzing={isAnalyzing}
-            analyzingStep={analyzingStep}
+            key={
+              demoMode
+                ? "demo"
+                : selectedDrawing?.drawing_id || "empty"
+            }
+            drawingUrl={
+              demoMode ? "/images/1_image.png" : resultUrl
+            }
+            mediaType={
+              demoMode || document ? "image/png" : selectedDrawing?.media_type
+            }
+            points={demoMode ? filteredPoints : filteredOcrPoints}
+            coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
+            selectedPointId={demoMode ? selectedPointId : activeOcrPoint?.id || 0}
+            onSelectPoint={demoMode ? selectPoint : setSelectedPointId}
+            inspectionRecords={demoMode ? inspectionRecords : {}}
+            isAnalyzing={!demoMode && ocr.status === "applying"}
+            analyzingStep={0}
           />
 
-          {/* Measurement Table (Lower ~30-35%) */}
-          <MeasurementTable
-            points={displayPoints}
-            selectedPointId={selectedPointId}
-            onSelectPoint={handleSelectPoint}
-            inspectionRecords={inspectionRecords}
-            selectedItemId={selectedItemId}
-            onSelectItem={handleSelectItemFromTable}
-          />
+          {demoMode ? (
+            <MeasurementTable
+              points={filteredPoints}
+              selectedPointId={selectedPointId}
+              onSelectPoint={selectPoint}
+              inspectionRecords={inspectionRecords}
+              selectedItemId={selectedItemId}
+              onSelectItem={(pointId, itemId) => {
+                setSelectedPointId(pointId);
+                setSelectedItemId(itemId);
+              }}
+            />
+          ) : document ? (
+            <OcrMeasurementTable points={filteredOcrPoints} selectedId={activeOcrPoint?.id || 0}
+              onSelect={setSelectedPointId} title={document.part_name || '도면'} />
+          ) : (
+            <section className="shrink-0 border-t border-slate-700 bg-slate-900 p-4">
+              <h2 className="text-sm font-semibold text-white">
+                측정항목
+              </h2>
+              <p className="mt-2 text-xs text-slate-400">
+                {selectedDrawing
+                  ? (ocr.status === "applying" ? "OCR 추출 결과 적용 중…" : "원본 도면입니다. 추출 결과를 적용하면 번호와 측정항목이 표시됩니다.")
+                  : "도면을 선택하거나 등록해주세요."}
+              </p>
+            </section>
+          )}
         </div>
 
-        {/* Right Column: 40% Width on >=1440px / xl with independent scroll */}
-        <div className="w-full xl:w-[40%] flex flex-col min-w-0 h-full overflow-hidden border-l border-slate-300 bg-white">
-          <MeasurementPanel
-            currentPoint={currentPoint}
-            totalPointsCount={MOCK_MEASUREMENT_POINTS.length}
-            onNavigatePoint={handleNavigatePoint}
-            record={inspectionRecords[currentPoint.id]}
-            onSaveRecord={handleSaveRecord}
-            selectedItemId={selectedItemId}
-            onSelectItemId={setSelectedItemId}
-          />
+        <div className="flex w-[440px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl">
+          {demoMode ? (
+            <MeasurementPanel
+              currentPoint={currentPoint}
+              totalPointsCount={MOCK_MEASUREMENT_POINTS.length}
+              onNavigatePoint={handleNavigatePoint}
+              record={inspectionRecords[selectedPointId] || {}}
+              onSaveRecord={handleSaveRecord}
+              selectedItemId={selectedItemId}
+              onSelectItemId={setSelectedItemId}
+            />
+          ) : document && selectedDrawing && ocr.snapshot?.revision ? (
+            <OcrDetailPanel drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
+              point={activeOcrPoint} total={ocrPoints.length} onNavigate={navigateOcr} />
+          ) : (
+            <section className="space-y-4 p-5">
+              <h2 className="text-sm font-bold text-slate-900">
+                도면 정보
+              </h2>
+
+              {selectedDrawing ? (
+                <>
+                  <div className="text-xs">
+                    <p className="text-slate-500">파일명</p>
+                    <p className="mt-1 break-all text-slate-900">
+                      {selectedDrawing.original_filename}
+                    </p>
+                  </div>
+
+                  <div className="text-xs">
+                    <p className="text-slate-500">파일 크기</p>
+                    <p className="mt-1 text-slate-900">
+                      {(
+                        selectedDrawing.size_bytes /
+                        1024 /
+                        1024
+                      ).toFixed(2)}{" "}
+                      MB
+                    </p>
+                  </div>
+
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                    {ocr.status === "applying" ? "측정항목 추출 결과를 준비하고 있습니다. 완료 후 관련 오류·주의사항을 검색합니다." : "추출 결과 적용 대기 중입니다. 결과 적용 후 선택한 항목의 관련 오류·주의사항을 검색합니다."}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  부품에서 도면을 선택해주세요.
+                </p>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+export default App;

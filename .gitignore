@@ -7,3 +7,9 @@ __pycache__/
 .venv/
 venv/
 gpu_venv/
+backend/.venv/
+backend/vector_db/
+__pycache__/
+*.pyc
+
+/backend/storage/
