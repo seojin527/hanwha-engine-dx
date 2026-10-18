@@ -4,8 +4,29 @@ import pytesseract
 from edocr2 import tools
 from pdf2image import convert_from_path
 
-file_path = 'edocr2/tests/test_samples/Candle_holder.jpg'
-language = 'eng'
+# 도면 파일 경로와 언어 설정
+
+import sys
+from pathlib import Path
+
+# 프로젝트 최상위 폴더
+project_root = Path(__file__).resolve().parent.parent
+
+# 입력 도면 폴더
+input_dir = project_root / "data" / "input"
+
+if len(sys.argv) < 2:
+    print("사용법: python edocr2/test_drawing.py 파일명.pdf")
+    sys.exit(1)
+
+file_path = input_dir / sys.argv[1]
+
+if not file_path.is_file():
+    print(f"[ERROR] 도면 파일을 찾을 수 없습니다: {file_path}")
+    sys.exit(1)
+
+file_path = str(file_path)
+language = "eng"
 
 # Windows Tesseract 실행 파일 경로
 pytesseract.pytesseract.tesseract_cmd = (
@@ -31,11 +52,12 @@ from pathlib import Path
 
 # 프로젝트 최상위 data 폴더
 project_root = Path(__file__).resolve().parent.parent
-result_dir = project_root / "data"
+result_dir = project_root / "data" / "origin"
 result_dir.mkdir(parents=True, exist_ok=True)
 
 txt_path = result_dir / f"{filename}_origin.txt"
 result_path = result_dir / f"{filename}_result.jpg"
+
 #region ############ Segmentation Task ####################
 
 img_boxes, frame, gdt_boxes, tables, dim_boxes  = tools.layer_segm.segment_img(img, autoframe = True, frame_thres=0.8
@@ -213,7 +235,10 @@ with open(txt_path, "w", encoding="utf-8") as f:
         "position = text center, origin top-left\n"
     )
 
-print(f"[SAVED] {txt_path}")
+    #Frame OFFSET
+    f.write(f"Frame offset : {frame.x if frame else 0}, {frame.y if frame else 0}\n")
+
+    print(f"[SAVED] {txt_path}")
 
 #endregion
 

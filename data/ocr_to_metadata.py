@@ -58,6 +58,15 @@ def parse_dimension(raw):
     return result
 
 def convert(source, drawing_id, image_file=None):
+    frame_match = re.search(
+        r'Frame offset\s*:\s*(-?\d+)\s*,\s*(-?\d+)',
+        source
+    )
+    if frame_match:
+        offset_x, offset_y = map(int, frame_match.groups())
+    else:
+        raise ValueError('Frame offset 정보가 없습니다.')
+
     size = re.search(r'Image size\s*:\s*(\d+)\s*x\s*(\d+)\s*px.*?PDF\s+(\d+)\s*dpi', source)
     if not size:
         raise ValueError('Image size / PDF dpi 정보가 필요합니다.')
@@ -97,3 +106,91 @@ def convert(source, drawing_id, image_file=None):
         if not (0 <= x < width and 0 <= y < height):
             raise ValueError(f'이미지 범위 밖 좌표: {x}, {y}')
         category = 'DIMENSION' if match else 'GDT'
+        
+        # 원본 OCR 좌표 보존
+        original_x, original_y = x, y
+
+        # 치수는 Frame 기준, GD&T는 전체 이미지 기준
+        if category == 'DIMENSION':
+            x += offset_x
+            y += offset_y
+
+        item = {
+            'id': f'{category}_{int(number):03d}',
+            'category': category,
+            'raw_text': raw,
+            'position': {'x': x, 'y': y},
+            'original_position': {
+                'x': original_x,
+                'y': original_y
+            },
+        }
+
+        if category == 'DIMENSION':
+            item.update(parse_dimension(raw))
+        else:
+            item.update({
+                'measurement_characteristic': 'GEOMETRIC_TOLERANCE',
+                'requires_review': True,
+                'review_reasons': [
+                    '기하공차 종류, 기준 데이텀 및 공차역 해석 필요'
+                ],
+            })
+
+        doc['items'].append(item)
+
+    doc['item_count'] = len(doc['items'])
+    return doc
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='검수 완료 OCR TXT를 Metadata JSON으로 변환'
+    )
+
+    parser.add_argument(
+        'drawing_id',
+        help='도면 이름 (예: HDH_63_05)'
+    )
+
+    args = parser.parse_args()
+
+    # 프로젝트 data 폴더
+    data_dir = Path(__file__).resolve().parent
+
+    input_path = (
+        data_dir / 'reviewed' /
+        f'{args.drawing_id}_reviewed.txt'
+    )
+
+    output_dir = data_dir / 'normalized'
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = (
+        output_dir / f'{args.drawing_id}_metadata.json'
+    )
+
+    if not input_path.is_file():
+        print(f'[ERROR] 검수 완료 파일 없음: {input_path}')
+        return
+
+    source = input_path.read_text(encoding='utf-8-sig')
+
+    metadata = convert(
+        source,
+        drawing_id=args.drawing_id,
+        image_file=f'{args.drawing_id}_reviewed.jpg'
+    )
+
+    output_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding='utf-8'
+    )
+
+    print(f'[INPUT] {input_path}')
+    print(f'[SAVED] {output_path}')
+    print(f'[ITEMS] {metadata["item_count"]}')
+
+
+if __name__ == '__main__':
+    main()

@@ -10,7 +10,7 @@ from .review import build_reviewed_json
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_DATA_DIR = os.path.normpath(os.path.join(BACKEND_DIR, "..", "data"))  # 수정이 eDOCr2 결과 폴더
-
+ORIGIN_DIR = os.path.join(REPO_DATA_DIR, "origin")
 
 def find_origin(arg: str, extra_folders: Optional[List[str]] = None) -> str:
     """'HDH_63_3' 처럼 도면 이름만 주면 HDH_63_3_origin.txt 를 찾는다.
@@ -20,7 +20,12 @@ def find_origin(arg: str, extra_folders: Optional[List[str]] = None) -> str:
     if os.path.isfile(arg):
         return arg
     names = [arg] if arg.lower().endswith(".txt") else [f"{arg}_origin.txt", f"{arg}_OCR.txt", f"{arg}.txt"]
-    folders = list(extra_folders or []) + ["", "data", REPO_DATA_DIR]
+    folders = list(extra_folders or []) + [
+    "",
+    ORIGIN_DIR,
+    "data",
+    REPO_DATA_DIR,
+    ]
     for folder in folders:
         for n in names:
             path = os.path.normpath(os.path.join(folder, n))
@@ -54,26 +59,62 @@ def write_text(path: str, text: str) -> None:
 def save_outputs(origin_path: str, base: str, name: str, reviewed: str, log: dict, *,
                  out: Optional[str] = None, want_json: bool = False, log_dir: Optional[str] = "logs",
                  result_jpg: Optional[str] = None) -> List[str]:
-    """검수 결과 저장. 저장한 경로 목록을 돌려준다.
+    """검수 완료 파일을 reviewed/, 검수 기록을 logs/에 저장."""
 
-    도면_reviewed.txt (항상) / 도면_reviewed.json (want_json) / 도면_review_log.txt·json (항상)
-    log_dir/review_history.csv (누적) / 도면_reviewed.jpg (result_jpg, 없으면 옆의 도면_result.jpg 자동)
-    """
-    out = out or base + "_reviewed.txt"
+    # 프로젝트 data 폴더 기준 경로
+    reviewed_dir = os.path.join(REPO_DATA_DIR, "reviewed")
+    logs_dir = os.path.join(REPO_DATA_DIR, "logs")
+
+    os.makedirs(reviewed_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
+
+    reviewed_base = os.path.join(reviewed_dir, name)
+    logs_base = os.path.join(logs_dir, name)
+
+    # 1. 검수 완료 TXT: 원본 OCR TXT 형식 유지
+    out = out or reviewed_base + "_reviewed.txt"
     write_text(out, reviewed)
     saved = [out]
+
+    # 2. 선택적 검수 완료 JSON
     if want_json:
-        path = base + "_reviewed.json"
-        write_text(path, json.dumps(build_reviewed_json(reviewed, log, name), ensure_ascii=False, indent=2) + "\n")
+        path = reviewed_base + "_reviewed.json"
+        write_text(
+            path,
+            json.dumps(
+                build_reviewed_json(reviewed, log, name),
+                ensure_ascii=False,
+                indent=2
+            ) + "\n"
+        )
         saved.append(path)
-    saved += write_logs(log, base, log_dir or None, origin_file=origin_path, reviewed_file=out)
+
+    # 3. 검수 이력
+    saved += write_logs(
+        log,
+        logs_base,
+        logs_dir if log_dir else None,
+        origin_file=origin_path,
+        reviewed_file=out
+    )
+
+    # 4. 검수 결과 이미지
     if result_jpg is None:
         auto = base_of(origin_path) + "_result.jpg"
         result_jpg = auto if os.path.isfile(auto) else None
+
     if result_jpg:
         try:
             from .render import render_reviewed
-            saved.append(render_reviewed(result_jpg, reviewed, log, base + "_reviewed.jpg"))
+            saved.append(
+                render_reviewed(
+                    result_jpg,
+                    reviewed,
+                    log,
+                    reviewed_base + "_reviewed.jpg"
+                )
+            )
         except ImportError:
             print("  ! Pillow가 없어 reviewed.jpg 는 건너뜀 (pip install pillow)")
+
     return saved

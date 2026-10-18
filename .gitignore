@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+gpu_venv/
+
+# Generated OCR data
+/data/input/*
+/data/origin/*
+/data/reviewed/*
+/data/logs/*
+/data/normalized/*
+
+# Keep folder structure
+!/data/input/.gitkeep
+!/data/origin/.gitkeep
+!/data/reviewed/.gitkeep
+!/data/logs/.gitkeep
+!/data/normalized/.gitkeep

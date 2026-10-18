@@ -63,13 +63,22 @@ def main(argv=None) -> int:
         print(f"[INPUT] {origin_path}")
 
         if args.cmd == "review":
-            out = args.out or base + "_review.json"
+            logs_dir = os.path.join(
+                os.path.dirname(os.path.dirname(origin_path)),
+                "logs"
+            )
+            os.makedirs(logs_dir, exist_ok=True)
+
+            out = args.out or os.path.join(logs_dir, name + "_review.json")
             data = build_review(origin, name=name)
             write_text(out, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+
             s = data["summary"]
             print(f"[SAVED] {out}  (기하공차 {s['gdt_rows']}줄, 형식 오류 {s['gdt_format_error']}, 치수 {s['dimensions']})")
+
             for w in data["warnings"]:
                 print("  ! " + w)
+
             return 0
 
         with open(args.edits_json, "r", encoding="utf-8-sig") as f:
