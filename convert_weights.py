@@ -9,7 +9,8 @@ sys.path.insert(0, str(project_root / "edocr2"))
 from edocr2 import tools
 from edocr2.keras_ocr.recognition import Recognizer
 
-models_dir = project_root / "edocr2" / "edocr2" / "models"
+#models_dir = project_root / "edocr2" / "edocr2" / "models"
+models_dir = project_root / "edocr2" / "edocr2" / "tools" / "models"
 
 for name in ["recognizer_dimensions_2", "recognizer_gdts"]:
     model_base = models_dir / name

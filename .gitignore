@@ -13,3 +13,16 @@ __pycache__/
 *.pyc
 
 /backend/storage/
+
+/.venv-ocr/
+
+
+.venv/
+.venv-ocr/
+backend/storage/
+backend/vector_db/
+edocr2/edocr2/tools/models/*.keras
+edocr2/edocr2/tools/models/*.npz
+data/origin/cpu-*/
+__pycache__/
+*.pyc
