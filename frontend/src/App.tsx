@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "./components/Header";
 import { DrawingLibrary } from "./components/DrawingLibrary";
 import { DrawingViewer } from "./components/DrawingViewer";
@@ -19,6 +19,7 @@ import {
   type DemoDrawingEntry,
   type ErrorCase,
 } from "./lib/demoDrawings";
+import { matchDrawingId, rasterizeUpload, UPLOAD_ACCEPT, validateUpload } from "./lib/localUpload";
 import { apiUrl } from './lib/drawingAPI';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
 import { toOcrPoints } from './lib/ocr';
@@ -27,7 +28,7 @@ import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
 
 const DEMO_DRAWING_KEY = "hanwha_demo_drawing_id";
-const RECORDS_KEY = "hanwha_inspection_results_v3";
+const RECORDS_KEY = "hanwha_inspection_results_v4";
 
 export function App() {
   const [selectedPointId, setSelectedPointId] = useState(1);
@@ -115,6 +116,72 @@ export function App() {
   const [errorCases, setErrorCases] = useState<ErrorCase[]>([]);
   const [demoError, setDemoError] = useState("");
 
+  // 업로드한 도면 (브라우저 메모리에만 보관, 새로고침하면 사라짐)
+  const [uploads, setUploads] = useState<DemoDrawingEntry[]>([]);
+  const [uploadNotice, setUploadNotice] = useState<{ tone: "info" | "ok" | "warn" | "error"; text: string } | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const allEntries = useMemo(() => [...uploads, ...demoIndex], [uploads, demoIndex]);
+
+  async function handleLocalUpload(file: File) {
+    const invalid = validateUpload(file);
+    if (invalid) {
+      setUploadNotice({ tone: "error", text: invalid });
+      return;
+    }
+    setUploadingFile(true);
+    setUploadNotice({ tone: "info", text: `「${file.name}」 도면을 불러오는 중…` });
+    try {
+      const uploadId = `upload-${Date.now()}`;
+      const linkedId = matchDrawingId(file.name, demoIndex);
+      const linkedEntry = demoIndex.find((entry) => entry.id === linkedId);
+      const base = linkedEntry ? await fetchDemoDrawing(linkedEntry) : null;
+      const raster = await rasterizeUpload(
+        file,
+        base ? { width: base.image.width_px, height: base.image.height_px } : undefined
+      );
+      const linked = !!base && raster.fitted;
+      const doc: DemoDrawingDoc = linked
+        ? { ...base!, demo_id: uploadId, imageUrl: raster.url, linked_drawing_id: linkedId }
+        : {
+            demo_id: uploadId,
+            part_name: file.name.replace(/\.[^.]+$/, ""),
+            part_no: null,
+            drawing_scale: null,
+            image: { file: "", width_px: raster.width, height_px: raster.height },
+            imageUrl: raster.url,
+            linked_drawing_id: null,
+            items: [],
+          };
+      setUploads((previous) => [
+        {
+          id: uploadId,
+          label: `⬆ ${file.name}${linked ? ` · ${linkedId} 추출 결과 연결` : " · 추출 결과 없음"}`,
+          part_name: doc.part_name,
+          part_no: doc.part_no,
+          scale: doc.drawing_scale,
+          data: "",
+          doc,
+          uploaded: true,
+        },
+        ...previous,
+      ]);
+      setDemoDrawingId(uploadId);
+      setDemoMode(true);
+      setUploadNotice(
+        linked
+          ? { tone: "ok", text: `「${file.name}」 업로드 완료 · ${linkedId} 추출 결과(${doc.items.length}개 항목)를 연결했습니다.` }
+          : base
+          ? { tone: "warn", text: `「${file.name}」 업로드 완료 · ${linkedId}와 도면 비율이 달라 추출 결과를 연결하지 않았습니다.` }
+          : { tone: "warn", text: `「${file.name}」 업로드 완료 · 이 도면의 추출 결과가 없습니다. 백엔드 OCR(eDOCr2)로 추출·검수하면 측정 항목이 생성됩니다.` }
+      );
+    } catch (error) {
+      setUploadNotice({ tone: "error", text: `도면을 불러오지 못했습니다: ${error instanceof Error ? error.message : String(error)}` });
+    } finally {
+      setUploadingFile(false);
+    }
+  }
+
   // 도면 목록 + 오류사례 DB 불러오기
   useEffect(() => {
     let cancelled = false;
@@ -135,24 +202,25 @@ export function App() {
 
   // 선택한 도면의 추출 데이터 불러오기
   useEffect(() => {
-    const entry = demoIndex.find((item) => item.id === demoDrawingId);
+    const entry = allEntries.find((item) => item.id === demoDrawingId);
     if (!entry) return;
     let cancelled = false;
     setDemoDoc(null);
     setSelectedPointId(1);
     setSelectedItemId("");
-    fetchDemoDrawing(entry)
+    (entry.doc ? Promise.resolve(entry.doc) : fetchDemoDrawing(entry))
       .then((doc) => !cancelled && setDemoDoc(doc))
       .catch((error) => !cancelled && setDemoError(String(error.message || error)));
     try {
-      localStorage.setItem(DEMO_DRAWING_KEY, demoDrawingId);
+      if (!entry.uploaded) localStorage.setItem(DEMO_DRAWING_KEY, demoDrawingId);
     } catch {
       // 저장 불가 환경이면 무시
     }
     return () => {
       cancelled = true;
     };
-  }, [demoDrawingId, demoIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoDrawingId, demoIndex, uploads.length]);
 
   const demoPoints = useMemo(
     () => (demoDoc ? buildInspectionPoints(demoDoc, errorCases) : []),
@@ -230,17 +298,49 @@ export function App() {
           demoMode
             ? {
                 partName: demoDoc?.part_name || "도면 불러오는 중",
-                drawingName: demoIndex.find((entry) => entry.id === demoDrawingId)?.id || "—",
+                drawingName: (() => {
+                  const entry = allEntries.find((item) => item.id === demoDrawingId);
+                  return entry?.uploaded ? demoDoc?.linked_drawing_id || demoDoc?.part_name || "업로드 도면" : entry?.id || "—";
+                })(),
                 partNo: demoDoc?.part_no,
                 scale: demoDoc?.drawing_scale,
               }
             : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }
         }
-        onUploadDrawing={() => setUploadRequest((value) => value + 1)}
+        onUploadDrawing={() => uploadInputRef.current?.click()}
         onResetData={handleResetData}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
+
+      {/* 헤더 「도면 업로드」: PDF·PNG·JPG를 브라우저에서 바로 불러온다 */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept={UPLOAD_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file && !uploadingFile) void handleLocalUpload(file);
+        }}
+      />
+      {uploadNotice && (
+        <div
+          role={uploadNotice.tone === "error" ? "alert" : "status"}
+          className={`flex shrink-0 items-center justify-between gap-3 px-4 py-1.5 text-xs ${
+            {
+              info: "bg-cyan-950 text-cyan-200",
+              ok: "bg-emerald-950 text-emerald-200",
+              warn: "bg-amber-950 text-amber-200",
+              error: "bg-rose-950 text-rose-200",
+            }[uploadNotice.tone]
+          }`}
+        >
+          <span>{uploadNotice.text}</span>
+          <button type="button" onClick={() => setUploadNotice(null)} className="shrink-0 opacity-70 hover:opacity-100" aria-label="알림 닫기">✕</button>
+        </div>
+      )}
 
       <DrawingLibrary
         uploadRequest={uploadRequest}
@@ -268,13 +368,15 @@ export function App() {
                 onChange={(event) => setDemoDrawingId(event.target.value)}
                 className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
               >
-                {demoIndex.map((entry) => (
+                {allEntries.map((entry) => (
                   <option key={entry.id} value={entry.id}>{entry.label}</option>
                 ))}
               </select>
               <span>
                 {demoError
                   ? <span className="text-rose-300">{demoError}</span>
+                  : demoDoc && !demoDoc.items.length
+                  ? "추출 결과 없음 · 도면만 표시합니다"
                   : demoDoc
                   ? `측정항목 ${demoPoints.length}건 (치수 ${demoCounts.dims} · 기하공차 ${demoCounts.gdt}) · 도면 추출 결과에서 자동 생성`
                   : "도면 불러오는 중…"}

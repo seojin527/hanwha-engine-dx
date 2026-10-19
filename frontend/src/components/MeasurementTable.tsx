@@ -27,9 +27,13 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
   collapsed = false,
   onToggleCollapsed,
 }) => {
-  const completedCount = Object.values(inspectionRecords).filter(
-    (r: any) => r?.status === "completed"
-  ).length;
+  // 측정 완료 = OK + NG (판정까지 끝난 항목)
+  const pointIds = new Set(points.map((pt) => pt?.id || pt?.displayNumber));
+  const measured = Object.entries(inspectionRecords).filter(
+    ([id, r]: [string, any]) => pointIds.has(Number(id)) && (r?.status === "completed" || r?.status === "flagged")
+  );
+  const completedCount = measured.length;
+  const ngCount = measured.filter(([, r]: [string, any]) => r?.status === "flagged").length;
 
   return (
     <div className={`bg-white flex flex-col border-t border-slate-200 shadow-inner ${
@@ -45,8 +49,13 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
             피스톤 로드 측정 항목 (Piston Rod Inspection Sheet)
           </h3>
           <span className="text-[11px] text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200 font-semibold">
-            검사 진행률: {completedCount} / {points.length} 완료 ({Math.round((completedCount / points.length) * 100)}%)
+            검사 진행률: {completedCount} / {points.length} 완료 ({points.length ? Math.round((completedCount / points.length) * 100) : 0}%)
           </span>
+          {ngCount > 0 && (
+            <span className="text-[11px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 font-semibold">
+              NG {ngCount}건
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {!collapsed && (
@@ -88,6 +97,7 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
               const record = inspectionRecords[pointId] || {};
               const status = record.status || "pending";
               const isDone = status === "completed";
+              const isNg = status === "flagged";
 
               const itemId = pt.items?.[0]?.id || `p${pointId}-item`;
 
@@ -107,10 +117,12 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
                       className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
                         isDone
                           ? "bg-emerald-100 text-emerald-800"
+                          : isNg
+                          ? "bg-rose-100 text-rose-700"
                           : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {isDone ? "완료" : "대기"}
+                      {isDone ? "완료" : isNg ? "NG" : "대기"}
                     </span>
                   </td>
                   <td className="py-2 px-3 text-center font-bold text-slate-800">

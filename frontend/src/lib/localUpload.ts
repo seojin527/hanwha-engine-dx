@@ -4,11 +4,17 @@
  * - 파일명이 추출 결과가 있는 도면(예: HDH_63_05.pdf)과 같으면
  *   그 도면의 추출 데이터 좌표계(가로·세로 px)에 맞춰 그려 측정 항목을 바로 연결한다.
  */
-import * as pdfjs from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { DemoDrawingEntry } from "./demoDrawings";
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+// PDF 라이브러리는 PDF를 올릴 때만 불러온다 (첫 화면 로딩에 영향 없음)
+async function loadPdfjs() {
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  return pdfjs;
+}
 
 export const UPLOAD_ACCEPT = ".pdf,.png,.jpg,.jpeg";
 const MAX_SIZE = 30 * 1024 * 1024;
@@ -68,6 +74,12 @@ export async function rasterizeUpload(file: File, target?: { width: number; heig
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
 
   if (isPdf) {
+    let pdfjs;
+    try {
+      pdfjs = await loadPdfjs();
+    } catch {
+      throw new Error("PDF 라이브러리(pdfjs-dist)를 불러오지 못했습니다. frontend 폴더에서 npm install 후 다시 실행해주세요.");
+    }
     const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
     const page = await pdf.getPage(1);
     const base = page.getViewport({ scale: 1 });

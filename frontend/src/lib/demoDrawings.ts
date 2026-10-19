@@ -12,6 +12,9 @@ export interface DemoDrawingEntry {
   part_no?: string | null;
   scale?: string | null;
   data: string;
+  /** 업로드한 도면: 메모리에 있는 도면 데이터 */
+  doc?: DemoDrawingDoc;
+  uploaded?: boolean;
 }
 
 export interface DemoItem {
@@ -43,6 +46,10 @@ export interface DemoDrawingDoc {
   drawing_scale?: string | null;
   material_raw?: string | null;
   image: { file: string; width_px: number; height_px: number };
+  /** 업로드한 도면 이미지 주소 (있으면 file 대신 사용) */
+  imageUrl?: string;
+  /** 업로드 도면이 연결된 추출 결과 도면 ID */
+  linked_drawing_id?: string | null;
   items: DemoItem[];
 }
 
@@ -72,7 +79,7 @@ async function getJson<T>(path: string): Promise<T> {
 export const fetchDemoIndex = () => getJson<DemoDrawingEntry[]>("index.json");
 export const fetchDemoDrawing = (entry: DemoDrawingEntry) => getJson<DemoDrawingDoc>(entry.data);
 export const fetchErrorCases = () => getJson<ErrorCase[]>("error_cases.json");
-export const demoImageUrl = (doc: DemoDrawingDoc) => BASE + doc.image.file;
+export const demoImageUrl = (doc: DemoDrawingDoc) => doc.imageUrl || BASE + doc.image.file;
 
 // ------------------------------------------------------------ 공차
 // 개별 공차가 없는 치수: 일반공차 ISO 2768-m (기획서 기준)
