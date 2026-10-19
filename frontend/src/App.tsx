@@ -10,7 +10,6 @@ import { DrawingViewer } from "./components/DrawingViewer";
 import { MeasurementTable } from "./components/MeasurementTable";
 import { MeasurementPanel } from "./components/MeasurementPanel";
 import {
-  buildInspectionPoints,
   demoImageUrl,
   fetchDemoDrawing,
   fetchDemoIndex,
@@ -26,6 +25,27 @@ import { toOcrPoints } from './lib/ocr';
 import { OcrMeasurementTable } from './components/OcrMeasurementTable';
 import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
+import { EditHistoryPopover } from "./components/EditHistoryPopover";
+import { AdminChecklist } from "./components/AdminChecklist";
+import {
+  buildConfirmRecords,
+  buildPointsWithEdits,
+  diffEdit,
+  reevaluateRecords,
+} from "./lib/admin/adminOverlay";
+import {
+  ADMIN_EDITS_KEY,
+  ADMIN_LOG_KEY,
+  MAX_LOG_ENTRIES,
+  MODE_KEY,
+  loadFromStorage,
+  loadMode,
+  saveToStorage,
+  type AdminEditsByDrawing,
+  type AppMode,
+  type EditLogEntry,
+  type ItemEdit,
+} from "./lib/admin/adminStore";
 
 const DEMO_DRAWING_KEY = "hanwha_demo_drawing_id";
 const RECORDS_KEY = "hanwha_inspection_results_v4";
@@ -41,6 +61,39 @@ export function App() {
   const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
 
   const [uploadRequest, setUploadRequest] = useState(0);
+
+  // 작업자 / 관리자 모드 (이 브라우저에만 저장, 권한 확인 없는 목업)
+  const [mode, setMode] = useState<AppMode>(loadMode);
+  const [editLog, setEditLog] = useState<EditLogEntry[]>(() =>
+    loadFromStorage<EditLogEntry[]>(ADMIN_LOG_KEY, [])
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // 관리자 수정값: 도면별(항목 id → 수정값). 추출 결과 파일은 바꾸지 않고 그 위에 덮어쓴다.
+  const [adminEdits, setAdminEdits] = useState<AdminEditsByDrawing>(() =>
+    loadFromStorage<AdminEditsByDrawing>(ADMIN_EDITS_KEY, {})
+  );
+
+  useEffect(() => {
+    saveToStorage(ADMIN_EDITS_KEY, adminEdits);
+  }, [adminEdits]);
+  useEffect(() => {
+    saveToStorage(ADMIN_LOG_KEY, editLog);
+  }, [editLog]);
+
+  function handleModeChange(next: AppMode) {
+    setMode(next);
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // 저장 불가 환경이면 무시
+    }
+  }
+
+  function handleClearLog() {
+    if (!window.confirm("수정 내역을 모두 지우시겠습니까?")) return;
+    setEditLog([]);
+    saveToStorage(ADMIN_LOG_KEY, []);
+  }
 
   // 화면 접기 상태: 아래 측정 항목 표 / 오른쪽 측정 패널
   const [tableCollapsed, setTableCollapsed] = useState(false);
@@ -222,9 +275,12 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoDrawingId, demoIndex, uploads.length]);
 
+  // 수정값을 저장하는 키. 업로드 도면은 연결된 추출 결과 도면(예: HDH_63_05)의 수정값을 함께 쓴다.
+  const drawingKey = demoDoc?.linked_drawing_id || demoDrawingId;
+  const drawingEdits = adminEdits[drawingKey];
   const demoPoints = useMemo(
-    () => (demoDoc ? buildInspectionPoints(demoDoc, errorCases) : []),
-    [demoDoc, errorCases]
+    () => (demoDoc ? buildPointsWithEdits(demoDoc, errorCases, drawingEdits) : []),
+    [demoDoc, errorCases, drawingEdits]
   );
   const demoCounts = {
     dims: demoPoints.filter((point) => point.feature.type !== "GD&T").length,
@@ -242,7 +298,14 @@ export function App() {
       }
       return {};
     });
-  const inspectionRecords = recordsByDrawing[demoDrawingId] || {};
+  // 관리자가 허용 범위를 고치면, 이미 입력한 실측값의 판정도 새 범위로 다시 계산해서 보여준다.
+  const rawRecords = recordsByDrawing[demoDrawingId];
+  const inspectionRecords = useMemo(
+    () => reevaluateRecords(demoPoints, rawRecords || {}),
+    [demoPoints, rawRecords]
+  );
+  // 관리자 모드의 마커 색: 확인을 마친 항목만 완료로 표시
+  const confirmRecords = useMemo(() => buildConfirmRecords(demoPoints), [demoPoints]);
 
   useEffect(() => {
     try {
@@ -291,6 +354,38 @@ export function App() {
     }));
   }
 
+  // 관리자 수정 저장 + 수정 내역 기록
+  function handleCommitEdit(sourceId: string, next: ItemEdit | undefined) {
+    if (!demoDoc) return;
+    const item = demoDoc.items.find((entry) => entry.id === sourceId);
+    const point = demoPoints.find((entry) => entry.sourceId === sourceId);
+    if (!item || !point) return;
+    const prev = adminEdits[drawingKey]?.[sourceId];
+    const changes = diffEdit(demoDoc, item, prev, next);
+    if (changes.length === 0 && JSON.stringify(prev ?? null) === JSON.stringify(next ?? null)) return;
+
+    setAdminEdits((previous) => {
+      const forDrawing = { ...(previous[drawingKey] || {}) };
+      if (next) forDrawing[sourceId] = next;
+      else delete forDrawing[sourceId];
+      return { ...previous, [drawingKey]: forDrawing };
+    });
+
+    const at = Date.now();
+    const entries: EditLogEntry[] = changes.map((change, index) => ({
+      id: `${at}-${sourceId}-${index}`,
+      at,
+      drawingId: drawingKey,
+      itemNo: point.displayNumber,
+      itemName: `${point.feature.name} ${item.raw_text}`,
+      field: change.field,
+      from: change.from,
+      to: change.to,
+    }));
+    // 최신 수정이 위로 오되, 한 번의 수정 안에서는 필드 순서(기준 치수 → 공차 → 측정기)를 유지한다
+    setEditLog((previous) => [...entries, ...previous].slice(0, MAX_LOG_ENTRIES));
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
@@ -311,7 +406,29 @@ export function App() {
         onResetData={handleResetData}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        mode={mode}
+        onModeChange={handleModeChange}
+        historyOpen={historyOpen}
+        historyCount={editLog.length}
+        onToggleHistory={() => setHistoryOpen((open) => !open)}
       />
+
+      {historyOpen && (
+        <EditHistoryPopover
+          entries={editLog.slice(0, MAX_LOG_ENTRIES)}
+          mode={mode}
+          activeDrawingId={demoMode ? drawingKey || null : null}
+          onClose={() => setHistoryOpen(false)}
+          onClear={mode === "admin" ? handleClearLog : undefined}
+        />
+      )}
+
+      {mode === "admin" && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-cyan-900 bg-cyan-950 px-4 py-1 text-[11px] text-cyan-200">
+          <span className="rounded bg-cyan-700 px-1.5 py-0.5 font-bold text-white">관리자 모드</span>
+          <span>권한 확인이 없는 목업 모드입니다. 수정한 값은 작업자 모드에도 반영됩니다. 검토 완료·⚠ 표시·치수 추가는 아직 연결되지 않았습니다.</span>
+        </div>
+      )}
 
       {/* 헤더 「도면 업로드」: PDF·PNG·JPG를 브라우저에서 바로 불러온다 */}
       <input
@@ -437,7 +554,7 @@ export function App() {
             }
             selectedPointId={demoMode ? selectedPointId : activeOcrPoint?.id || 0}
             onSelectPoint={demoMode ? selectPoint : setSelectedPointId}
-            inspectionRecords={demoMode ? inspectionRecords : {}}
+            inspectionRecords={demoMode ? (mode === "admin" ? confirmRecords : inspectionRecords) : {}}
             isAnalyzing={!demoMode && ocr.status === "applying"}
             analyzingStep={0}
             toolbarRight={viewerToolbarRight}
@@ -489,7 +606,16 @@ export function App() {
         )}
 
         <div className={`${sidePanelOpen ? "flex" : "hidden"} w-[39.5%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl`}>
-          {demoMode ? (
+          {demoMode && mode === "admin" && demoDoc && demoPoints.length > 0 ? (
+            <AdminChecklist
+              doc={demoDoc}
+              points={demoPoints}
+              edits={drawingEdits || {}}
+              selectedPointId={selectedPointId}
+              onSelectPoint={selectPoint}
+              onCommitEdit={handleCommitEdit}
+            />
+          ) : demoMode ? (
             <MeasurementPanel
               currentPoint={currentPoint}
               totalPointsCount={demoPoints.length}

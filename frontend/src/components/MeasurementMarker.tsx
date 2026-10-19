@@ -31,7 +31,7 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
         onClick();
       }}
       // 치수 숫자가 가려지지 않도록 bg-opacity-60 및 backdrop-blur 적용
-      className={`w-6 h-6 rounded-full text-[11px] font-extrabold flex items-center justify-center shadow transition transform hover:scale-125 z-20 backdrop-blur-[1px] ${
+      className={`relative w-6 h-6 rounded-full text-[11px] font-extrabold flex items-center justify-center shadow transition transform hover:scale-125 z-20 backdrop-blur-[1px] ${
         isSelected
           ? "bg-amber-400/60 text-slate-950 ring-2 ring-cyan-500 scale-110 shadow-lg"
           : isNg
@@ -43,6 +43,15 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
       title={`#${displayNumber}: ${point.feature?.name || point.name || "포인트"}`}
     >
       {displayNumber}
+      {point.adminEdited && (
+        // 관리자가 값을 고친 항목 표시
+        <span
+          aria-label="관리자 수정"
+          className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-400 text-[8px] font-black text-slate-900 ring-1 ring-white"
+        >
+          수
+        </span>
+      )}
     </button>
   );
 };

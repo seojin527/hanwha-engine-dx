@@ -5,6 +5,7 @@
 
 import React from "react";
 import { MOCK_PART_INFO } from "../data/mockData";
+import type { AppMode } from "../lib/admin/adminStore";
 
 interface HeaderProps {
   displayInfo?: { partName: string; drawingName: string; partNo?: string | null; scale?: string | null; revision?: string | null };
@@ -12,6 +13,13 @@ interface HeaderProps {
   onResetData: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  /** 작업자 / 관리자 모드 */
+  mode: AppMode;
+  onModeChange: (mode: AppMode) => void;
+  /** 수정 내역 창이 열려 있는가, 내역 건수, 여닫기 */
+  historyOpen: boolean;
+  historyCount: number;
+  onToggleHistory: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,15 +28,20 @@ export const Header: React.FC<HeaderProps> = ({
   onResetData,
   searchQuery,
   onSearchChange,
+  mode,
+  onModeChange,
+  historyOpen,
+  historyCount,
+  onToggleHistory,
 }) => {
   return (
     <header className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0 h-16 shadow-md">
       {/* Left: Title & Part Info */}
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden whitespace-nowrap">
         <div>
           <h1 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
             Drawing AI Measurement Guide
-            <span className="text-[11px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800 font-normal">
+            <span className="hidden min-[2100px]:inline text-[11px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800 font-normal">
               Engine Component Quality Inspection Workspace
             </span>
           </h1>
@@ -37,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
           </p>
         </div>
 
-        <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 border-l border-slate-700 pl-6">
+        <div className="hidden min-[1500px]:flex items-center gap-4 text-xs text-slate-300 border-l border-slate-700 pl-6">
           <div>
             <span className="text-slate-500 mr-1.5">PART:</span>
             <span className="font-semibold text-slate-200">{displayInfo?.partName || MOCK_PART_INFO?.name}</span>
@@ -62,16 +75,46 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Search, Reset, Upload, User Badge */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
         <div className="relative">
           <input
             type="text"
             placeholder="포인트/규격 검색..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 w-40 transition"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 w-32 transition"
           />
         </div>
+
+        {/* 작업자 / 관리자 모드 전환 (권한 확인 없는 목업) */}
+        <div role="group" aria-label="모드 전환" className="flex overflow-hidden rounded-lg border border-slate-700 text-xs font-semibold">
+          {(["worker", "admin"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              onClick={() => onModeChange(value)}
+              className={`px-3 py-1.5 transition ${
+                mode === value ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+              }`}
+            >
+              {value === "worker" ? "작업자" : "관리자"}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleHistory}
+          aria-expanded={historyOpen}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
+            historyOpen
+              ? "bg-cyan-950 border-cyan-700 text-cyan-200"
+              : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+          }`}
+        >
+          🕘 수정 내역{historyCount > 0 ? ` ${historyCount}` : ""}
+        </button>
 
         <button
           onClick={onResetData}
