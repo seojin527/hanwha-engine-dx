@@ -1,22 +1,24 @@
 import React, { useMemo, useState } from "react";
 import type { DemoDrawingDoc } from "../lib/demoDrawings";
 import type { ItemEdit } from "../lib/admin/adminStore";
-import { hasValueEdit } from "../lib/admin/adminStore";
+import { formatLogTime, hasValueEdit } from "../lib/admin/adminStore";
 import {
   buildEditFromInput,
   inputFromValues,
   readValues,
   type AdminPoint,
   type EditInput,
+  type Readiness,
 } from "../lib/admin/adminOverlay";
 
-type Filter = "all" | "dim" | "gdt" | "unconfirmed" | "edited";
+type Filter = "all" | "dim" | "gdt" | "unconfirmed" | "warn" | "edited";
 
 const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: "all", label: "전체" },
   { key: "dim", label: "치수" },
   { key: "gdt", label: "기하공차" },
   { key: "unconfirmed", label: "미확인" },
+  { key: "warn", label: "⚠ 확인 필요" },
   { key: "edited", label: "수정됨" },
 ];
 
@@ -29,6 +31,12 @@ interface AdminChecklistProps {
   onSelectPoint: (id: number) => void;
   /** 수정값을 바꾼다. next 가 undefined 면 수정값을 지운다. */
   onCommitEdit: (sourceId: string, next: ItemEdit | undefined) => void;
+  /** 검토 완료 조건 상태 */
+  readiness: Readiness;
+  /** 검토를 완료한 시각(ms). 완료 전이면 null */
+  completedAt: number | null;
+  onComplete: () => void;
+  onReopen: () => void;
 }
 
 /**
@@ -42,6 +50,10 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
   selectedPointId,
   onSelectPoint,
   onCommitEdit,
+  readiness,
+  completedAt,
+  onComplete,
+  onReopen,
 }) => {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -54,6 +66,7 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
         if (filter === "dim") return point.feature.type !== "GD&T";
         if (filter === "gdt") return point.feature.type === "GD&T";
         if (filter === "unconfirmed") return !point.confirmed;
+        if (filter === "warn") return !!point.warning;
         if (filter === "edited") return point.adminEdited;
         return true;
       }),
@@ -88,6 +101,57 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
             수정 <span className="font-bold text-cyan-700">{editedCount}</span>건
           </div>
         </div>
+      </div>
+
+      {/* 검토 완료 조건과 완료 버튼 */}
+      <div
+        className={`mt-3 rounded-lg border p-3 text-xs ${
+          completedAt ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-slate-50"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="font-bold text-slate-800">
+            {completedAt ? `관리자 검토 완료 (${formatLogTime(completedAt)})` : "관리자 검토 미완료"}
+          </div>
+          {completedAt ? (
+            <button
+              type="button"
+              onClick={onReopen}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              완료 취소
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onComplete}
+              disabled={!readiness.ready}
+              className="rounded-lg bg-cyan-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              관리자 검토 완료
+            </button>
+          )}
+        </div>
+        <ul className="mt-1.5 space-y-0.5 text-[11px] text-slate-600">
+          <li>
+            {readiness.gdtConfirmed === readiness.gdtTotal ? "✔" : "·"} 기하공차 전부 확인: {readiness.gdtConfirmed} / {readiness.gdtTotal}
+          </li>
+          <li>
+            {readiness.warnConfirmed === readiness.warnTotal ? "✔" : "·"} ⚠ 항목 확인: {readiness.warnConfirmed} / {readiness.warnTotal}
+            {readiness.warnTotal === 0 && " (⚠ 항목 없음)"}
+          </li>
+        </ul>
+        {!completedAt && !readiness.ready && readiness.pendingNumbers.length > 0 && (
+          <p className="mt-1.5 text-[11px] text-amber-800">
+            아직 확인할 항목: {readiness.pendingNumbers.slice(0, 12).join(", ")}번
+            {readiness.pendingNumbers.length > 12 ? ` 외 ${readiness.pendingNumbers.length - 12}건` : ""}
+          </p>
+        )}
+        {!completedAt && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            완료하기 전에는 작업자 모드에서 이 도면을 쓸 수 없습니다. 완료한 뒤 확인을 해제하면 완료가 자동으로 취소됩니다.
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -133,6 +197,16 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
                 <span className="font-semibold text-slate-800">{point.feature.name}</span>{" "}
                 <span className="font-mono text-slate-600">{point.dimension.formatted}</span>
               </span>
+              {point.warning && (
+                <span
+                  title={point.warning}
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    point.confirmed ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  ⚠ {point.confirmed ? "확인함" : "확인 필요"}
+                </span>
+              )}
               <span className="hidden shrink-0 font-mono text-[11px] text-slate-500 sm:inline">{point.dimension.tolerance}</span>
               {point.adminEdited && (
                 <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">수정됨</span>
@@ -215,6 +289,12 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ doc, point, itemId, edit, onCom
           확인 완료
         </label>
       </div>
+
+      {point.warning && (
+        <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
+          ⚠ {point.warning}. 도면과 대조해 값을 고치거나, 맞다면 "확인 완료"를 체크하세요.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {current.kind === "GDT" ? (

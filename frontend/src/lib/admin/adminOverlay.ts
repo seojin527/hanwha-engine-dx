@@ -22,7 +22,58 @@ export type AdminPoint = InspectionPoint & {
   adminEdited: boolean;
   /** 관리자가 확인을 마쳤는가 */
   confirmed: boolean;
+  /** 값이 깨졌거나 읽지 못한 항목이면 그 이유, 아니면 null (수정값을 반영한 현재 값 기준) */
+  warning: string | null;
 };
+
+/** 깨진 값으로 보이는 문구: 쉼표·콜론, 소수점이 앞이나 끝에 홀로 있는 경우 등 (예: ",.2", "5.") */
+const BROKEN_VALUE = /[,;:]|^[⌀Øø]?[RCM]?\s*\.|\.\.|\.\s*$/;
+
+/**
+ * 추출 값이 믿기 어려운 항목에 이유를 돌려준다. (서버 /review API가 아직 없어서 화면 안의 규칙으로만 판단한다.)
+ * item 은 관리자 수정값이 이미 반영된 항목이어야 한다.
+ */
+export function reviewWarning(item: DemoItem): string | null {
+  if (BROKEN_VALUE.test(item.raw_text)) return `깨진 값으로 보입니다 ("${item.raw_text}")`;
+  if (item.category === "GDT") {
+    if (item.tolerance_value === null || item.tolerance_value === undefined) return "공차값을 읽지 못했습니다";
+  } else if (item.nominal_value === null || item.nominal_value === undefined) {
+    return "기준 치수를 읽지 못했습니다";
+  }
+  return null;
+}
+
+export interface Readiness {
+  ready: boolean;
+  total: number;
+  /** 기하공차 개수와 확인 완료 개수 */
+  gdtTotal: number;
+  gdtConfirmed: number;
+  /** ⚠ 항목 개수와 그중 확인 완료 개수 */
+  warnTotal: number;
+  warnConfirmed: number;
+  /** 검토를 완료하려면 아직 확인해야 하는 항목의 화면 번호 */
+  pendingNumbers: number[];
+}
+
+/**
+ * 검토 완료 조건: 기하공차는 전부 확인하고, ⚠ 항목도 모두 확인해야 한다.
+ * (일반 치수는 확인하지 않아도 된다.)
+ */
+export function computeReadiness(points: AdminPoint[]): Readiness {
+  const gdt = points.filter((point) => point.feature.type === "GD&T");
+  const warn = points.filter((point) => point.warning);
+  const pending = points.filter((point) => (point.feature.type === "GD&T" || point.warning) && !point.confirmed);
+  return {
+    ready: points.length > 0 && pending.length === 0,
+    total: points.length,
+    gdtTotal: gdt.length,
+    gdtConfirmed: gdt.filter((point) => point.confirmed).length,
+    warnTotal: warn.length,
+    warnConfirmed: warn.filter((point) => point.confirmed).length,
+    pendingNumbers: pending.map((point) => point.displayNumber),
+  };
+}
 
 const round = (value: number) => Number(value.toFixed(4));
 
@@ -102,8 +153,9 @@ export function buildPointsWithEdits(
   cases: ErrorCase[],
   edits: Record<string, ItemEdit> | undefined,
 ): AdminPoint[] {
-  const points = buildInspectionPoints(applyEditsToDoc(doc, edits), cases);
-  return points.map((point) => {
+  const applied = applyEditsToDoc(doc, edits);
+  const points = buildInspectionPoints(applied, cases);
+  return points.map((point, index) => {
     const edit = edits?.[point.sourceId];
     const edited = hasValueEdit(edit);
     return {
@@ -112,6 +164,7 @@ export function buildPointsWithEdits(
       description: edited ? `${point.description} · 관리자 수정` : point.description,
       adminEdited: edited,
       confirmed: !!edit?.confirmed,
+      warning: reviewWarning(applied.items[index]),
     };
   });
 }

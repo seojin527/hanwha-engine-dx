@@ -43,6 +43,15 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
       title={`#${displayNumber}: ${point.feature?.name || point.name || "포인트"}`}
     >
       {displayNumber}
+      {point.warning && !point.confirmed && (
+        // 값이 깨졌거나 읽지 못해 관리자 확인이 필요한 항목
+        <span
+          aria-label="확인 필요"
+          className="absolute -left-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black leading-none text-slate-900 ring-1 ring-white"
+        >
+          !
+        </span>
+      )}
       {point.adminEdited && (
         // 관리자가 값을 고친 항목 표시
         <span

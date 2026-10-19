@@ -44,7 +44,11 @@ export type AppMode = "worker" | "admin";
 export const MODE_KEY = "hanwha_admin_mode_v1";
 export const ADMIN_EDITS_KEY = "hanwha_admin_edits_v1";
 export const ADMIN_LOG_KEY = "hanwha_admin_log_v1";
+export const ADMIN_REVIEW_KEY = "hanwha_admin_review_v1";
 export const MAX_LOG_ENTRIES = 300;
+
+/** 도면 id → 관리자 검토 완료 기록. 기록이 있으면 검토가 끝난 도면이다. */
+export type ReviewByDrawing = Record<string, { completedAt: number }>;
 
 /** 값이 바뀌는 필드(확인 표시는 제외) */
 const VALUE_FIELDS: Array<keyof ItemEdit> = ["nominal", "plus", "minus", "toleranceValue", "datum", "equipment"];

@@ -30,14 +30,17 @@ import { AdminChecklist } from "./components/AdminChecklist";
 import {
   buildConfirmRecords,
   buildPointsWithEdits,
+  computeReadiness,
   diffEdit,
   reevaluateRecords,
 } from "./lib/admin/adminOverlay";
 import {
   ADMIN_EDITS_KEY,
   ADMIN_LOG_KEY,
+  ADMIN_REVIEW_KEY,
   MAX_LOG_ENTRIES,
   MODE_KEY,
+  formatLogTime,
   loadFromStorage,
   loadMode,
   saveToStorage,
@@ -45,6 +48,7 @@ import {
   type AppMode,
   type EditLogEntry,
   type ItemEdit,
+  type ReviewByDrawing,
 } from "./lib/admin/adminStore";
 
 const DEMO_DRAWING_KEY = "hanwha_demo_drawing_id";
@@ -73,9 +77,15 @@ export function App() {
     loadFromStorage<AdminEditsByDrawing>(ADMIN_EDITS_KEY, {})
   );
 
+  // 관리자 검토 완료 기록: 도면별. 완료해야만 작업자 모드에서 그 도면을 쓸 수 있다.
+  const [review, setReview] = useState<ReviewByDrawing>(() => loadFromStorage<ReviewByDrawing>(ADMIN_REVIEW_KEY, {}));
+
   useEffect(() => {
     saveToStorage(ADMIN_EDITS_KEY, adminEdits);
   }, [adminEdits]);
+  useEffect(() => {
+    saveToStorage(ADMIN_REVIEW_KEY, review);
+  }, [review]);
   useEffect(() => {
     saveToStorage(ADMIN_LOG_KEY, editLog);
   }, [editLog]);
@@ -166,6 +176,8 @@ export function App() {
     }
   });
   const [demoDoc, setDemoDoc] = useState<DemoDrawingDoc | null>(null);
+  // demoDoc 가 어느 도면의 것인지. 도면을 바꾼 직후 잠깐 이전 도면 데이터가 남는 순간을 구분하는 데 쓴다.
+  const [demoDocId, setDemoDocId] = useState("");
   const [errorCases, setErrorCases] = useState<ErrorCase[]>([]);
   const [demoError, setDemoError] = useState("");
 
@@ -259,10 +271,15 @@ export function App() {
     if (!entry) return;
     let cancelled = false;
     setDemoDoc(null);
+    setDemoDocId("");
     setSelectedPointId(1);
     setSelectedItemId("");
     (entry.doc ? Promise.resolve(entry.doc) : fetchDemoDrawing(entry))
-      .then((doc) => !cancelled && setDemoDoc(doc))
+      .then((doc) => {
+        if (cancelled) return;
+        setDemoDoc(doc);
+        setDemoDocId(entry.id);
+      })
       .catch((error) => !cancelled && setDemoError(String(error.message || error)));
     try {
       if (!entry.uploaded) localStorage.setItem(DEMO_DRAWING_KEY, demoDrawingId);
@@ -276,12 +293,65 @@ export function App() {
   }, [demoDrawingId, demoIndex, uploads.length]);
 
   // 수정값을 저장하는 키. 업로드 도면은 연결된 추출 결과 도면(예: HDH_63_05)의 수정값을 함께 쓴다.
-  const drawingKey = demoDoc?.linked_drawing_id || demoDrawingId;
+  // 지금 선택한 도면의 데이터가 다 불러와졌을 때만 쓴다 (도면을 바꾼 직후 이전 도면 데이터와 섞이지 않게)
+  const effectiveDoc = demoDoc && demoDocId === demoDrawingId ? demoDoc : null;
+  const drawingKey = effectiveDoc?.linked_drawing_id || demoDrawingId;
   const drawingEdits = adminEdits[drawingKey];
   const demoPoints = useMemo(
-    () => (demoDoc ? buildPointsWithEdits(demoDoc, errorCases, drawingEdits) : []),
-    [demoDoc, errorCases, drawingEdits]
+    () => (effectiveDoc ? buildPointsWithEdits(effectiveDoc, errorCases, drawingEdits) : []),
+    [effectiveDoc, errorCases, drawingEdits]
   );
+
+  // 관리자 검토 완료 조건과 상태
+  const readiness = useMemo(() => computeReadiness(demoPoints), [demoPoints]);
+  const completedAt = review[drawingKey]?.completedAt ?? null;
+  // 검토를 마치지 않은 도면은 작업자 모드에서 쓸 수 없다 (추출 결과가 있는 도면만 해당)
+  const workerBlocked = mode === "worker" && demoMode && !!effectiveDoc && demoPoints.length > 0 && completedAt === null;
+
+  // 한 도면 전체에 대한 기록(예: 검토 완료)을 수정 내역에 남긴다
+  function appendDrawingLog(field: string, from: string, to: string) {
+    const at = Date.now();
+    const entry: EditLogEntry = {
+      id: `${at}-review`,
+      at,
+      drawingId: drawingKey,
+      itemNo: 0,
+      itemName: "도면 전체",
+      field,
+      from,
+      to,
+    };
+    setEditLog((previous) => [entry, ...previous].slice(0, MAX_LOG_ENTRIES));
+  }
+
+  function handleCompleteReview() {
+    if (!readiness.ready) return;
+    setReview((previous) => ({ ...previous, [drawingKey]: { completedAt: Date.now() } }));
+    appendDrawingLog("검토 상태", "미완료", "검토 완료");
+  }
+
+  function handleReopenReview() {
+    setReview((previous) => {
+      const next = { ...previous };
+      delete next[drawingKey];
+      return next;
+    });
+    appendDrawingLog("검토 상태", "검토 완료", "완료 취소");
+  }
+
+  // 완료한 뒤 확인을 해제하는 등 조건이 깨지면 완료를 자동으로 취소한다
+  useEffect(() => {
+    if (!effectiveDoc || demoPoints.length === 0) return;
+    if (review[drawingKey] && !readiness.ready) {
+      setReview((previous) => {
+        const next = { ...previous };
+        delete next[drawingKey];
+        return next;
+      });
+      appendDrawingLog("검토 상태", "검토 완료", "자동 취소 (확인이 해제되어 조건 미충족)");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveDoc, demoPoints, review, drawingKey, readiness.ready]);
   const demoCounts = {
     dims: demoPoints.filter((point) => point.feature.type !== "GD&T").length,
     gdt: demoPoints.filter((point) => point.feature.type === "GD&T").length,
@@ -356,12 +426,12 @@ export function App() {
 
   // 관리자 수정 저장 + 수정 내역 기록
   function handleCommitEdit(sourceId: string, next: ItemEdit | undefined) {
-    if (!demoDoc) return;
-    const item = demoDoc.items.find((entry) => entry.id === sourceId);
+    if (!effectiveDoc) return;
+    const item = effectiveDoc.items.find((entry) => entry.id === sourceId);
     const point = demoPoints.find((entry) => entry.sourceId === sourceId);
     if (!item || !point) return;
     const prev = adminEdits[drawingKey]?.[sourceId];
-    const changes = diffEdit(demoDoc, item, prev, next);
+    const changes = diffEdit(effectiveDoc, item, prev, next);
     if (changes.length === 0 && JSON.stringify(prev ?? null) === JSON.stringify(next ?? null)) return;
 
     setAdminEdits((previous) => {
@@ -426,7 +496,7 @@ export function App() {
       {mode === "admin" && (
         <div className="flex shrink-0 items-center gap-2 border-b border-cyan-900 bg-cyan-950 px-4 py-1 text-[11px] text-cyan-200">
           <span className="rounded bg-cyan-700 px-1.5 py-0.5 font-bold text-white">관리자 모드</span>
-          <span>권한 확인이 없는 목업 모드입니다. 수정한 값은 작업자 모드에도 반영됩니다. 검토 완료·⚠ 표시·치수 추가는 아직 연결되지 않았습니다.</span>
+          <span>권한 확인이 없는 목업 모드입니다. 수정한 값은 작업자 모드에도 반영됩니다. 도면 선 하이라이트와 치수 추가는 아직 연결되지 않았습니다.</span>
         </div>
       )}
 
@@ -495,7 +565,7 @@ export function App() {
                   : demoDoc && !demoDoc.items.length
                   ? "추출 결과 없음 · 도면만 표시합니다"
                   : demoDoc
-                  ? `측정항목 ${demoPoints.length}건 (치수 ${demoCounts.dims} · 기하공차 ${demoCounts.gdt}) · 도면 추출 결과에서 자동 생성`
+                  ? `측정항목 ${demoPoints.length}건 (치수 ${demoCounts.dims} · 기하공차 ${demoCounts.gdt}) · 도면 추출 결과에서 자동 생성${completedAt ? ` · 관리자 검토 완료 (${formatLogTime(completedAt)})` : ""}`
                   : "도면 불러오는 중…"}
               </span>
             </span>
@@ -532,6 +602,24 @@ export function App() {
 
       {!demoMode && ocr.error && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{ocr.error}</p>}
       {!demoMode && document?.image.coordinate_status === 'UNVERIFIED' && <p className="shrink-0 bg-amber-950 px-4 py-1 text-[11px] text-amber-200">좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.</p>}
+      {workerBlocked ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-6">
+          <div className="max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 text-center">
+            <div className="text-sm font-bold text-white">관리자 검토가 끝나지 않은 도면입니다</div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              이 도면은 관리자가 추출된 항목을 확인하고 「관리자 검토 완료」를 누른 뒤에 작업자 모드에서 쓸 수 있습니다.
+              기하공차는 전부 확인해야 하고, 값이 깨졌거나 읽지 못한 항목(⚠)도 확인해야 합니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleModeChange("admin")}
+              className="mt-4 rounded-lg bg-cyan-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-cyan-500"
+            >
+              관리자 모드로 전환
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col border-r border-slate-800">
           <DrawingViewer
@@ -606,14 +694,18 @@ export function App() {
         )}
 
         <div className={`${sidePanelOpen ? "flex" : "hidden"} w-[39.5%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl`}>
-          {demoMode && mode === "admin" && demoDoc && demoPoints.length > 0 ? (
+          {demoMode && mode === "admin" && effectiveDoc && demoPoints.length > 0 ? (
             <AdminChecklist
-              doc={demoDoc}
+              doc={effectiveDoc}
               points={demoPoints}
               edits={drawingEdits || {}}
               selectedPointId={selectedPointId}
               onSelectPoint={selectPoint}
               onCommitEdit={handleCommitEdit}
+              readiness={readiness}
+              completedAt={completedAt}
+              onComplete={handleCompleteReview}
+              onReopen={handleReopenReview}
             />
           ) : demoMode ? (
             <MeasurementPanel
@@ -668,6 +760,7 @@ export function App() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
