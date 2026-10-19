@@ -1,0 +1,53 @@
+{
+  "reviewer": "sj",
+  "gdt": [
+    {
+      "item_id": "G01-1",
+      "value": "0.0038"
+    },
+    {
+      "item_id": "G01-2",
+      "value": "0.012"
+    },
+    {
+      "item_id": "G02-1",
+      "value": "0.0016"
+    },
+    {
+      "item_id": "G02-2",
+      "value": "0.018"
+    },
+    {
+      "item_id": "G03-1",
+      "value": "0.026"
+    },
+    {
+      "item_id": "G03-2",
+      "value": "0.018"
+    },
+    {
+      "item_id": "G04-1",
+      "value": "0.005"
+    },
+    {
+      "item_id": "G04-2",
+      "value": "0.013"
+    },
+    {
+      "item_id": "G05-1",
+      "value": "0.02"
+    }
+  ],
+  "added_dimensions": [
+    {
+      "value": "7",
+      "kind": "length",
+      "tolerance": {
+        "type": "general"
+      },
+      "x": 1267,
+      "y": 1103,
+      "coord": "image"
+    }
+  ]
+}

@@ -1,9 +1,15 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-*.log
-.env*
-!.env.example
-*.zip
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+gpu_venv/
+backend/.venv/
+backend/vector_db/
+__pycache__/
+*.pyc
+
+/backend/storage/
