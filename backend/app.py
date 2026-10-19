@@ -12,6 +12,7 @@ from drawing_library import router as library_router, init_library
 
 from ocr_api import router as ocr_router
 from ocr_results import init_ocr_results
+from ocr_review.api import router as review_router   # OCR 검수 (기하공차 확정·치수 수정/추가)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -52,6 +53,7 @@ app = FastAPI(lifespan=lifespan)
 # 부품·도면 관리 API 연결
 app.include_router(library_router)
 app.include_router(ocr_router)
+app.include_router(review_router)
 
 # 로컬 프론트에서 조회·등록 요청 허용
 app.add_middleware(

@@ -72,15 +72,28 @@ python -m ocr_review review HDH_63_3
 python -m ocr_review apply HDH_63_3 도면_edits.json          # --json 붙이면 도면_reviewed.json 도 저장
 ```
 
-API 서버 (프론트 연결):
+API (프론트 연결): 팀 서버 `app.py`에 이미 붙어 있다 (`app.include_router(review_router)`). 혼자 켜볼 때는:
 
 ```powershell
 uvicorn ocr_review.api:app --reload --port 8000
-# POST /api/ocr-review/review  {"name": "HDH_63_3", "origin_txt": "..."}           → 확인 목록 JSON
-# POST /api/ocr-review/apply   {"name": "HDH_63_3", "origin_txt": "...", "edits": {...}}
-#   → {"reviewed_txt", "log", "log_text", "reviewed_json"(want_json: true일 때)}
-# GET  /api/ocr-review/history → 누적 기록 CSV   (폴더: 환경변수 OCR_REVIEW_LOG_DIR, 기본 ./logs)
+# POST /api/ocr-review/submit  {"name": "HDH_63_01", "items": [화면 항목], "reviewer": "관리자"}   ← 팀 화면이 쓰는 것
+#   화면의 최종 항목 목록(GDT_001_1, DIMENSION_006, ADM1 …)을 원본 TXT와 비교해 확정·수정·추가를 계산 → apply(save) 와 같게 저장
+# GET  /api/ocr-review/origin/HDH_63_01   → data/origin/HDH_63_01_origin.txt 내용
+# POST /api/ocr-review/review  {"name": "HDH_63_01"}                    → 확인 목록 JSON (origin_txt를 직접 보내도 됨)
+# POST /api/ocr-review/apply   {"name": "HDH_63_01", "edits": {...}, "save": true}
+#   → {"reviewed_txt", "log", "log_text", "saved"(save일 때 저장한 파일)}
+#   save: true → data/reviewed/(결과) + data/logs/(기록, edits.json) 에 저장 (명령줄과 같은 위치)
+# GET  /api/ocr-review/history → 누적 기록 CSV
 ```
+
+화면(관리자 체크리스트) → `edits` 연결표 (프론트 `src/lib/drawings/reviewApi.ts`)
+
+| 화면 | edits | 예 |
+| --- | --- | --- |
+| 기하공차 항목 확인·수정 (전부) | `gdt: [{"item_id": "G01-1", "value": "0.0025"}]` | 화면 id `HDH_63_01-G01-1` → `G01-1` |
+| OCR 치수의 "기준 치수" 수정 | `dimensions: [{"item_id": "D06", "value": "84", "kind": "length"}]` | 잘못 읽은 값 고치기 (5 → 84) |
+| 치수 추가 | `added_dimensions: [{"value": "7", "kind": "length", "x": 1267, "y": 1103, "coord": "image"}]` | 못 읽은 치수 |
+| 상한/하한 공차·측정기 | 보내지 않음 | OCR 결과가 아니라 검사 기준 |
 
 ### 🔧 테스트
 
@@ -145,6 +158,7 @@ python -m unittest discover -s tests -v
 }
 ```
 
+- `dimensions` (선택): OCR이 잘못 읽은 치수 값 고치기. `item_id`는 `D{TXT 번호}`. 번호·좌표는 그대로 두고 글자만 바꾼다.
 - `gdt`: **모든 기하공차 줄**을 넣는다 (그대로 맞으면 OCR 값을 그대로). 빠지면 거부한다 (`--allow-incomplete`로 해제 가능).
   기호나 데이텀을 바꾸려면 `"symbol": "⌰"`, `"datums": ["A", "B"]`를 추가한다.
 - `kind`: `length` / `diameter`(⌀) / `radius`(R) / `chamfer`(C) / `thread`(M)

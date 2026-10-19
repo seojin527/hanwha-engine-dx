@@ -74,7 +74,7 @@ function supportsHighlight(doc: DemoDrawingDoc): boolean {
 const BROKEN_VALUE = /[,;:]|^[⌀Øø]?[RCM]?\s*\.|\.\.|\.\s*$/;
 
 /**
- * 추출 값이 믿기 어려운 항목에 이유를 돌려준다. (서버 /review API가 아직 없어서 화면 안의 규칙으로만 판단한다.)
+ * 추출 값이 믿기 어려운 항목에 이유를 돌려준다. (화면 규칙. 검수 서버가 켜져 있으면 기하공차는 서버 /review 판단을 쓴다: App.tsx)
  * item 은 관리자 수정값이 이미 반영된 항목이어야 한다.
  */
 export function reviewWarning(item: DemoItem): string | null {

@@ -37,6 +37,14 @@ import {
   withAddedItems,
 } from "./lib/admin/adminOverlay";
 import { loadSegments, pickLineAt } from "./lib/admin/pickLine";
+import {
+  REVIEW_HISTORY_URL,
+  describeSubmit,
+  fetchServerResults,
+  fetchServerWarnings,
+  submitReview,
+  type ServerResultFile,
+} from "./lib/admin/reviewApi";
 import type { Point } from "./lib/admin/highlights";
 import {
   ADMIN_ADDED_KEY,
@@ -331,10 +339,31 @@ export function App() {
     () => (effectiveDoc ? withAddedItems(effectiveDoc, addedList) : null),
     [effectiveDoc, addedList]
   );
-  const demoPoints = useMemo(
-    () => (docWithAdded ? buildPointsWithEdits(docWithAdded, errorCases, drawingEdits, addedList) : []),
-    [docWithAdded, errorCases, drawingEdits, addedList]
-  );
+  // 검수 서버(backend/ocr_review): ⚠ 깨진 값 판단과 저장된 검수 결과 파일 (서버가 꺼져 있으면 화면 규칙만 씀)
+  const [serverWarnings, setServerWarnings] = useState<Record<string, string> | null>(null);
+  const [serverResults, setServerResults] = useState<ServerResultFile[]>([]);
+  useEffect(() => {
+    if (!effectiveDoc || !drawingKey) return;
+    let cancelled = false;
+    setServerWarnings(null);
+    setServerResults([]);
+    fetchServerWarnings(drawingKey).then((w) => !cancelled && setServerWarnings(w));
+    fetchServerResults(drawingKey).then((r) => !cancelled && setServerResults(r));
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveDoc, drawingKey]);
+
+  const demoPoints = useMemo(() => {
+    const points = docWithAdded ? buildPointsWithEdits(docWithAdded, errorCases, drawingEdits, addedList) : [];
+    if (!serverWarnings) return points;
+    // 기하공차는 서버 판단을 쓴다. 관리자가 값을 고친 항목은 고친 값 기준 화면 규칙을 그대로 둔다.
+    return points.map((point) =>
+      point.sourceId.startsWith("GDT_") && drawingEdits?.[point.sourceId]?.toleranceValue === undefined
+        ? { ...point, warning: serverWarnings[point.sourceId] ?? null }
+        : point
+    );
+  }, [docWithAdded, errorCases, drawingEdits, addedList, serverWarnings]);
 
   // 관리자 검토 완료 조건과 상태
   const readiness = useMemo(() => computeReadiness(demoPoints), [demoPoints]);
@@ -346,7 +375,7 @@ export function App() {
   function appendDrawingLog(field: string, from: string, to: string) {
     const at = Date.now();
     const entry: EditLogEntry = {
-      id: `${at}-review`,
+      id: `${at}-review-${Math.random().toString(36).slice(2, 7)}`, // 같은 순간 두 줄(검토 완료·서버 저장)도 겹치지 않게
       at,
       drawingId: drawingKey,
       itemNo: 0,
@@ -358,10 +387,19 @@ export function App() {
     setEditLog((previous) => [entry, ...previous].slice(0, MAX_LOG_ENTRIES));
   }
 
-  function handleCompleteReview() {
-    if (!readiness.ready) return;
-    setReview((previous) => ({ ...previous, [drawingKey]: { completedAt: Date.now() } }));
+  async function handleCompleteReview() {
+    if (!readiness.ready || !docWithAdded) return;
+    // 검수 결과를 백엔드(/api/ocr-review/submit)로 보내 reviewed.txt·검수 기록을 서버에 저장한다 (lib/admin/reviewApi.ts)
+    const key = drawingKey;
+    const result = await submitReview(key, docWithAdded, drawingEdits, "관리자");
+    if (result.status === "rejected") {
+      window.alert(`서버가 검수 결과를 받지 않았습니다. 완료 처리하지 않습니다.\n\n- ${result.messages.join("\n- ")}`);
+      return;
+    }
+    setReview((previous) => ({ ...previous, [key]: { completedAt: Date.now() } }));
     appendDrawingLog("검토 상태", "미완료", "검토 완료");
+    appendDrawingLog("서버 저장", "-", describeSubmit(result));
+    if (result.status === "saved") fetchServerResults(key).then(setServerResults);
   }
 
   function handleReopenReview() {
@@ -702,6 +740,28 @@ export function App() {
                   ? `측정항목 ${demoPoints.length}건 (치수 ${demoCounts.dims} · 기하공차 ${demoCounts.gdt}) · 도면 추출 결과에서 자동 생성${completedAt ? ` · 관리자 검토 완료 (${formatLogTime(completedAt)})` : ""}`
                   : "도면 불러오는 중…"}
               </span>
+              {serverResults.length > 0 && (
+                <span className="flex flex-wrap items-center gap-1.5" aria-label="서버 검수 결과">
+                  <span className="text-cyan-300">· 검수 결과:</span>
+                  {serverResults.map((file) => (
+                    <a
+                      key={file.kind}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded border border-cyan-700 px-1.5 py-0.5 text-[11px] text-cyan-200 hover:bg-cyan-900"
+                    >
+                      {file.label}
+                    </a>
+                  ))}
+                  <a
+                    href={REVIEW_HISTORY_URL}
+                    className="rounded border border-cyan-700 px-1.5 py-0.5 text-[11px] text-cyan-200 hover:bg-cyan-900"
+                  >
+                    누적 기록 CSV
+                  </a>
+                </span>
+              )}
             </span>
           ) : selectedDrawing
             ? `${selectedDrawing.original_filename} · ${document ? `OCR 추출 ${ocrPoints.length}건` : ocr.status === "applying" ? "OCR 결과 적용 중…" : "OCR 미실행"}`
