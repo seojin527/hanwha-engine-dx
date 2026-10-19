@@ -27,7 +27,8 @@ export interface OcrDocument {
 }
 export interface OcrSnapshot {
   drawing_id: string;
-  status: 'completed' | 'not_started';
+  status: 'completed' | 'not_started' | 'queued' | 'running' | 'failed';
+  job?: {job_id?: string; status: string; stage: string; error: string};
   revision?: string;
   image_url?: string;
   result: OcrDocument | null;

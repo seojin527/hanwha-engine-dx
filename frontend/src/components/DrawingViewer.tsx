@@ -126,7 +126,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
         )}
       </div>
 
-      {isAnalyzing && <div role="status" className="absolute left-3 top-14 z-30 rounded border border-cyan-600 bg-slate-900/95 px-4 py-2 text-xs text-cyan-200">OCR 추출 결과 적용 중…</div>}
+      {isAnalyzing && <div role="status" className="absolute left-3 top-14 z-30 rounded border border-cyan-600 bg-slate-900/95 px-4 py-2 text-xs text-cyan-200">CPU OCR 분석 중…</div>}
       {!drawingUrl ? (
         <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-400">
           부품에서 도면을 선택하거나 새 도면을 등록해주세요.

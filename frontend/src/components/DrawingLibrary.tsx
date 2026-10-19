@@ -186,7 +186,7 @@ export function DrawingLibrary({
 
         setSelectedDrawingId(drawing.drawing_id);
         onSelectDrawing(drawing, drawingFileUrl(drawing));
-        setNotice("도면이 등록됐습니다. OCR은 아직 실행하지 않았습니다.");
+        setNotice("도면이 등록됐습니다. CPU OCR을 자동으로 진행합니다.");
       }
     } catch (err) {
       if (

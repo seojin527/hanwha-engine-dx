@@ -45,11 +45,9 @@ export function App() {
     setSelectedPointId(ocrPoints[(index + delta + ocrPoints.length) % ocrPoints.length].id);
   }
 
-  async function applyExtractedSample() {
-    if (!selectedDrawing) return;
-    if (!window.confirm(`선택한 「${selectedDrawing.original_filename}」에 1_image.png와 1_metadata.json을 연결합니다. 이 파일들이 선택한 도면의 추출 결과인지 확인해주세요.`)) return;
+  async function runSelectedOcr() {
     setSelectedPointId(1);
-    await ocr.applySample();
+    await ocr.run();
   }
 
   // 기존 데모 검사 기록 유지
@@ -157,14 +155,14 @@ export function App() {
           {demoMode
             ? "데모 도면 · 샘플 측정항목"
             : selectedDrawing
-            ? `${selectedDrawing.original_filename} · ${document ? `OCR 추출 ${ocrPoints.length}건` : ocr.status === "applying" ? "OCR 결과 적용 중…" : "OCR 미실행"}`
+            ? `${selectedDrawing.original_filename} · ${document ? `OCR 추출 ${ocrPoints.length}건` : ocr.status === "applying" ? "OCR 분석 중…" : "OCR 미실행"}`
             : "등록된 도면을 선택해주세요"}
         </span>
 
         {!demoMode && selectedDrawing && <button type="button" disabled={ocr.status === 'loading' || ocr.status === 'applying'}
-          onClick={() => void applyExtractedSample()}
+          onClick={() => void runSelectedOcr()}
           className="shrink-0 rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200 disabled:opacity-40">
-          {ocr.status === 'applying' ? 'OCR 결과 적용 중…' : '추출 결과 적용 (1번 샘플)'}
+          {ocr.status === 'applying' ? (ocr.stage || 'OCR 분석 중…') : document ? 'OCR 결과 다시 조회' : ocr.status === 'error' ? 'OCR 재시도' : 'OCR 실행'}
         </button>}
         {!demoMode && (
           <button
@@ -201,7 +199,7 @@ export function App() {
               demoMode ? "/images/1_image.png" : resultUrl
             }
             mediaType={
-              demoMode || document ? "image/png" : selectedDrawing?.media_type
+              demoMode ? "image/png" : document ? "image/jpeg" : selectedDrawing?.media_type
             }
             points={demoMode ? filteredPoints : filteredOcrPoints}
             coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
@@ -234,7 +232,7 @@ export function App() {
               </h2>
               <p className="mt-2 text-xs text-slate-400">
                 {selectedDrawing
-                  ? (ocr.status === "applying" ? "OCR 추출 결과 적용 중…" : "원본 도면입니다. 추출 결과를 적용하면 번호와 측정항목이 표시됩니다.")
+                  ? (ocr.status === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
                   : "도면을 선택하거나 등록해주세요."}
               </p>
             </section>
@@ -283,7 +281,7 @@ export function App() {
                   </div>
 
                   <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                    {ocr.status === "applying" ? "측정항목 추출 결과를 준비하고 있습니다. 완료 후 관련 오류·주의사항을 검색합니다." : "추출 결과 적용 대기 중입니다. 결과 적용 후 선택한 항목의 관련 오류·주의사항을 검색합니다."}
+                    {ocr.status === "applying" ? "CPU OCR 분석 중입니다. 완료 후 측정항목을 표시하고 관련 오류·주의사항을 검색합니다." : "OCR 실행 대기 중입니다. 새 업로드는 자동 분석되며 기존 도면은 OCR 실행을 눌러주세요."}
                   </div>
                 </>
               ) : (
