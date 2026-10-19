@@ -52,6 +52,15 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
           !
         </span>
       )}
+      {point.added && (
+        // 관리자가 직접 추가한 항목(OCR 누락 보충) 표시
+        <span
+          aria-label="관리자 추가"
+          className="absolute -bottom-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-sky-400 text-[9px] font-black leading-none text-slate-900 ring-1 ring-white"
+        >
+          +
+        </span>
+      )}
       {point.adminEdited && (
         // 관리자가 값을 고친 항목 표시
         <span

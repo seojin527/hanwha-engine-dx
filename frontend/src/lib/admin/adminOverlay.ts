@@ -14,7 +14,8 @@ import {
   type InspectionPoint,
 } from "../demoDrawings";
 import { judgeMeasurement } from "../inspection";
-import { hasValueEdit, type ItemEdit } from "./adminStore";
+import { hasValueEdit, type AddedDimension, type AddKind, type ItemEdit } from "./adminStore";
+import { findHighlight, type Point } from "./highlights";
 
 /** 팀원 측정 항목 + 관리자 수정 표시 */
 export type AdminPoint = InspectionPoint & {
@@ -24,7 +25,50 @@ export type AdminPoint = InspectionPoint & {
   confirmed: boolean;
   /** 값이 깨졌거나 읽지 못한 항목이면 그 이유, 아니면 null (수정값을 반영한 현재 값 기준) */
   warning: string | null;
+  /** 관리자가 직접 추가한 항목인가 (OCR 누락 보충) */
+  added: boolean;
+  /** 이 항목을 눌렀을 때 도면에서 강조할 선들. 알 수 없으면 undefined */
+  highlight: Point[][] | undefined;
 };
+
+const ADD_CHARACTERISTIC: Record<AddKind, string> = {
+  LINEAR: "LINEAR_DIMENSION",
+  DIAMETER: "DIAMETER",
+  RADIUS: "RADIUS",
+  CHAMFER: "CHAMFER_SIZE",
+  THREAD: "THREAD_SPEC",
+};
+
+export const ADD_KIND_LABEL: Record<AddKind, string> = {
+  LINEAR: "길이",
+  DIAMETER: "지름 ⌀",
+  RADIUS: "반경 R",
+  CHAMFER: "모따기 C",
+  THREAD: "나사 M",
+};
+
+/** 관리자가 추가한 치수를 도면 항목 목록 끝에 붙인 사본 (공차는 도면에 없으므로 일반공차 처리) */
+export function withAddedItems(doc: DemoDrawingDoc, added: AddedDimension[] | undefined): DemoDrawingDoc {
+  if (!added || added.length === 0) return doc;
+  const items: DemoItem[] = added.map((entry) => {
+    const characteristic = ADD_CHARACTERISTIC[entry.kind];
+    return {
+      id: entry.id,
+      category: "DIMENSION",
+      raw_text: dimensionText(characteristic, entry.nominal),
+      position: { x: entry.x, y: entry.y },
+      measurement_characteristic: characteristic,
+      nominal_value: entry.nominal,
+      tol_type: "UNSPECIFIED",
+    };
+  });
+  return { ...doc, items: [...doc.items, ...items] };
+}
+
+/** 이 도면은 항목 위치가 HDH_63 도면 형식(2339×1654)이라 선 강조 자료를 쓸 수 있는가 */
+function supportsHighlight(doc: DemoDrawingDoc): boolean {
+  return doc.image.width_px === 2339 && doc.image.height_px === 1654;
+}
 
 /** 깨진 값으로 보이는 문구: 쉼표·콜론, 소수점이 앞이나 끝에 홀로 있는 경우 등 (예: ",.2", "5.") */
 const BROKEN_VALUE = /[,;:]|^[⌀Øø]?[RCM]?\s*\.|\.\.|\.\s*$/;
@@ -46,6 +90,8 @@ export function reviewWarning(item: DemoItem): string | null {
 export interface Readiness {
   ready: boolean;
   total: number;
+  /** 확인 완료한 전체 항목 수 */
+  confirmedTotal: number;
   /** 기하공차 개수와 확인 완료 개수 */
   gdtTotal: number;
   gdtConfirmed: number;
@@ -57,16 +103,16 @@ export interface Readiness {
 }
 
 /**
- * 검토 완료 조건: 기하공차는 전부 확인하고, ⚠ 항목도 모두 확인해야 한다.
- * (일반 치수는 확인하지 않아도 된다.)
+ * 검토 완료 조건: 치수·기하공차·⚠ 항목을 포함해 모든 항목을 관리자가 확인해야 한다.
  */
 export function computeReadiness(points: AdminPoint[]): Readiness {
   const gdt = points.filter((point) => point.feature.type === "GD&T");
   const warn = points.filter((point) => point.warning);
-  const pending = points.filter((point) => (point.feature.type === "GD&T" || point.warning) && !point.confirmed);
+  const pending = points.filter((point) => !point.confirmed);
   return {
     ready: points.length > 0 && pending.length === 0,
     total: points.length,
+    confirmedTotal: points.filter((point) => point.confirmed).length,
     gdtTotal: gdt.length,
     gdtConfirmed: gdt.filter((point) => point.confirmed).length,
     warnTotal: warn.length,
@@ -152,8 +198,11 @@ export function buildPointsWithEdits(
   doc: DemoDrawingDoc,
   cases: ErrorCase[],
   edits: Record<string, ItemEdit> | undefined,
+  added?: AddedDimension[],
 ): AdminPoint[] {
   const applied = applyEditsToDoc(doc, edits);
+  const addedById = new Map((added || []).map((entry) => [entry.id, entry]));
+  const canHighlight = supportsHighlight(doc);
   const points = buildInspectionPoints(applied, cases);
   return points.map((point, index) => {
     const edit = edits?.[point.sourceId];
@@ -162,9 +211,15 @@ export function buildPointsWithEdits(
       ...point,
       measuringTool: edit?.equipment ?? point.measuringTool,
       description: edited ? `${point.description} · 관리자 수정` : point.description,
-      adminEdited: edited,
+      adminEdited: edited && !addedById.has(point.sourceId),
       confirmed: !!edit?.confirmed,
       warning: reviewWarning(applied.items[index]),
+      added: addedById.has(point.sourceId),
+      highlight: addedById.has(point.sourceId)
+        ? addedById.get(point.sourceId)!.lines
+        : canHighlight
+          ? findHighlight(doc.items[index])
+          : undefined,
     };
   });
 }
@@ -367,4 +422,17 @@ export function buildEditFromInput(
   if (equipment !== "" && equipment !== base.equipment) edit.equipment = equipment;
 
   return { edit: Object.keys(edit).length > 0 ? edit : undefined };
+}
+
+
+/** 점 하나를 눌렀을 때의 추가 항목 만들기 (id 는 호출하는 쪽의 nextOrder 로 정한다) */
+export function makeAddedDimension(
+  order: number,
+  kind: AddKind,
+  nominal: number,
+  x: number,
+  y: number,
+  lines: Point[][] | undefined,
+): AddedDimension {
+  return { id: `ADM${order}`, order, kind, nominal, x, y, ...(lines && lines.length ? { lines } : {}) };
 }

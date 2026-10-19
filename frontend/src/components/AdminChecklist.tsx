@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import type { DemoDrawingDoc } from "../lib/demoDrawings";
-import type { ItemEdit } from "../lib/admin/adminStore";
+import type { AddDraft, AddKind, ItemEdit } from "../lib/admin/adminStore";
 import { formatLogTime, hasValueEdit } from "../lib/admin/adminStore";
 import {
+  ADD_KIND_LABEL,
   buildEditFromInput,
   inputFromValues,
   readValues,
@@ -37,6 +38,16 @@ interface AdminChecklistProps {
   completedAt: number | null;
   onComplete: () => void;
   onReopen: () => void;
+  /** 치수 추가: 진행 중인 위치 지정 단계 (없으면 null) */
+  placing: { step: "lines" | "marker"; lineCount: number; text: string } | null;
+  /** 입력을 확인한 뒤 도면에서 위치를 고르는 단계로 들어간다 */
+  onStartAdd: (draft: AddDraft) => void;
+  onUndoLine: () => void;
+  /** 선 지정을 끝내고 번호표 위치 선택으로 넘어간다 */
+  onFinishLines: () => void;
+  onCancelAdd: () => void;
+  /** 관리자가 추가한 항목 삭제 */
+  onDeleteAdded: (sourceId: string) => void;
 }
 
 /**
@@ -54,6 +65,12 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
   completedAt,
   onComplete,
   onReopen,
+  placing,
+  onStartAdd,
+  onUndoLine,
+  onFinishLines,
+  onCancelAdd,
+  onDeleteAdded,
 }) => {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -134,7 +151,10 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
         </div>
         <ul className="mt-1.5 space-y-0.5 text-[11px] text-slate-600">
           <li>
-            {readiness.gdtConfirmed === readiness.gdtTotal ? "✔" : "·"} 기하공차 전부 확인: {readiness.gdtConfirmed} / {readiness.gdtTotal}
+            {readiness.confirmedTotal === readiness.total ? "✔" : "·"} 전체 항목 확인(치수·기하공차): {readiness.confirmedTotal} / {readiness.total}
+          </li>
+          <li>
+            {readiness.gdtConfirmed === readiness.gdtTotal ? "✔" : "·"} 기하공차 확인: {readiness.gdtConfirmed} / {readiness.gdtTotal}
           </li>
           <li>
             {readiness.warnConfirmed === readiness.warnTotal ? "✔" : "·"} ⚠ 항목 확인: {readiness.warnConfirmed} / {readiness.warnTotal}
@@ -153,6 +173,14 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
           </p>
         )}
       </div>
+
+      <AddPanel
+        placing={placing}
+        onStartAdd={onStartAdd}
+        onUndoLine={onUndoLine}
+        onFinishLines={onFinishLines}
+        onCancelAdd={onCancelAdd}
+      />
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {FILTERS.map(({ key, label }) => (
@@ -208,6 +236,9 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
                 </span>
               )}
               <span className="hidden shrink-0 font-mono text-[11px] text-slate-500 sm:inline">{point.dimension.tolerance}</span>
+              {point.added && (
+                <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">추가됨</span>
+              )}
               {point.adminEdited && (
                 <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">수정됨</span>
               )}
@@ -226,6 +257,7 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
           edit={edits[selected.sourceId]}
           onCommitEdit={onCommitEdit}
           onToggleConfirm={() => toggleConfirm(selected)}
+          onDeleteAdded={onDeleteAdded}
         />
       )}
     </div>
@@ -239,9 +271,10 @@ interface ItemEditorProps {
   edit: ItemEdit | undefined;
   onCommitEdit: (sourceId: string, next: ItemEdit | undefined) => void;
   onToggleConfirm: () => void;
+  onDeleteAdded: (sourceId: string) => void;
 }
 
-const ItemEditor: React.FC<ItemEditorProps> = ({ doc, point, itemId, edit, onCommitEdit, onToggleConfirm }) => {
+const ItemEditor: React.FC<ItemEditorProps> = ({ doc, point, itemId, edit, onCommitEdit, onToggleConfirm, onDeleteAdded }) => {
   const item = doc.items.find((entry) => entry.id === itemId)!;
   const current = useMemo(() => readValues(doc, item, edit), [doc, item, edit]);
   const original = useMemo(() => readValues(doc, item, undefined), [doc, item]);
@@ -361,7 +394,152 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ doc, point, itemId, edit, onCom
           원래 값으로
         </button>
         {hasValueEdit(edit) && <span className="text-[11px] font-semibold text-amber-700">관리자가 수정한 항목</span>}
+        {point.added && (
+          <button
+            type="button"
+            onClick={() => onDeleteAdded(point.sourceId)}
+            className="ml-auto rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+          >
+            이 추가 항목 삭제
+          </button>
+        )}
       </div>
+      {point.added && (
+        <p className="text-[11px] text-sky-800">관리자가 직접 추가한 항목입니다(OCR 누락 보충). 도면 추출 결과 파일에는 들어 있지 않습니다.</p>
+      )}
+    </div>
+  );
+};
+
+
+interface AddPanelProps {
+  placing: AdminChecklistProps["placing"];
+  onStartAdd: (draft: AddDraft) => void;
+  onUndoLine: () => void;
+  onFinishLines: () => void;
+  onCancelAdd: () => void;
+}
+
+/** OCR이 놓친 치수를 관리자가 직접 추가하는 입력 영역 */
+const AddPanel: React.FC<AddPanelProps> = ({ placing, onStartAdd, onUndoLine, onFinishLines, onCancelAdd }) => {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<AddKind>("LINEAR");
+  const [nominal, setNominal] = useState("");
+  const [plus, setPlus] = useState("");
+  const [minus, setMinus] = useState("");
+  const [equipment, setEquipment] = useState("");
+  const [error, setError] = useState("");
+
+  const inputClass =
+    "w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-cyan-500 focus:outline-none";
+  const labelClass = "mb-0.5 block text-[11px] font-semibold text-slate-600";
+  const parse = (value: string) => {
+    const t = value.trim().replace(",", ".");
+    return /^[+-]?\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+  };
+
+  function start() {
+    const n = parse(nominal);
+    if (n === null || n <= 0) return setError("기준 치수는 0보다 큰 숫자로 입력하세요.");
+    const draft: AddDraft = { kind, nominal: n };
+    if (plus.trim() !== "" || minus.trim() !== "") {
+      const p = parse(plus);
+      const m = parse(minus);
+      if (p === null || m === null) return setError("상한·하한 공차를 둘 다 숫자로 입력하세요. (공차가 없으면 둘 다 비우세요)");
+      if (p + m <= 0) return setError("상한이 하한보다 커야 합니다.");
+      draft.plus = p;
+      draft.minus = m;
+    }
+    if (equipment.trim() !== "") draft.equipment = equipment.trim();
+    setError("");
+    onStartAdd(draft);
+    setNominal("");
+    setPlus("");
+    setMinus("");
+    setEquipment("");
+  }
+
+  if (placing) {
+    return (
+      <div role="status" className="mt-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-xs text-sky-900">
+        <div className="font-bold">치수 추가 · {placing.text}</div>
+        <p className="mt-1 text-[11px]">
+          {placing.step === "lines"
+            ? `도면에서 측정할 선(모서리·윤곽)을 눌러 고르세요. 여러 개 고를 수 있습니다. (고른 선 ${placing.lineCount}개)`
+            : "번호표를 놓을 위치를 도면에서 누르세요."}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {placing.step === "lines" && (
+            <>
+              <button type="button" onClick={onFinishLines} className="rounded bg-sky-600 px-3 py-1 text-[11px] font-bold text-white hover:bg-sky-500">
+                {placing.lineCount > 0 ? "선 지정 끝 → 번호표 위치 선택" : "선 없이 번호표 위치만 선택"}
+              </button>
+              <button
+                type="button"
+                onClick={onUndoLine}
+                disabled={placing.lineCount === 0}
+                className="rounded border border-sky-300 bg-white px-3 py-1 text-[11px] font-semibold text-sky-800 disabled:opacity-40"
+              >
+                마지막 선 취소
+              </button>
+            </>
+          )}
+          <button type="button" onClick={onCancelAdd} className="rounded border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
+            추가 취소 (Esc)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-white">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between px-3 py-2 text-xs font-bold text-slate-800"
+      >
+        <span>+ 치수 추가 <span className="font-normal text-slate-500">(OCR이 놓친 치수 보충)</span></span>
+        <span className="text-slate-400">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-slate-100 p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelClass}>종류</label>
+              <select value={kind} onChange={(event) => setKind(event.target.value as AddKind)} className={inputClass}>
+                {(Object.keys(ADD_KIND_LABEL) as AddKind[]).map((key) => (
+                  <option key={key} value={key}>{ADD_KIND_LABEL[key]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>기준 치수</label>
+              <input aria-label="추가 기준 치수" value={nominal} onChange={(event) => setNominal(event.target.value)} className={inputClass} inputMode="decimal" />
+            </div>
+            <div>
+              <label className={labelClass}>상한 공차(+) · 선택</label>
+              <input value={plus} onChange={(event) => setPlus(event.target.value)} className={inputClass} inputMode="decimal" />
+            </div>
+            <div>
+              <label className={labelClass}>하한 공차(−) · 선택</label>
+              <input value={minus} onChange={(event) => setMinus(event.target.value)} className={inputClass} inputMode="decimal" />
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>측정기 · 선택 (비우면 자동)</label>
+              <input value={equipment} onChange={(event) => setEquipment(event.target.value)} className={inputClass} />
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500">공차를 비우면 일반공차(ISO 2768-m)로 판정합니다.</p>
+          {error && (
+            <p role="alert" className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] text-rose-700">{error}</p>
+          )}
+          <button type="button" onClick={start} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-500">
+            측정 위치 지정하기
+          </button>
+        </div>
+      )}
     </div>
   );
 };

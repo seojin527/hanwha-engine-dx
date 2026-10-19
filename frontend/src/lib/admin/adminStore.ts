@@ -45,7 +45,42 @@ export const MODE_KEY = "hanwha_admin_mode_v1";
 export const ADMIN_EDITS_KEY = "hanwha_admin_edits_v1";
 export const ADMIN_LOG_KEY = "hanwha_admin_log_v1";
 export const ADMIN_REVIEW_KEY = "hanwha_admin_review_v1";
+export const ADMIN_ADDED_KEY = "hanwha_admin_added_v1";
 export const MAX_LOG_ENTRIES = 300;
+
+/** 관리자가 OCR이 놓친 치수를 직접 추가할 때 고르는 종류 */
+export type AddKind = "LINEAR" | "DIAMETER" | "RADIUS" | "CHAMFER" | "THREAD";
+
+/** 관리자가 추가한 치수 (도면 추출 결과에는 없는 항목) */
+export interface AddedDimension {
+  /** 항목 id. "ADM1", "ADM2"… (지워도 다시 쓰지 않는다) */
+  id: string;
+  order: number;
+  kind: AddKind;
+  nominal: number;
+  /** 번호표를 놓을 위치 (이미지 px) */
+  x: number;
+  y: number;
+  /** 측정 위치로 지정한 도면 선들 (이미지 px). 없을 수 있다 */
+  lines?: Array<Array<{ x: number; y: number }>>;
+}
+
+export interface AddedState {
+  nextOrder: number;
+  items: AddedDimension[];
+}
+
+/** 도면 id → 추가한 치수 */
+export type AddedByDrawing = Record<string, AddedState>;
+
+/** 치수 추가 입력 (공차·측정기는 비워 둘 수 있다) */
+export interface AddDraft {
+  kind: AddKind;
+  nominal: number;
+  plus?: number;
+  minus?: number;
+  equipment?: string;
+}
 
 /** 도면 id → 관리자 검토 완료 기록. 기록이 있으면 검토가 끝난 도면이다. */
 export type ReviewByDrawing = Record<string, { completedAt: number }>;

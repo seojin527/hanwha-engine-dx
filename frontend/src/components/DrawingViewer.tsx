@@ -24,6 +24,10 @@ interface DrawingViewerProps {
   drawingUrl?: string | null;
   mediaType?: string;
   onDrawingUploaded?: (url: string) => void;
+  /** 도면 위에 파란색으로 강조할 선들(이미지 px 좌표). 없으면 표시하지 않는다 */
+  highlightLines?: Array<Array<{ x: number; y: number }>> | null;
+  /** 지정하면 도면 위를 클릭해 위치를 고르는 모드가 된다(관리자 항목 추가). 이미지 px 좌표를 넘긴다 */
+  onPlaceAt?: (point: { x: number; y: number }) => void;
 }
 
 export const DrawingViewer: React.FC<DrawingViewerProps> = ({
@@ -36,6 +40,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   coordinateSize,
   isAnalyzing,
   toolbarRight,
+  highlightLines,
+  onPlaceAt,
 }) => {
   const [zoom, setZoom] = useState(100);
   const [panMode, setPanMode] = useState(false);
@@ -254,6 +260,45 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 onError={() => setErrorUrl(drawingUrl)}
                 className="pointer-events-none block h-auto w-full bg-white"
               />
+
+              {highlightLines && highlightLines.length > 0 && imageSize.width > 0 && (
+                <svg
+                  aria-hidden="true"
+                  data-testid="highlight-overlay"
+                  className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+                  viewBox={`0 0 ${coordinateSize?.width || imageSize.width} ${coordinateSize?.height || imageSize.height}`}
+                  preserveAspectRatio="none"
+                >
+                  {highlightLines.map((line, index) => (
+                    <polyline
+                      key={index}
+                      points={line.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="none"
+                      stroke="#0ea5e9"
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                      opacity={0.9}
+                    />
+                  ))}
+                </svg>
+              )}
+
+              {onPlaceAt && imageSize.width > 0 && !panMode && (
+                <div
+                  data-testid="place-overlay"
+                  className="absolute inset-0 z-20 cursor-crosshair"
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if (rect.width <= 0 || rect.height <= 0) return;
+                    onPlaceAt({
+                      x: ((event.clientX - rect.left) / rect.width) * (coordinateSize?.width || imageSize.width),
+                      y: ((event.clientY - rect.top) / rect.height) * (coordinateSize?.height || imageSize.height),
+                    });
+                  }}
+                />
+              )}
 
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
                 <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 PNG의 크기가 달라 마커를 표시하지 않습니다.</div>}

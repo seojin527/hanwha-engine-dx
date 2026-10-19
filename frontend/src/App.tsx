@@ -19,7 +19,7 @@ import {
   type ErrorCase,
 } from "./lib/demoDrawings";
 import { matchDrawingId, rasterizeUpload, UPLOAD_ACCEPT, validateUpload } from "./lib/localUpload";
-import { apiUrl } from './lib/drawingAPI';
+import { apiUrl, fetchParts } from './lib/drawingAPI';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
 import { toOcrPoints } from './lib/ocr';
 import { OcrMeasurementTable } from './components/OcrMeasurementTable';
@@ -32,9 +32,14 @@ import {
   buildPointsWithEdits,
   computeReadiness,
   diffEdit,
+  makeAddedDimension,
   reevaluateRecords,
+  withAddedItems,
 } from "./lib/admin/adminOverlay";
+import { loadSegments, pickLineAt } from "./lib/admin/pickLine";
+import type { Point } from "./lib/admin/highlights";
 import {
+  ADMIN_ADDED_KEY,
   ADMIN_EDITS_KEY,
   ADMIN_LOG_KEY,
   ADMIN_REVIEW_KEY,
@@ -44,6 +49,9 @@ import {
   loadFromStorage,
   loadMode,
   saveToStorage,
+  type AddDraft,
+  type AddedByDrawing,
+  type AddedDimension,
   type AdminEditsByDrawing,
   type AppMode,
   type EditLogEntry,
@@ -80,6 +88,26 @@ export function App() {
   // 관리자 검토 완료 기록: 도면별. 완료해야만 작업자 모드에서 그 도면을 쓸 수 있다.
   const [review, setReview] = useState<ReviewByDrawing>(() => loadFromStorage<ReviewByDrawing>(ADMIN_REVIEW_KEY, {}));
 
+  // 관리자가 직접 추가한 치수: 도면별. OCR이 놓친 항목을 보충하는 용도.
+  const [addedByDrawing, setAddedByDrawing] = useState<AddedByDrawing>(() =>
+    loadFromStorage<AddedByDrawing>(ADMIN_ADDED_KEY, {})
+  );
+  // 치수 추가 진행 상태: 선 고르기 → 번호표 위치 고르기
+  const [adding, setAdding] = useState<{ draft: AddDraft; step: "lines" | "marker"; lines: Point[][]; drawingKey: string } | null>(null);
+
+  // 백엔드(127.0.0.1:8000)가 없으면 서버 도면 보관함 영역을 숨긴다
+  const [serverUp, setServerUp] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchParts(controller.signal)
+      .then(() => setServerUp(true))
+      .catch(() => setServerUp(false));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    saveToStorage(ADMIN_ADDED_KEY, addedByDrawing);
+  }, [addedByDrawing]);
   useEffect(() => {
     saveToStorage(ADMIN_EDITS_KEY, adminEdits);
   }, [adminEdits]);
@@ -297,9 +325,15 @@ export function App() {
   const effectiveDoc = demoDoc && demoDocId === demoDrawingId ? demoDoc : null;
   const drawingKey = effectiveDoc?.linked_drawing_id || demoDrawingId;
   const drawingEdits = adminEdits[drawingKey];
+  const addedList: AddedDimension[] = addedByDrawing[drawingKey]?.items;
+  // 추출 항목 + 관리자가 추가한 항목
+  const docWithAdded = useMemo(
+    () => (effectiveDoc ? withAddedItems(effectiveDoc, addedList) : null),
+    [effectiveDoc, addedList]
+  );
   const demoPoints = useMemo(
-    () => (effectiveDoc ? buildPointsWithEdits(effectiveDoc, errorCases, drawingEdits) : []),
-    [effectiveDoc, errorCases, drawingEdits]
+    () => (docWithAdded ? buildPointsWithEdits(docWithAdded, errorCases, drawingEdits, addedList) : []),
+    [docWithAdded, errorCases, drawingEdits, addedList]
   );
 
   // 관리자 검토 완료 조건과 상태
@@ -426,12 +460,12 @@ export function App() {
 
   // 관리자 수정 저장 + 수정 내역 기록
   function handleCommitEdit(sourceId: string, next: ItemEdit | undefined) {
-    if (!effectiveDoc) return;
-    const item = effectiveDoc.items.find((entry) => entry.id === sourceId);
+    if (!docWithAdded) return;
+    const item = docWithAdded.items.find((entry) => entry.id === sourceId);
     const point = demoPoints.find((entry) => entry.sourceId === sourceId);
     if (!item || !point) return;
     const prev = adminEdits[drawingKey]?.[sourceId];
-    const changes = diffEdit(effectiveDoc, item, prev, next);
+    const changes = diffEdit(docWithAdded, item, prev, next);
     if (changes.length === 0 && JSON.stringify(prev ?? null) === JSON.stringify(next ?? null)) return;
 
     setAdminEdits((previous) => {
@@ -455,6 +489,104 @@ export function App() {
     // 최신 수정이 위로 오되, 한 번의 수정 안에서는 필드 순서(기준 치수 → 공차 → 측정기)를 유지한다
     setEditLog((previous) => [...entries, ...previous].slice(0, MAX_LOG_ENTRIES));
   }
+
+  // ---- 관리자 치수 추가 ----
+  function cancelAdding() {
+    setAdding(null);
+  }
+
+  // 도면이나 모드가 바뀌면 진행 중인 추가를 취소한다
+  useEffect(() => {
+    setAdding(null);
+  }, [drawingKey, mode]);
+  useEffect(() => {
+    if (!adding) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAdding(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [adding]);
+
+  function logEntries(entries: Array<{ itemNo: number; itemName: string; field: string; from: string; to: string }>) {
+    const at = Date.now();
+    const list: EditLogEntry[] = entries.map((entry, index) => ({
+      id: `${at}-add-${index}-${entry.itemNo}`,
+      at,
+      drawingId: drawingKey,
+      ...entry,
+    }));
+    setEditLog((previous) => [...list, ...previous].slice(0, MAX_LOG_ENTRIES));
+  }
+
+  function handleStartAdd(draft: AddDraft) {
+    setAdding({ draft, step: "lines", lines: [], drawingKey });
+  }
+
+  async function handlePlaceAt(pt: Point) {
+    if (!adding || adding.drawingKey !== drawingKey || !effectiveDoc) return;
+    if (adding.step === "lines") {
+      // 클릭한 자리의 선 하나를 찾아 목록에 더한다 (선이 없으면 아무것도 하지 않는다)
+      let line: Point[] | null = null;
+      try {
+        line = pickLineAt(await loadSegments(), pt, 20);
+      } catch {
+        line = null;
+      }
+      if (!line) return;
+      const found = line;
+      setAdding((previous) => (previous && previous.step === "lines" ? { ...previous, lines: [...previous.lines, found] } : previous));
+      return;
+    }
+
+    // 번호표 위치를 정하면 항목을 만든다
+    const { draft, lines } = adding;
+    const state = addedByDrawing[drawingKey] || { nextOrder: 1, items: [] };
+    const entry = makeAddedDimension(state.nextOrder, draft.kind, draft.nominal, Math.round(pt.x), Math.round(pt.y), lines);
+    setAddedByDrawing((previous) => {
+      const current = previous[drawingKey] || { nextOrder: 1, items: [] };
+      return { ...previous, [drawingKey]: { nextOrder: current.nextOrder + 1, items: [...current.items, entry] } };
+    });
+    if (draft.plus !== undefined || draft.equipment !== undefined) {
+      const edit: ItemEdit = {};
+      if (draft.plus !== undefined) {
+        edit.plus = draft.plus;
+        edit.minus = draft.minus;
+      }
+      if (draft.equipment !== undefined) edit.equipment = draft.equipment;
+      setAdminEdits((previous) => ({ ...previous, [drawingKey]: { ...(previous[drawingKey] || {}), [entry.id]: edit } }));
+    }
+    const number = effectiveDoc.items.length + (addedByDrawing[drawingKey]?.items.length || 0) + 1;
+    logEntries([{ itemNo: number, itemName: `관리자 추가 ${entry.id}`, field: "치수 추가", from: "(없음)", to: `${entry.kind} ${entry.nominal}` }]);
+    setAdding(null);
+    setSelectedPointId(number);
+  }
+
+  function handleDeleteAdded(sourceId: string) {
+    const point = demoPoints.find((entry) => entry.sourceId === sourceId);
+    if (!point || !point.added) return;
+    if (!window.confirm(`${point.displayNumber}번 추가 항목을 삭제하시겠습니까?`)) return;
+    setAddedByDrawing((previous) => {
+      const current = previous[drawingKey];
+      if (!current) return previous;
+      return { ...previous, [drawingKey]: { ...current, items: current.items.filter((entry) => entry.id !== sourceId) } };
+    });
+    setAdminEdits((previous) => {
+      const forDrawing = { ...(previous[drawingKey] || {}) };
+      delete forDrawing[sourceId];
+      return { ...previous, [drawingKey]: forDrawing };
+    });
+    logEntries([{ itemNo: point.displayNumber, itemName: `${point.feature.name} ${point.dimension.formatted}`, field: "항목 삭제", from: point.dimension.formatted, to: "(삭제)" }]);
+    setSelectedPointId(1);
+  }
+
+  // 도면 위 파란 강조: 위치 고르는 중이면 고른 선, 아니면 선택한 항목의 선
+  const highlightLines: Point[][] | null =
+    adding && adding.drawingKey === drawingKey
+      ? adding.lines
+      : demoMode
+        ? currentPoint?.highlight ?? null
+        : null;
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
@@ -496,7 +628,7 @@ export function App() {
       {mode === "admin" && (
         <div className="flex shrink-0 items-center gap-2 border-b border-cyan-900 bg-cyan-950 px-4 py-1 text-[11px] text-cyan-200">
           <span className="rounded bg-cyan-700 px-1.5 py-0.5 font-bold text-white">관리자 모드</span>
-          <span>권한 확인이 없는 목업 모드입니다. 수정한 값은 작업자 모드에도 반영됩니다. 도면 선 하이라이트와 치수 추가는 아직 연결되지 않았습니다.</span>
+          <span>권한 확인이 없는 목업 모드입니다. 수정한 값은 작업자 모드에도 반영됩니다. 직접 추가한 치수는 이 브라우저에만 저장됩니다.</span>
         </div>
       )}
 
@@ -529,20 +661,22 @@ export function App() {
         </div>
       )}
 
-      <DrawingLibrary
-        uploadRequest={uploadRequest}
-        onSelectDrawing={(drawing, url) => {
-          setSelectedPointId(1);
-          setSelectedDrawing(drawing);
-          setDrawingUrl(url);
-          setDemoMode(false);
-        }}
-        onClearDrawing={() => {
-          setSelectedDrawing(null);
-          setDrawingUrl(null);
-          setDemoMode(false);
-        }}
-      />
+      {serverUp && (
+        <DrawingLibrary
+          uploadRequest={uploadRequest}
+          onSelectDrawing={(drawing, url) => {
+            setSelectedPointId(1);
+            setSelectedDrawing(drawing);
+            setDrawingUrl(url);
+            setDemoMode(false);
+          }}
+          onClearDrawing={() => {
+            setSelectedDrawing(null);
+            setDrawingUrl(null);
+            setDemoMode(false);
+          }}
+        />
+      )}
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-1.5 text-xs">
         <span className="min-w-0 truncate text-slate-300">
@@ -608,7 +742,7 @@ export function App() {
             <div className="text-sm font-bold text-white">관리자 검토가 끝나지 않은 도면입니다</div>
             <p className="mt-2 text-xs leading-relaxed text-slate-300">
               이 도면은 관리자가 추출된 항목을 확인하고 「관리자 검토 완료」를 누른 뒤에 작업자 모드에서 쓸 수 있습니다.
-              기하공차는 전부 확인해야 하고, 값이 깨졌거나 읽지 못한 항목(⚠)도 확인해야 합니다.
+              치수와 기하공차를 포함한 모든 항목을 확인해야 합니다.
             </p>
             <button
               type="button"
@@ -646,6 +780,8 @@ export function App() {
             isAnalyzing={!demoMode && ocr.status === "applying"}
             analyzingStep={0}
             toolbarRight={viewerToolbarRight}
+            highlightLines={demoMode ? highlightLines : null}
+            onPlaceAt={demoMode && mode === "admin" && adding && adding.drawingKey === drawingKey ? handlePlaceAt : undefined}
           />
 
           {demoMode ? (
@@ -696,7 +832,7 @@ export function App() {
         <div className={`${sidePanelOpen ? "flex" : "hidden"} w-[39.5%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl`}>
           {demoMode && mode === "admin" && effectiveDoc && demoPoints.length > 0 ? (
             <AdminChecklist
-              doc={effectiveDoc}
+              doc={docWithAdded ?? effectiveDoc}
               points={demoPoints}
               edits={drawingEdits || {}}
               selectedPointId={selectedPointId}
@@ -706,6 +842,20 @@ export function App() {
               completedAt={completedAt}
               onComplete={handleCompleteReview}
               onReopen={handleReopenReview}
+              placing={
+                adding && adding.drawingKey === drawingKey
+                  ? {
+                      step: adding.step,
+                      lineCount: adding.lines.length,
+                      text: `${adding.draft.kind === "DIAMETER" ? "⌀" : adding.draft.kind === "RADIUS" ? "R" : adding.draft.kind === "CHAMFER" ? "C" : adding.draft.kind === "THREAD" ? "M" : ""}${adding.draft.nominal}`,
+                    }
+                  : null
+              }
+              onStartAdd={handleStartAdd}
+              onUndoLine={() => setAdding((previous) => (previous ? { ...previous, lines: previous.lines.slice(0, -1) } : previous))}
+              onFinishLines={() => setAdding((previous) => (previous ? { ...previous, step: "marker" } : previous))}
+              onCancelAdd={cancelAdding}
+              onDeleteAdded={handleDeleteAdded}
             />
           ) : demoMode ? (
             <MeasurementPanel
