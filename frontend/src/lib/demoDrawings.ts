@@ -4,7 +4,7 @@
  * 데이터: public/drawings/ (data/build_demo_drawings.py 가 생성)
  */
 import type { LabelAnchor } from "./admin/ocrTypes";
-import { resolveGeometry } from "./textBox";
+import { gdtRowIndexes, resolveGeometry } from "./textBox";
 
 export interface DemoDrawingEntry {
   id: string;
@@ -175,9 +175,10 @@ const KIND: Record<string, { name: string; type: string }> = {
 
 export function buildInspectionPoints(doc: DemoDrawingDoc, cases: ErrorCase[]) {
   const counters: Record<string, number> = {};
+  const rows = gdtRowIndexes(doc.items);
   return doc.items.map((item, index) => {
     const id = index + 1;
-    const geometry = resolveGeometry(item as any, doc.image.width_px);
+    const geometry = resolveGeometry(item, doc.image.width_px, rows[index]);
     const isGdt = item.category === "GDT";
     const kind = isGdt
       ? { name: item.gdt_name_ko || "기하공차", type: "GD&T" }

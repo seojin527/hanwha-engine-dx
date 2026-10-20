@@ -28,7 +28,23 @@ export interface ItemGeometry {
 /** 글자 높이 어림값(px). 데모 도면 2339px 폭에서 약 42px */
 const charHeight = (imageWidth: number) => Math.max(12, Math.round(imageWidth / 55));
 
-export function resolveGeometry(item: GeometryItem, imageWidth: number): ItemGeometry {
+/**
+ * 기하공차 항목의 프레임 안 줄 번호(1부터).
+ * eDOCr2 는 틀 하나에 좌표를 하나만 주므로 같은 프레임의 줄들은 position 이 같다.
+ * row_index 가 없으면 "같은 좌표의 기하공차 항목" 중 몇 번째인지로 줄을 나눈다. 치수는 0.
+ */
+export function gdtRowIndexes(items: Array<Pick<GeometryItem, 'category' | 'position' | 'row_index'>>): number[] {
+  const seen = new Map<string, number>();
+  return items.map((item) => {
+    if (item.category !== 'GDT') return 0;
+    const key = `${item.position.x},${item.position.y}`;
+    const count = (seen.get(key) || 0) + 1;
+    seen.set(key, count);
+    return item.row_index || count;
+  });
+}
+
+export function resolveGeometry(item: GeometryItem, imageWidth: number, rowIndex?: number): ItemGeometry {
   if (item.text_box || item.label_anchor) {
     return { textBox: item.text_box, labelAnchor: item.label_anchor, estimated: false };
   }
@@ -40,7 +56,7 @@ export function resolveGeometry(item: GeometryItem, imageWidth: number): ItemGeo
     // 기하공차는 position 이 프레임 왼쪽 위 모서리이고, 한 프레임에 줄이 여러 개 있다.
     // 프레임 폭을 알 수 없어 박스는 만들지 않고, 줄마다 프레임 왼쪽 바깥에 마커를 붙인다.
     const rowHeight = Math.round(ch * 1.3);
-    const row = Math.max(1, item.row_index || 1);
+    const row = Math.max(1, item.row_index || rowIndex || 1);
     return { labelAnchor: { x, y: y + rowHeight * (row - 0.5), side: 'left' }, estimated: true };
   }
 

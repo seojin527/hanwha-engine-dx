@@ -1,5 +1,5 @@
 /** 팀원 JSON의 타입과 UI 변환. 추정값으로 검사 기준을 채우지 않는다. */
-import { resolveGeometry, type Anchor, type Box } from './textBox';
+import { gdtRowIndexes, resolveGeometry, type Anchor, type Box } from './textBox';
 
 export interface OcrItem {
   id: string;
@@ -57,8 +57,9 @@ const names: Record<string, string> = {
   RADIUS: '반지름', LINEAR_DIMENSION: '길이', GEOMETRIC_TOLERANCE: '기하공차',
 };
 export function toOcrPoints(document: OcrDocument): OcrPoint[] {
+  const rows = gdtRowIndexes(document.items);
   return document.items.map((source, index) => {
-    const geometry = resolveGeometry(source, document.image.width_px);
+    const geometry = resolveGeometry(source, document.image.width_px, rows[index]);
     return {
       id: index + 1, displayNumber: index + 1,
       x: source.position.x, y: source.position.y,
