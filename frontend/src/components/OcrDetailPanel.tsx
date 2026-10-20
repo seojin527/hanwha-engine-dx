@@ -56,14 +56,14 @@ export function OcrDetailPanel({ drawingId, revision, point, total, onNavigate }
           : !result.errors.length ? <p className="text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
           : result.errors.map((error) => <article key={error.case_id} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-xs">
             <h4 className="font-bold text-rose-800">{error.case_title || error.case_id}</h4>
-            <p className="text-[10px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : ''} · 적용 조건 확인 필요</p>
+            <p className="text-[10px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
             <p>{error.error_description}</p>
             {error.cause && <p><b>원인:</b> {error.cause}</p>}
             {error.precaution && <div className="rounded bg-emerald-50 p-2 text-emerald-900"><b>주의사항:</b> {error.precaution}</div>}
             {error.recommended_instrument && <p><b>측정기 후보:</b> {error.recommended_instrument}</p>}
             {error.applicable_condition && <p><b>적용 조건:</b> {error.applicable_condition}</p>}
             {error.exclude_condition && <p><b>제외·확인 조건:</b> {error.exclude_condition}</p>}
-            <p className="text-[10px] text-slate-400">출처: {error.source_file || '오류사례 DB'}</p>
+            <p className="text-[10px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
           </article>)}
       </div>
     </section>

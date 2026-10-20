@@ -1,19 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
+import { OcrLoadingOverlay } from "./OcrLoadingOverlay";
 import { MeasurementMarker } from "./MeasurementMarker";
 
-// 기준점(글자 박스 가장자리)에서 마커를 어느 쪽으로 붙일지
-const MARKER_GAP = "3px";
-const MARKER_TRANSFORM: Record<string, string> = {
-  top: `translate(-50%, calc(-100% - ${MARKER_GAP}))`,
-  bottom: `translate(-50%, ${MARKER_GAP})`,
-  left: `translate(calc(-100% - ${MARKER_GAP}), -50%)`,
-  right: `translate(${MARKER_GAP}, -50%)`,
-  center: "translate(-50%, -50%)",
-};
-
 interface DrawingViewerProps {
-  /** 도구 막대 오른쪽에 붙일 버튼 (패널 접기·도면 크게 보기 등) */
-  toolbarRight?: React.ReactNode;
   points: any[];
   coordinateSize?: { width: number; height: number };
   selectedPointId: number;
@@ -21,13 +10,10 @@ interface DrawingViewerProps {
   inspectionRecords: Record<number, any>;
   isAnalyzing: boolean;
   analyzingStep: number;
+  analyzingStage?: string;
   drawingUrl?: string | null;
   mediaType?: string;
   onDrawingUploaded?: (url: string) => void;
-  /** 도면 위에 파란색으로 강조할 선들(이미지 px 좌표). 없으면 표시하지 않는다 */
-  highlightLines?: Array<Array<{ x: number; y: number }>> | null;
-  /** 지정하면 도면 위를 클릭해 위치를 고르는 모드가 된다(관리자 항목 추가). 이미지 px 좌표를 넘긴다 */
-  onPlaceAt?: (point: { x: number; y: number }) => void;
 }
 
 export const DrawingViewer: React.FC<DrawingViewerProps> = ({
@@ -39,11 +25,12 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   mediaType,
   coordinateSize,
   isAnalyzing,
-  toolbarRight,
-  highlightLines,
-  onPlaceAt,
+  analyzingStage,
 }) => {
-  const [zoom, setZoom] = useState(100);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({width: 0, height: 0});
+  const [fitMode, setFitMode] = useState(true);
+  const [manualScale, setManualScale] = useState(1);
   const [panMode, setPanMode] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -61,38 +48,27 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   } | null>(null);
 
   const isPdf = mediaType === "application/pdf";
-
-  // 도면 표시 영역 크기 추적 → 도면 전체가 영역 안에 들어오도록 맞춤
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-
+  const fitScale = imageSize.width && imageSize.height && viewport.width && viewport.height
+    ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-82)/imageSize.height)) : 1;
+  const displayScale = fitMode ? fitScale : manualScale;
   useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const update = () =>
-      setStageSize({ width: stage.clientWidth, height: stage.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(stage);
+    if (!viewportRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const {width, height} = entries[0].contentRect;
+      setViewport({width, height});
+    });
+    observer.observe(viewportRef.current);
     return () => observer.disconnect();
-  }, [drawingUrl, isPdf]);
-
-  const FIT_PADDING = 16;
-  const fitScale =
-    imageSize.width > 0 && stageSize.width > 0 && stageSize.height > 0
-      ? Math.min(
-          (stageSize.width - FIT_PADDING * 2) / imageSize.width,
-          (stageSize.height - FIT_PADDING * 2) / imageSize.height
-        )
-      : 0;
-  const fitBox =
-    fitScale > 0
-      ? { width: imageSize.width * fitScale, height: imageSize.height * fitScale }
-      : null;
+  }, []);
+  function changeZoom(delta: number) {
+    setManualScale(Math.max(0.02, Math.min(4, displayScale+delta)));
+    setFitMode(false);
+  }
 
   // 도면 변경 시 확대·이동 상태 초기화
   useEffect(() => {
-    setZoom(100);
+    setFitMode(true);
+    setManualScale(1);
     setOffset({ x: 0, y: 0 });
     setDragging(false);
     dragRef.current = null;
@@ -110,7 +86,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   }
 
   return (
-    <div className="relative flex min-h-[160px] basis-0 grow-[58] flex-col overflow-hidden bg-slate-950">
+    <div ref={viewportRef} aria-busy={isAnalyzing} className="relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
       <div className="z-20 flex shrink-0 items-center gap-2 border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">
         <button
           type="button"
@@ -137,18 +113,18 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.max(25, value - 25))}
+          onClick={() => changeZoom(-0.1)}
           className="px-2 disabled:opacity-40"
         >
           −
         </button>
 
-        <span>{isPdf ? "PDF" : `${zoom}%`}</span>
+        <span className="min-w-[76px] text-center tabular-nums">{isPdf ? "PDF" : `${fitMode ? "맞춤 · " : ""}${Math.round(displayScale*100)}%`}</span>
 
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.min(400, value + 25))}
+          onClick={() => changeZoom(0.1)}
           className="px-2 disabled:opacity-40"
         >
           +
@@ -158,26 +134,23 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           type="button"
           disabled={!drawingUrl || isPdf}
           onClick={() => {
-            setZoom(100);
+            setFitMode(true);
+    setManualScale(1);
             setOffset({ x: 0, y: 0 });
           }}
           className="rounded bg-slate-800 px-2 py-1 disabled:opacity-40"
         >
-          보기 초기화
+          화면에 맞춤
         </button>
 
         {isPdf && (
           <span className="text-slate-400">
-            PDF 확대·이동은 PDF 뷰어 도구를 사용하세요.
+            PDF는 뷰어의 페이지 맞춤·확대 도구를 사용하세요.
           </span>
-        )}
-
-        {toolbarRight && (
-          <div className="ml-auto flex items-center gap-2">{toolbarRight}</div>
         )}
       </div>
 
-      {isAnalyzing && <div role="status" className="absolute left-3 top-14 z-30 rounded border border-cyan-600 bg-slate-900/95 px-4 py-2 text-xs text-cyan-200">CPU OCR 분석 중…</div>}
+      {isAnalyzing && <OcrLoadingOverlay stage={analyzingStage} />}
       {!drawingUrl ? (
         <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-400">
           부품에서 도면을 선택하거나 새 도면을 등록해주세요.
@@ -185,13 +158,12 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
       ) : isPdf ? (
         <iframe
           key={drawingUrl}
-          src={drawingUrl}
+          src={drawingUrl.includes("#") ? drawingUrl : `${drawingUrl}#view=Fit`}
           title="등록된 PDF 도면"
           className="min-h-0 w-full flex-1 border-0 bg-white"
         />
       ) : (
         <div
-          ref={stageRef}
           className="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
           style={{
             cursor: panMode
@@ -204,6 +176,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             if (!panMode || event.button !== 0) return;
 
             event.preventDefault();
+            setManualScale(displayScale);
+            setFitMode(false);
             event.currentTarget.setPointerCapture(event.pointerId);
 
             dragRef.current = {
@@ -238,10 +212,12 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             </p>
           ) : (
             <div
-              className={`relative shrink-0 ${fitBox ? "" : "w-[90%] max-w-[1300px]"}`}
+              className="relative shrink-0"
               style={{
-                ...(fitBox ? { width: fitBox.width, height: fitBox.height } : {}),
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom / 100})`,
+                width: imageSize.width ? imageSize.width*displayScale : '90%',
+                height: imageSize.height ? imageSize.height*displayScale : undefined,
+                transform: `translate(${offset.x}px, ${offset.y}px)`,
+                visibility: imageSize.width ? 'visible' : 'hidden',
                 transformOrigin: "center",
               }}
             >
@@ -261,60 +237,15 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 className="pointer-events-none block h-auto w-full bg-white"
               />
 
-              {highlightLines && highlightLines.length > 0 && imageSize.width > 0 && (
-                <svg
-                  aria-hidden="true"
-                  data-testid="highlight-overlay"
-                  className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
-                  viewBox={`0 0 ${coordinateSize?.width || imageSize.width} ${coordinateSize?.height || imageSize.height}`}
-                  preserveAspectRatio="none"
-                >
-                  {highlightLines.map((line, index) => (
-                    <polyline
-                      key={index}
-                      points={line.map((p) => `${p.x},${p.y}`).join(" ")}
-                      fill="none"
-                      stroke="#0ea5e9"
-                      strokeWidth={4}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
-                      opacity={0.9}
-                    />
-                  ))}
-                </svg>
-              )}
-
-              {onPlaceAt && imageSize.width > 0 && !panMode && (
-                <div
-                  data-testid="place-overlay"
-                  className="absolute inset-0 z-20 cursor-crosshair"
-                  onClick={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    if (rect.width <= 0 || rect.height <= 0) return;
-                    onPlaceAt({
-                      x: ((event.clientX - rect.left) / rect.width) * (coordinateSize?.width || imageSize.width),
-                      y: ((event.clientY - rect.top) / rect.height) * (coordinateSize?.height || imageSize.height),
-                    });
-                  }}
-                />
-              )}
-
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
-                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 PNG의 크기가 달라 마커를 표시하지 않습니다.</div>}
+                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 이미지의 크기가 달라 마커를 표시하지 않습니다.</div>}
               {imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
                 points.map((point) => {
                   const id = point.id ?? point.displayNumber;
 
-                  // 치수 글자 박스 바깥쪽 기준점이 있으면 그 옆에 붙이고,
-                  // 없으면 기존처럼 좌표 중심에 표시한다.
-                  const anchor = point.labelAnchor;
-                  const markerX = anchor?.x ?? point.x;
-                  const markerY = anchor?.y ?? point.y;
-
                   if (
-                    !Number.isFinite(markerX) ||
-                    !Number.isFinite(markerY)
+                    !Number.isFinite(point.x) ||
+                    !Number.isFinite(point.y)
                   ) {
                     return null;
                   }
@@ -322,11 +253,10 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                   return (
                     <div
                       key={id}
-                      className="absolute z-10"
+                      className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                       style={{
-                        left: `${(markerX / (coordinateSize?.width || imageSize.width)) * 100}%`,
-                        top: `${(markerY / (coordinateSize?.height || imageSize.height)) * 100}%`,
-                        transform: MARKER_TRANSFORM[anchor?.side ?? "center"],
+                        left: `${(point.x / (coordinateSize?.width || imageSize.width)) * 100}%`,
+                        top: `${(point.y / (coordinateSize?.height || imageSize.height)) * 100}%`,
                         pointerEvents: panMode ? "none" : "auto",
                       }}
                     >

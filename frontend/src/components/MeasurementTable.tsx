@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from "react";
+import React, { useState } from "react";
 
 interface MeasurementTableProps {
   points: any[];
@@ -22,12 +22,13 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
   selectedItemId,
   onSelectItem,
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
   const completedCount = Object.values(inspectionRecords).filter(
     (r: any) => r?.status === "completed"
   ).length;
 
   return (
-    <div className="h-[280px] bg-white flex flex-col border-t border-slate-200 shrink-0 shadow-inner">
+    <div className={`${collapsed ? "" : "h-[280px] max-h-[45%]"} bg-white flex flex-col border-t border-slate-200 shrink-0 shadow-inner`}>
       {/* Table Top Header & Progress */}
       <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -35,16 +36,14 @@ export const MeasurementTable: React.FC<MeasurementTableProps> = ({
             피스톤 로드 측정 항목 (Piston Rod Inspection Sheet)
           </h3>
           <span className="text-[11px] text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200 font-semibold">
-            검사 진행률: {completedCount} / {points.length} 완료 ({Math.round((completedCount / points.length) * 100)}%)
+            검사 진행률: {completedCount} / {points.length} 완료 ({Math.round((completedCount / Math.max(1, points.length)) * 100)}%)
           </span>
         </div>
-        <span className="text-[11px] text-slate-500">
-          항목 클릭 시 도면 위치 및 우측 상세 패널 연동
-        </span>
+        <button type="button" aria-expanded={!collapsed} aria-controls="demo-measurement-body" onClick={()=>setCollapsed(v=>!v)} className="shrink-0 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-cyan-50">{collapsed ? '측정항목 펼치기 ▴' : '측정항목 접기 ▾'}</button>
       </div>
 
       {/* Table Scroll Body */}
-      <div className="flex-1 overflow-y-auto">
+      <div id="demo-measurement-body" hidden={collapsed} className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-collapse text-left text-xs">
           <thead className="bg-slate-50 sticky top-0 z-10 text-slate-600 font-semibold border-b border-slate-200">
             <tr>

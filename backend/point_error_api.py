@@ -1,7 +1,7 @@
 """선택한 도면 포인트에서 오류사례 등록."""
 
 import json
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
@@ -136,13 +136,11 @@ def create_point_error(
     data["data_origin"] = "USER_REPORTED"
     data["search_text"] = build_search_text(data)
 
-    request_id = payload.get("request_id")
-    if request_id is not None:
-        try:
-            request_id = str(UUID(request_id))
-        except (ValueError, TypeError, AttributeError):
-            raise HTTPException(422, "Invalid request_id")
-    report_id = "RPT-" + (request_id or uuid4().hex)
+    try:
+        token = UUID(payload["request_id"]).hex if "request_id" in payload else uuid4().hex
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(422, "request_id가 올바르지 않습니다.")
+    report_id = "RPT-" + token
     fields = list(data)
     columns = ", ".join(fields)
     placeholders = ", ".join("?" for _ in fields)
@@ -152,14 +150,6 @@ def create_point_error(
     # 사례 원문과 포인트 연결 기록을 함께 저장한다.
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
-        existing = db.execute('SELECT * FROM point_error_reports WHERE report_id=?', (report_id,)).fetchone()
-        if existing:
-            if (existing['drawing_id'], existing['item_id'], existing['ocr_revision']) != (drawing_id, item_id, revision):
-                raise HTTPException(409, 'Request already used for another item.')
-            case = db.execute('SELECT vector_status FROM error_cases WHERE case_id=?', (existing['case_id'],)).fetchone()
-            return {'case_id': existing['case_id'], 'report_id': report_id, 'saved': True,
-                    'vector_status': case['vector_status'], 'message': 'Already saved.',
-                    'drawing_id': drawing_id, 'item_id': item_id, 'revision': revision}
         current = db.execute(
             "SELECT revision FROM ocr_results WHERE drawing_id=?",
             (drawing_id,),
@@ -171,32 +161,40 @@ def create_point_error(
                 "저장 중 OCR 결과가 변경됐습니다. 다시 확인해주세요.",
             )
 
-        db.execute(
-            f"INSERT INTO error_cases ({columns}) VALUES ({placeholders})",
-            [data[field] for field in fields],
-        )
-
-        db.execute(
-            """
-            INSERT INTO point_error_reports (
-                report_id,
-                case_id,
-                drawing_id,
-                item_id,
-                ocr_revision,
-                item_snapshot_json
+        existing = db.execute(
+            "SELECT * FROM point_error_reports WHERE report_id=?", (report_id,)
+        ).fetchone()
+        if existing:
+            if (existing["drawing_id"], existing["item_id"], existing["ocr_revision"]) != (drawing_id, item_id, revision):
+                raise HTTPException(409, "등록 요청이 다른 포인트에 사용됐습니다.")
+            data["case_id"] = existing["case_id"]
+        else:
+            db.execute(
+                f"INSERT INTO error_cases ({columns}) VALUES ({placeholders})",
+                [data[field] for field in fields],
             )
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                report_id,
-                data["case_id"],
-                drawing_id,
-                item_id,
-                revision,
-                json.dumps(item, ensure_ascii=False),
-            ),
-        )
+
+            db.execute(
+                """
+                INSERT INTO point_error_reports (
+                    report_id,
+                    case_id,
+                    drawing_id,
+                    item_id,
+                    ocr_revision,
+                    item_snapshot_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    report_id,
+                    data["case_id"],
+                    drawing_id,
+                    item_id,
+                    revision,
+                    json.dumps(item, ensure_ascii=False),
+                ),
+            )
 
     # 기존 등록 API의 벡터화 함수를 재사용한다.
     result = index_case(data["case_id"], request)
@@ -209,18 +207,19 @@ def create_point_error(
         "revision": revision,
     }
 
-@router.get('/{drawing_id}/items/{item_id}/error-cases')
+@router.get("/{drawing_id}/items/{item_id}/error-cases")
 def list_point_errors(drawing_id: str, item_id: str, revision: str):
+    init_point_errors()
     snapshot = read_ocr_result(drawing_id)
-    if snapshot.get('revision') != revision:
-        raise HTTPException(409, 'OCR revision changed. Reload the drawing.')
-    if not snapshot['result'] or not any(item['id'] == item_id for item in snapshot['result']['items']):
-        raise HTTPException(404, 'Unknown drawing item.')
+    if snapshot["result"] is None or snapshot["revision"] != revision:
+        raise HTTPException(409, "OCR 결과가 변경됐습니다. 도면을 다시 선택해주세요.")
+    if not any(i["id"] == item_id for i in snapshot["result"]["items"]):
+        raise HTTPException(404, "해당 도면의 항목이 아닙니다.")
     with database() as db:
-        rows = db.execute('''SELECT e.case_id, e.case_title, e.error_description,
-            e.vector_status, r.created_at FROM point_error_reports r
-            JOIN error_cases e ON e.case_id=r.case_id
+        rows = db.execute("""SELECT c.case_id, c.case_title, c.error_description,
+            c.vector_status, r.created_at FROM point_error_reports r
+            JOIN error_cases c ON c.case_id=r.case_id
             WHERE r.drawing_id=? AND r.item_id=? AND r.ocr_revision=?
-            ORDER BY r.rowid DESC''', (drawing_id, item_id, revision)).fetchall()
-    return {'drawing_id': drawing_id, 'item_id': item_id, 'revision': revision,
-            'reports': [dict(row) for row in rows]}
+            ORDER BY r.created_at DESC, r.report_id""", (drawing_id, item_id, revision)).fetchall()
+    return {"drawing_id": drawing_id, "item_id": item_id, "revision": revision,
+            "reports": [dict(row) for row in rows]}
