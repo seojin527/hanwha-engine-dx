@@ -18,6 +18,8 @@ import { OcrMeasurementTable } from './components/OcrMeasurementTable';
 import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
 
+import { DrawingReviewPanel } from './components/DrawingReviewPanel';
+
 export function App() {
   const [selectedPointId, setSelectedPointId] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
@@ -251,8 +253,15 @@ export function App() {
               onSelectItemId={setSelectedItemId}
             />
           ) : document && selectedDrawing && ocr.snapshot?.revision ? (
-            <OcrDetailPanel drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
-              point={activeOcrPoint} total={ocrPoints.length} onNavigate={navigateOcr} />
+            <>
+              <DrawingReviewPanel
+                key={`${selectedDrawing.drawing_id}/${ocr.snapshot.revision}`}
+                drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
+                document={document} selectedItemId={activeOcrPoint?.source.id} onSaved={ocr.refresh}
+              />
+              <OcrDetailPanel drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
+                point={activeOcrPoint} total={ocrPoints.length} onNavigate={navigateOcr} />
+            </>
           ) : (
             <section className="space-y-4 p-5">
               <h2 className="text-sm font-bold text-slate-900">

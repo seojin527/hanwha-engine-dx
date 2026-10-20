@@ -55,7 +55,7 @@ def format_log_text(log: dict, origin_file: str = "", reviewed_file: str = "") -
         "",
         "[ 요약 ]",
         f"기하공차 {s['gdt_rows']}줄 : 그대로 {s['gdt_confirmed']} · 수정 {s['gdt_edited']} · 미확정 {s['gdt_unreviewed']}",
-        f"치수        : 인식 {s['dimensions_ocr']} + 추가 {s['dimensions_added']}",
+        f"치수        : 인식 {s['dimensions_ocr']} (값 수정 {s.get('dimensions_edited', 0)}) + 추가 {s['dimensions_added']}",
         "",
         "[ 수정·추가 내역 ]",
     ]
@@ -63,7 +63,9 @@ def format_log_text(log: dict, origin_file: str = "", reviewed_file: str = "") -
     if not changed:
         out.append("(없음)")
     for c in changed:
-        if c["action"] == "edited":
+        if c["action"] == "edited" and c["type"] == "DIMENSION":
+            out.append(f"수정  {c['item_id']:<6} 치수     {c['before']} → {c['after']}")
+        elif c["action"] == "edited":
             sym, name, before, _ = _row_parts(c["before"])
             _, _, after, datum = _row_parts(c["after"])
             note = "  (형식 오류였음)" if c.get("format_error") else ""
@@ -108,7 +110,7 @@ def append_history(log: dict, history_path: str, origin_file: str = "") -> int:
             w.writerow(HISTORY_COLUMNS)
         for c in log["changes"]:
             sym = _row_parts(c["after"])[0] if c["type"] == "GDT" else ""
-            before = _row_parts(c["before"])[2] if c["type"] == "GDT" else ""
+            before = _row_parts(c["before"])[2] if c["type"] == "GDT" else (c["before"] or "")
             after = _row_parts(c["after"])[2] if c["type"] == "GDT" else c["after"]
             pos = c.get("position_image") or c.get("position_frame") or {}
             w.writerow([

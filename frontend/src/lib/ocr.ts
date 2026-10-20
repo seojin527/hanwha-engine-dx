@@ -18,6 +18,7 @@ export interface OcrItem {
   review_reasons?: string[];
 }
 export interface OcrDocument {
+  review?: {completed: boolean; reviewer: string};
   drawing_id: string;
   source_drawing_id?: string;
   part_name?: string | null;

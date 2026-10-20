@@ -1,4 +1,5 @@
-import json,tempfile,unittest
+import io,json,tempfile,unittest
+from PIL import Image
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -28,7 +29,10 @@ class Flow(unittest.TestCase):
   app=FastAPI();app.include_router(lib.router);app.include_router(ocr_api.router)
   app.state.model=Model();app.state.collection=Collection();self.app=app;self.client=TestClient(app)
   self.png=(store.DATA_DIR/'1_image.png').read_bytes()
-  self.meta=json.loads((store.DATA_DIR/'normalized/1_metadata.json').read_text())
+  self.meta=json.loads((store.DATA_DIR/'normalized/1_metadata.json').read_text(encoding='utf-8'))
+  output=io.BytesIO()
+  Image.open(io.BytesIO(self.png)).convert('RGB').save(output,format='JPEG')
+  self.jpg=output.getvalue()
  def tearDown(self):
   lib.DB_PATH,lib.UPLOAD_DIR,store.RESULT_DIR=self.original
   self.temp.cleanup()
@@ -37,12 +41,12 @@ class Flow(unittest.TestCase):
  def test_end_to_end_and_isolation(self):
   a=self.register();b=self.register('other.png')
   self.assertIsNone(self.client.get(f'/api/drawings/{a}/ocr').json()['result'])
-  r=self.client.post(f'/api/drawings/{a}/ocr/sample');self.assertEqual(r.status_code,200)
-  snap=r.json();self.assertEqual(len(snap['result']['items']),19);self.assertEqual(snap['result']['drawing_id'],a)
-  self.assertEqual(self.client.get(snap['image_url']).content,self.png)
+  r=self.client.post(f'/api/drawings/{a}/ocr/sample');self.assertEqual(r.status_code,409)
+  snap=store.save_ocr_result(a,self.meta,self.jpg);self.assertEqual(len(snap['result']['items']),19);self.assertEqual(snap['result']['drawing_id'],a)
+  self.assertEqual(self.client.get(snap['image_url']).content,self.jpg)
   self.assertIsNone(self.client.get(f'/api/drawings/{b}/ocr').json()['result'])
   r=self.client.get(f'/api/drawings/{a}/items/DIMENSION_002/errors');self.assertEqual(r.status_code,200)
-  self.assertEqual(r.json()['errors'][0]['case_id'],'SIM-017');self.assertEqual(self.app.state.collection.where,{'feature_type':'THREAD'})
+  self.assertEqual(r.json()['errors'][0]['case_id'],'SIM-017');self.assertEqual(self.app.state.collection.where,{'$and':[{'part_family':'피스톤 로드'},{'feature_type':'THREAD'}]})
   self.assertIn('M10', self.app.state.model.last[0]);self.assertTrue(self.app.state.model.last[0].startswith('query: '))
   self.assertEqual(self.client.get(f'/api/drawings/{a}/items/NOT_FOUND/errors').status_code,404)
   self.assertEqual(self.client.get(f'/api/drawings/{b}/items/DIMENSION_002/errors').status_code,409)
@@ -51,9 +55,9 @@ class Flow(unittest.TestCase):
   self.assertEqual(self.client.get(f'/api/drawings/{a}/ocr').json()['revision'],snap['revision'])
   self.assertEqual(self.client.get(f'/api/drawings/{a}/file').content,self.png)
  def test_reject_invalid_result_without_losing_previous(self):
-  a=self.register();first=store.save_ocr_result(a,self.meta,self.png)
+  a=self.register();first=store.save_ocr_result(a,self.meta,self.jpg)
   self.meta['items'][0]['position']['x']=999999
-  with self.assertRaises(ValueError):store.save_ocr_result(a,self.meta,self.png)
+  with self.assertRaises(ValueError):store.save_ocr_result(a,self.meta,self.jpg)
   self.assertEqual(store.read_ocr_result(a)['revision'],first['revision'])
  def test_dimensions_ids_and_empty_items(self):
   a=self.register()
@@ -62,11 +66,11 @@ class Flow(unittest.TestCase):
    if mode=='size':m['image']['width_px']=1
    if mode=='duplicate':m['items'][1]['id']=m['items'][0]['id']
    if mode=='empty':m['items']=[]
-   with self.assertRaises(ValueError):store.save_ocr_result(a,m,self.png)
+   with self.assertRaises(ValueError):store.save_ocr_result(a,m,self.jpg)
  def test_revision_and_unknown_filter(self):
-  a=self.register();first=store.save_ocr_result(a,self.meta,self.png);second=store.save_ocr_result(a,self.meta,self.png)
+  a=self.register();first=store.save_ocr_result(a,self.meta,self.jpg);second=store.save_ocr_result(a,self.meta,self.jpg)
   self.assertNotEqual(first['revision'],second['revision'])
   self.assertEqual(self.client.get(first['image_url']).status_code,404)
   self.assertEqual(self.client.get(f'/api/drawings/{a}/items/DIMENSION_001/errors').status_code,200)
-  self.assertIsNone(self.app.state.collection.where)
+  self.assertEqual(self.app.state.collection.where,{'part_family':'피스톤 로드'})
 if __name__=='__main__': unittest.main(verbosity=2)

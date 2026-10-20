@@ -22,6 +22,7 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
 
   const displayNumber = point.displayNumber || point.id || 1;
   const isCompleted = status === "completed";
+  const isNg = status === "flagged";
 
   return (
     <button
@@ -30,9 +31,11 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
         onClick();
       }}
       // 치수 숫자가 가려지지 않도록 bg-opacity-60 및 backdrop-blur 적용
-      className={`w-6 h-6 rounded-full text-[11px] font-extrabold flex items-center justify-center shadow transition transform hover:scale-125 z-20 backdrop-blur-[1px] ${
+      className={`relative w-6 h-6 rounded-full text-[11px] font-extrabold flex items-center justify-center shadow transition transform hover:scale-125 z-20 backdrop-blur-[1px] ${
         isSelected
           ? "bg-amber-400/60 text-slate-950 ring-2 ring-cyan-500 scale-110 shadow-lg"
+          : isNg
+          ? "bg-rose-600/70 text-white ring-1 ring-rose-300"
           : isCompleted
           ? "bg-emerald-600/50 text-white ring-1 ring-emerald-300"
           : "bg-cyan-600/50 text-white hover:bg-cyan-500/70"
@@ -40,6 +43,33 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
       title={`#${displayNumber}: ${point.feature?.name || point.name || "포인트"}`}
     >
       {displayNumber}
+      {point.warning && !point.confirmed && (
+        // 값이 깨졌거나 읽지 못해 관리자 확인이 필요한 항목
+        <span
+          aria-label="확인 필요"
+          className="absolute -left-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black leading-none text-slate-900 ring-1 ring-white"
+        >
+          !
+        </span>
+      )}
+      {point.added && (
+        // 관리자가 직접 추가한 항목(OCR 누락 보충) 표시
+        <span
+          aria-label="관리자 추가"
+          className="absolute -bottom-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-sky-400 text-[9px] font-black leading-none text-slate-900 ring-1 ring-white"
+        >
+          +
+        </span>
+      )}
+      {point.adminEdited && (
+        // 관리자가 값을 고친 항목 표시
+        <span
+          aria-label="관리자 수정"
+          className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-400 text-[8px] font-black text-slate-900 ring-1 ring-white"
+        >
+          수
+        </span>
+      )}
     </button>
   );
 };

@@ -13,6 +13,10 @@ from error_case_api import router as error_case_router
 from error_case_store import init_error_cases
 from ocr_api import router as ocr_router
 from ocr_results import init_ocr_results
+from measurement_api import init_measurements, router as measurement_router
+from point_error_api import init_point_errors
+from ocr_review.api import router as review_router
+from ocr_review.drawing_api import init_drawing_reviews, router as drawing_review_router
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -24,6 +28,9 @@ async def lifespan(app: FastAPI):
     init_library()
     init_ocr_results()
     init_error_cases()
+    init_measurements()
+    init_point_errors()
+    init_drawing_reviews()
 
     # 이전 단일 도면 API에서 사용하는 JSON
     json_path = BASE_DIR.parent / "data" / "1_metadata.json"
@@ -56,6 +63,9 @@ app.include_router(library_router)
 
 # OCR 결과 조회·관련 오류사례 검색
 app.include_router(ocr_router)
+app.include_router(measurement_router)
+app.include_router(review_router)
+app.include_router(drawing_review_router)
 
 # 사용자 오류사례 등록·자동 벡터화
 app.include_router(error_case_router)

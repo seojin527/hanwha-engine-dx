@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { MeasurementEntry } from './MeasurementEntry';
+import { PointErrorForm } from './PointErrorForm';
 import { fetchItemErrors, type ErrorCandidate } from '../lib/drawingAPI';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
 
@@ -45,6 +47,8 @@ export function OcrDetailPanel({ drawingId, revision, point, total, onNavigate }
         <p className="text-slate-500">공차·형상 검토가 끝나기 전에는 자동 판정하지 않습니다.</p>
         {(item.review_reasons || []).map((reason) => <p key={reason} className="text-amber-800">• {reason}</p>)}
       </div>
+      <MeasurementEntry key={`measurement/${key}`} drawingId={drawingId} revision={revision} item={item} onSaved={() => {}} />
+      <PointErrorForm key={`error/${key}`} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={() => setRetry(v => v + 1)} />
       <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
         <h3 className="text-xs font-extrabold text-amber-900">측정 전 확인 사항 · 관련 오류 후보</h3>
         {loading ? <p role="status" className="text-xs text-amber-900">관련 오류·주의사항 검색 중…</p>

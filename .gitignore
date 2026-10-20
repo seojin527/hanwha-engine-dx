@@ -26,3 +26,6 @@ edocr2/edocr2/tools/models/*.npz
 data/origin/cpu-*/
 __pycache__/
 *.pyc
+# Local integration verification
+.test-deps/
+.npm-cache/

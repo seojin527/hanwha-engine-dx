@@ -1,7 +1,7 @@
 """선택한 도면 포인트에서 오류사례 등록."""
 
 import json
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
@@ -70,7 +70,7 @@ def create_point_error(
     request: Request,
     payload: dict = Body(...),
 ):
-    unknown = set(payload) - MANUAL_FIELDS - {"revision"}
+    unknown = set(payload) - MANUAL_FIELDS - {"revision", "request_id"}
     if unknown:
         raise HTTPException(
             422,
@@ -136,7 +136,13 @@ def create_point_error(
     data["data_origin"] = "USER_REPORTED"
     data["search_text"] = build_search_text(data)
 
-    report_id = "RPT-" + uuid4().hex
+    request_id = payload.get("request_id")
+    if request_id is not None:
+        try:
+            request_id = str(UUID(request_id))
+        except (ValueError, TypeError, AttributeError):
+            raise HTTPException(422, "Invalid request_id")
+    report_id = "RPT-" + (request_id or uuid4().hex)
     fields = list(data)
     columns = ", ".join(fields)
     placeholders = ", ".join("?" for _ in fields)
@@ -145,6 +151,15 @@ def create_point_error(
 
     # 사례 원문과 포인트 연결 기록을 함께 저장한다.
     with database() as db:
+        db.execute('BEGIN IMMEDIATE')
+        existing = db.execute('SELECT * FROM point_error_reports WHERE report_id=?', (report_id,)).fetchone()
+        if existing:
+            if (existing['drawing_id'], existing['item_id'], existing['ocr_revision']) != (drawing_id, item_id, revision):
+                raise HTTPException(409, 'Request already used for another item.')
+            case = db.execute('SELECT vector_status FROM error_cases WHERE case_id=?', (existing['case_id'],)).fetchone()
+            return {'case_id': existing['case_id'], 'report_id': report_id, 'saved': True,
+                    'vector_status': case['vector_status'], 'message': 'Already saved.',
+                    'drawing_id': drawing_id, 'item_id': item_id, 'revision': revision}
         current = db.execute(
             "SELECT revision FROM ocr_results WHERE drawing_id=?",
             (drawing_id,),
@@ -193,3 +208,19 @@ def create_point_error(
         "item_id": item_id,
         "revision": revision,
     }
+
+@router.get('/{drawing_id}/items/{item_id}/error-cases')
+def list_point_errors(drawing_id: str, item_id: str, revision: str):
+    snapshot = read_ocr_result(drawing_id)
+    if snapshot.get('revision') != revision:
+        raise HTTPException(409, 'OCR revision changed. Reload the drawing.')
+    if not snapshot['result'] or not any(item['id'] == item_id for item in snapshot['result']['items']):
+        raise HTTPException(404, 'Unknown drawing item.')
+    with database() as db:
+        rows = db.execute('''SELECT e.case_id, e.case_title, e.error_description,
+            e.vector_status, r.created_at FROM point_error_reports r
+            JOIN error_cases e ON e.case_id=r.case_id
+            WHERE r.drawing_id=? AND r.item_id=? AND r.ocr_revision=?
+            ORDER BY r.rowid DESC''', (drawing_id, item_id, revision)).fetchall()
+    return {'drawing_id': drawing_id, 'item_id': item_id, 'revision': revision,
+            'reports': [dict(row) for row in rows]}
