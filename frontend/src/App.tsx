@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
 import { DrawingLibrary } from "./components/DrawingLibrary";
-import { DrawingViewer } from "./components/DrawingViewer";
+import { DrawingViewer } from "./components/WorkerDrawingViewer";
 import { MeasurementTable } from "./components/MeasurementTable";
 import { MeasurementPanel } from "./components/MeasurementPanel";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
@@ -18,9 +18,17 @@ import { OcrMeasurementTable } from './components/OcrMeasurementTable';
 import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
 
+<<<<<<< Updated upstream
 import { DrawingReviewPanel } from './components/DrawingReviewPanel';
+=======
+import { ResizablePanels } from "./components/ResizablePanels";
+import { loadMode, MODE_KEY } from "./lib/admin/adminStore";
+import { AdminWorkspace } from "./components/AdminWorkspace";
+>>>>>>> Stashed changes
 
 export function App() {
+  const [mode, setMode] = useState(loadMode);
+  useEffect(() => {try {localStorage.setItem(MODE_KEY, mode);} catch {}}, [mode]);
   const [selectedPointId, setSelectedPointId] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,9 +135,14 @@ export function App() {
     }));
   }
 
+  if (mode === "admin") return <AdminWorkspace initialDrawing={demoMode ? null : selectedDrawing} onWorker={drawing => {
+    if (drawing) {setSelectedDrawing(drawing);setDrawingUrl(apiUrl(drawing.file_url));setDemoMode(false);}
+    setMode("worker"); ocr.refresh();
+  }} />;
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
+        onAdminMode={() => setMode("admin")}
         displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
         onUploadDrawing={() => setUploadRequest((value) => value + 1)}
         onResetData={handleResetData}
@@ -254,11 +267,6 @@ export function App() {
             />
           ) : document && selectedDrawing && ocr.snapshot?.revision ? (
             <>
-              <DrawingReviewPanel
-                key={`${selectedDrawing.drawing_id}/${ocr.snapshot.revision}`}
-                drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
-                document={document} selectedItemId={activeOcrPoint?.source.id} onSaved={ocr.refresh}
-              />
               <OcrDetailPanel drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
                 point={activeOcrPoint} total={ocrPoints.length} onNavigate={navigateOcr} />
             </>

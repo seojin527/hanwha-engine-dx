@@ -137,5 +137,76 @@ class DrawingReviewFlow(unittest.TestCase):
         self.assertIn('12±1', queries[0])
 
 
+
+    def test_admin_ui_added_items_state_and_delete_history(self):
+        added={'id':'ADM1','category':'DIMENSION','raw_text':'12','position':{'x':40,'y':50},
+               'nominal_value':12,'feature_type':'SHAFT','tol_type':'DIMENSION',
+               'lower_limit':11.9,'upper_limit':12.1,'equipment':'micrometer'}
+        state={'nextOrder':2,'added':[],'edits':{'ADM1':{'confirmed':True}}}
+        response=self.submit(added_items=[added],ui_state=state,confirmed_ids=['DIMENSION_001','ADM1'])
+        self.assertEqual(response.status_code,200,response.text)
+        snapshot=response.json()
+        self.assertTrue(snapshot['result']['items'][1]['admin_added'])
+        self.assertEqual(snapshot['result']['admin_ui_state'],state)
+        self.assertEqual(snapshot['result']['review_base_items'],self.meta['items'])
+        self.assertEqual(snapshot['result']['items'][1]['equipment'],'micrometer')
+        self.snapshot=snapshot
+        removed=self.submit(removed_ids=['ADM1'],ui_state={'edits':{},'added':[],'nextOrder':2})
+        self.assertEqual(removed.status_code,200,removed.text)
+        self.assertEqual(len(removed.json()['result']['items']),1)
+        history=self.client.get(self.base+'/ocr/reviews').json()['history']
+        deletion=next(change for change in history[0]['changes'] if change['item_id']=='ADM1')
+        self.assertIsNone(deletion['after'])
+        self.assertEqual(deletion['before']['raw_text'],'12')
+
+    def test_admin_ui_rejects_invalid_additions_and_source_delete(self):
+        for changes in ({'removed_ids':['DIMENSION_001']},
+                        {'added_items':[{'id':'DIMENSION_001','category':'DIMENSION'}]},
+                        {'added_items':[{'id':'ADM1','category':'DIMENSION','raw_text':'1','position':{'x':100,'y':1}}]},
+                        {'edits':{'DIMENSION_001':{'tolerance_value':'wrong'}}}):
+            response=self.submit(**changes)
+            self.assertEqual(response.status_code,422,response.text)
+            self.assertEqual(results.read_ocr_result(self.drawing)['revision'],self.snapshot['revision'])
+
+    def test_admin_ui_gdt_and_equipment_are_durable(self):
+        self.meta['items'].append({'id':'GDT_001_1','category':'GDT','raw_text':'perp|0.1|A',
+            'position':{'x':30,'y':30},'gdt_symbol':'perp','tolerance_value':0.1,'datum_references':['A']})
+        self.snapshot=results.save_ocr_result(self.drawing,self.meta,self.jpg)
+        response=self.submit(edits={'GDT_001_1':{'raw_text':'perp|0.02|A|B','tolerance_value':0.02,
+            'datum_references':['A','B'],'equipment':'CMM'}},confirmed_ids=['DIMENSION_001','GDT_001_1'])
+        self.assertEqual(response.status_code,200,response.text)
+        item=results.read_ocr_result(self.drawing)['result']['items'][1]
+        self.assertEqual(item['tolerance_value'],0.02)
+        self.assertEqual(item['datum_references'],['A','B'])
+        self.assertEqual(item['equipment'],'CMM')
+
+    def test_admin_reference_import_reuses_saved_review(self):
+        from ocr_review.admin_ui_api import router
+        self.app.include_router(router)
+        first=self.client.post('/api/ocr-review/demo/HDH_63_01')
+        self.assertEqual(first.status_code,200,first.text)
+        original=first.json()
+        changed=self.client.post('/api/drawings/'+original['drawing_id']+'/ocr/review',json={
+            'revision':original['revision'],'reviewer':'admin','edits':{},'complete':False,
+            'ui_state':{'nextOrder':8,'edits':{},'added':[]}})
+        self.assertEqual(changed.status_code,200,changed.text)
+        reloaded=self.client.post('/api/ocr-review/demo/HDH_63_01').json()
+        self.assertEqual(reloaded['revision'],changed.json()['revision'])
+        self.assertEqual(reloaded['result']['admin_ui_state']['nextOrder'],8)
+        self.assertEqual(self.client.post('/api/ocr-review/demo/unknown').status_code,404)
+
+
+    def test_admin_history_filter_clear_archives_without_deleting(self):
+        from ocr_review.admin_ui_api import router
+        self.app.include_router(router)
+        self.submit()
+        history=self.client.get('/api/ocr-review/history/entries').json()['history']
+        self.assertEqual(len(history),1)
+        self.assertEqual(history[0]['drawing_id'],self.drawing)
+        self.assertFalse(history[0]['previous_completed'])
+        self.assertEqual(self.client.post('/api/ocr-review/history/clear').status_code,200)
+        self.assertEqual(self.client.get('/api/ocr-review/history/entries').json()['history'],[])
+        self.assertEqual(len(self.client.get(self.base+'/ocr/reviews').json()['history']),1)
+
 if __name__ == '__main__':
     unittest.main()

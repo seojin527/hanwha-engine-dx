@@ -7,6 +7,7 @@ import React from "react";
 import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
+  onAdminMode?: () => void;
   displayInfo?: { partName: string; drawingName: string };
   onUploadDrawing: (fileName: string) => void;
   onResetData: () => void;
@@ -15,6 +16,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onAdminMode,
   displayInfo,
   onUploadDrawing,
   onResetData,
@@ -24,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0 h-16 shadow-md">
       {/* Left: Title & Part Info */}
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden whitespace-nowrap">
         <div>
           <h1 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
             Drawing AI Measurement Guide
@@ -62,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Search, Reset, Upload, User Badge */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <div className="relative">
           <input
             type="text"
@@ -73,6 +75,10 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
+        {onAdminMode && <div role="group" aria-label="모드 전환" className="flex overflow-hidden rounded-lg border border-slate-700 text-xs font-semibold">
+          <button type="button" aria-pressed={true} className="bg-cyan-600 px-3 py-1.5 text-white">작업자</button>
+          <button type="button" aria-pressed={false} onClick={onAdminMode} className="bg-slate-800 px-3 py-1.5 text-slate-300 hover:bg-slate-700">관리자</button>
+        </div>}
         <button
           onClick={onResetData}
           className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5"

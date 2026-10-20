@@ -16,6 +16,7 @@ from ocr_results import init_ocr_results
 from measurement_api import init_measurements, router as measurement_router
 from point_error_api import init_point_errors
 from ocr_review.api import router as review_router
+from ocr_review.admin_ui_api import router as admin_ui_router
 from ocr_review.drawing_api import init_drawing_reviews, router as drawing_review_router
 
 
@@ -65,6 +66,7 @@ app.include_router(library_router)
 app.include_router(ocr_router)
 app.include_router(measurement_router)
 app.include_router(review_router)
+app.include_router(admin_ui_router)
 app.include_router(drawing_review_router)
 
 # 사용자 오류사례 등록·자동 벡터화
