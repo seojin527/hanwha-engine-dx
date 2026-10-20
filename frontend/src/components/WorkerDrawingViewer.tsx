@@ -2,6 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { OcrLoadingOverlay } from "./OcrLoadingOverlay";
 import { MeasurementMarker } from "./WorkerMeasurementMarker";
 
+// 기준점(글자 박스 가장자리)에서 마커를 어느 쪽으로 붙일지
+const MARKER_GAP = "3px";
+const MARKER_TRANSFORM: Record<string, string> = {
+  top: `translate(-50%, calc(-100% - ${MARKER_GAP}))`,
+  bottom: `translate(-50%, ${MARKER_GAP})`,
+  left: `translate(calc(-100% - ${MARKER_GAP}), -50%)`,
+  right: `translate(${MARKER_GAP}, -50%)`,
+  center: "translate(-50%, -50%)",
+};
+
 interface DrawingViewerProps {
   points: any[];
   coordinateSize?: { width: number; height: number };
@@ -243,9 +253,14 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 points.map((point) => {
                   const id = point.id ?? point.displayNumber;
 
+                  // 글자 박스 바깥쪽 기준점이 있으면 그 옆에 붙이고, 없으면 기존처럼 좌표 중심에 표시한다.
+                  const anchor = point.labelAnchor;
+                  const markerX = anchor?.x ?? point.x;
+                  const markerY = anchor?.y ?? point.y;
+
                   if (
-                    !Number.isFinite(point.x) ||
-                    !Number.isFinite(point.y)
+                    !Number.isFinite(markerX) ||
+                    !Number.isFinite(markerY)
                   ) {
                     return null;
                   }
@@ -253,10 +268,11 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                   return (
                     <div
                       key={id}
-                      className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                      className="absolute z-10"
                       style={{
-                        left: `${(point.x / (coordinateSize?.width || imageSize.width)) * 100}%`,
-                        top: `${(point.y / (coordinateSize?.height || imageSize.height)) * 100}%`,
+                        left: `${(markerX / (coordinateSize?.width || imageSize.width)) * 100}%`,
+                        top: `${(markerY / (coordinateSize?.height || imageSize.height)) * 100}%`,
+                        transform: MARKER_TRANSFORM[anchor?.side ?? "center"],
                         pointerEvents: panMode ? "none" : "auto",
                       }}
                     >

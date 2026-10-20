@@ -4,6 +4,7 @@
  * 데이터: public/drawings/ (data/build_demo_drawings.py 가 생성)
  */
 import type { LabelAnchor } from "./admin/ocrTypes";
+import { resolveGeometry } from "./textBox";
 
 export interface DemoDrawingEntry {
   id: string;
@@ -25,6 +26,7 @@ export interface DemoItem {
   label_anchor?: LabelAnchor;
   /** 치수·기하공차 글자 영역 [x1, y1, x2, y2] (이미지 px) */
   text_box?: [number, number, number, number];
+  row_index?: number;
   /** 형상 유형 (예: CHAMFER, HOLE). 없거나 UNKNOWN 이면 미확정 */
   feature_type?: string;
   measurement_characteristic?: string;
@@ -175,6 +177,7 @@ export function buildInspectionPoints(doc: DemoDrawingDoc, cases: ErrorCase[]) {
   const counters: Record<string, number> = {};
   return doc.items.map((item, index) => {
     const id = index + 1;
+    const geometry = resolveGeometry(item as any, doc.image.width_px);
     const isGdt = item.category === "GDT";
     const kind = isGdt
       ? { name: item.gdt_name_ko || "기하공차", type: "GD&T" }
@@ -255,8 +258,9 @@ export function buildInspectionPoints(doc: DemoDrawingDoc, cases: ErrorCase[]) {
       sourceId: item.id,
       x: item.position.x,
       y: item.position.y,
-      labelAnchor: item.label_anchor,
-      textBox: item.text_box,
+      labelAnchor: geometry.labelAnchor,
+      textBox: geometry.textBox,
+      boxEstimated: geometry.estimated,
       featureType: item.feature_type,
       feature: { name: `${kind.name} ${counters[kind.name]}`, type: kind.type },
       dimension: { formatted, nominal, tolerance, lower, upper, rangeText },

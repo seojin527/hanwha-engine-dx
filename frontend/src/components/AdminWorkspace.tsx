@@ -205,7 +205,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
           coordinateSize={doc ? {width:doc.image.width_px,height:doc.image.height_px} : undefined}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           isAnalyzing={ocr.status==='applying'} analyzingStep={0} toolbarRight={toolbar}
-          highlightLines={adding ? adding.lines : null} highlightBox={adding ? null : active?.textBox || null} onPlaceAt={adding && !busy ? place : undefined} />
+          highlightLines={adding ? adding.lines : null} highlightBox={adding ? null : active?.textBox || null} highlightBoxEstimated={!!active?.boxEstimated} onPlaceAt={adding && !busy ? place : undefined} />
         <AdminMeasurementTable collapsed={collapsed} onToggleCollapsed={()=>setCollapsed(v=>!v)} points={filtered}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           selectedItemId={active?.items?.[0]?.id || ''} onSelectItem={id=>setSelected(id)} />

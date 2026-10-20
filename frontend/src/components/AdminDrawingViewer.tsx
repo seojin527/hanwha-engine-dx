@@ -30,6 +30,8 @@ interface DrawingViewerProps {
   onPlaceAt?: (point: { x: number; y: number }) => void;
   /** 선택한 항목의 치수·기하공차 글자 영역 [x1, y1, x2, y2] (도면 좌표) */
   highlightBox?: [number, number, number, number] | null;
+  /** highlightBox 가 도면 데이터가 아니라 글자 수로 추정한 값이면 점선으로 구분해 그린다 */
+  highlightBoxEstimated?: boolean;
 }
 
 export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
@@ -45,6 +47,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
   highlightLines,
   onPlaceAt,
   highlightBox,
+  highlightBoxEstimated,
 }) => {
   const [zoom, setZoom] = useState(100);
   const [panMode, setPanMode] = useState(false);
@@ -282,6 +285,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
                       fill="rgba(14,165,233,0.12)"
                       stroke="#0ea5e9"
                       strokeWidth={3}
+                      strokeDasharray={highlightBoxEstimated ? "8 5" : undefined}
                       vectorEffect="non-scaling-stroke"
                     />
                   )}
