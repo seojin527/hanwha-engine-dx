@@ -18,6 +18,8 @@ import { OcrMeasurementTable } from './components/OcrMeasurementTable';
 import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
 
+import { ResizablePanels } from "./components/ResizablePanels";
+
 export function App() {
   const [selectedPointId, setSelectedPointId] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
@@ -187,8 +189,7 @@ export function App() {
 
       {!demoMode && ocr.error && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{ocr.error}</p>}
       {!demoMode && document?.image.coordinate_status === 'UNVERIFIED' && <p className="shrink-0 bg-amber-950 px-4 py-1 text-[11px] text-amber-200">좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.</p>}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col border-r border-slate-800">
+      <ResizablePanels left={<>
           <DrawingViewer
             key={
               demoMode
@@ -208,6 +209,7 @@ export function App() {
             inspectionRecords={demoMode ? inspectionRecords : {}}
             isAnalyzing={!demoMode && ocr.status === "applying"}
             analyzingStep={0}
+            analyzingStage={ocr.stage}
           />
 
           {demoMode ? (
@@ -237,9 +239,7 @@ export function App() {
               </p>
             </section>
           )}
-        </div>
-
-        <div className="flex w-[440px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl">
+        </>} right={<>
           {demoMode ? (
             <MeasurementPanel
               currentPoint={currentPoint}
@@ -291,8 +291,7 @@ export function App() {
               )}
             </section>
           )}
-        </div>
-      </div>
+        </>} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { OcrLoadingOverlay } from "./OcrLoadingOverlay";
 import { MeasurementMarker } from "./MeasurementMarker";
 
 interface DrawingViewerProps {
@@ -9,6 +10,7 @@ interface DrawingViewerProps {
   inspectionRecords: Record<number, any>;
   isAnalyzing: boolean;
   analyzingStep: number;
+  analyzingStage?: string;
   drawingUrl?: string | null;
   mediaType?: string;
   onDrawingUploaded?: (url: string) => void;
@@ -23,8 +25,12 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   mediaType,
   coordinateSize,
   isAnalyzing,
+  analyzingStage,
 }) => {
-  const [zoom, setZoom] = useState(100);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({width: 0, height: 0});
+  const [fitMode, setFitMode] = useState(true);
+  const [manualScale, setManualScale] = useState(1);
   const [panMode, setPanMode] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -42,10 +48,27 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   } | null>(null);
 
   const isPdf = mediaType === "application/pdf";
+  const fitScale = imageSize.width && imageSize.height && viewport.width && viewport.height
+    ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-82)/imageSize.height)) : 1;
+  const displayScale = fitMode ? fitScale : manualScale;
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const {width, height} = entries[0].contentRect;
+      setViewport({width, height});
+    });
+    observer.observe(viewportRef.current);
+    return () => observer.disconnect();
+  }, []);
+  function changeZoom(delta: number) {
+    setManualScale(Math.max(0.02, Math.min(4, displayScale+delta)));
+    setFitMode(false);
+  }
 
   // 도면 변경 시 확대·이동 상태 초기화
   useEffect(() => {
-    setZoom(100);
+    setFitMode(true);
+    setManualScale(1);
     setOffset({ x: 0, y: 0 });
     setDragging(false);
     dragRef.current = null;
@@ -63,7 +86,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   }
 
   return (
-    <div className="relative flex min-h-[160px] flex-1 flex-col overflow-hidden bg-slate-950">
+    <div ref={viewportRef} aria-busy={isAnalyzing} className="relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
       <div className="z-20 flex shrink-0 items-center gap-2 border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">
         <button
           type="button"
@@ -90,18 +113,18 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.max(25, value - 25))}
+          onClick={() => changeZoom(-0.1)}
           className="px-2 disabled:opacity-40"
         >
           −
         </button>
 
-        <span>{isPdf ? "PDF" : `${zoom}%`}</span>
+        <span className="min-w-[76px] text-center tabular-nums">{isPdf ? "PDF" : `${fitMode ? "맞춤 · " : ""}${Math.round(displayScale*100)}%`}</span>
 
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.min(400, value + 25))}
+          onClick={() => changeZoom(0.1)}
           className="px-2 disabled:opacity-40"
         >
           +
@@ -111,22 +134,23 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           type="button"
           disabled={!drawingUrl || isPdf}
           onClick={() => {
-            setZoom(100);
+            setFitMode(true);
+    setManualScale(1);
             setOffset({ x: 0, y: 0 });
           }}
           className="rounded bg-slate-800 px-2 py-1 disabled:opacity-40"
         >
-          보기 초기화
+          화면에 맞춤
         </button>
 
         {isPdf && (
           <span className="text-slate-400">
-            PDF 확대·이동은 PDF 뷰어 도구를 사용하세요.
+            PDF는 뷰어의 페이지 맞춤·확대 도구를 사용하세요.
           </span>
         )}
       </div>
 
-      {isAnalyzing && <div role="status" className="absolute left-3 top-14 z-30 rounded border border-cyan-600 bg-slate-900/95 px-4 py-2 text-xs text-cyan-200">CPU OCR 분석 중…</div>}
+      {isAnalyzing && <OcrLoadingOverlay stage={analyzingStage} />}
       {!drawingUrl ? (
         <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-400">
           부품에서 도면을 선택하거나 새 도면을 등록해주세요.
@@ -134,7 +158,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
       ) : isPdf ? (
         <iframe
           key={drawingUrl}
-          src={drawingUrl}
+          src={drawingUrl.includes("#") ? drawingUrl : `${drawingUrl}#view=Fit`}
           title="등록된 PDF 도면"
           className="min-h-0 w-full flex-1 border-0 bg-white"
         />
@@ -152,6 +176,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             if (!panMode || event.button !== 0) return;
 
             event.preventDefault();
+            setManualScale(displayScale);
+            setFitMode(false);
             event.currentTarget.setPointerCapture(event.pointerId);
 
             dragRef.current = {
@@ -186,9 +212,12 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             </p>
           ) : (
             <div
-              className="relative w-[90%] max-w-[1300px] shrink-0"
+              className="relative shrink-0"
               style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom / 100})`,
+                width: imageSize.width ? imageSize.width*displayScale : '90%',
+                height: imageSize.height ? imageSize.height*displayScale : undefined,
+                transform: `translate(${offset.x}px, ${offset.y}px)`,
+                visibility: imageSize.width ? 'visible' : 'hidden',
                 transformOrigin: "center",
               }}
             >
@@ -209,7 +238,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
               />
 
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
-                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 PNG의 크기가 달라 마커를 표시하지 않습니다.</div>}
+                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 이미지의 크기가 달라 마커를 표시하지 않습니다.</div>}
               {imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
                 points.map((point) => {
                   const id = point.id ?? point.displayNumber;

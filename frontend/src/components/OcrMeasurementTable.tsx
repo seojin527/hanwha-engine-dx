@@ -1,20 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
 
 export function OcrMeasurementTable({ points, selectedId, onSelect, title }: {
   points: OcrPoint[]; selectedId: number; onSelect: (id: number) => void; title: string;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   useEffect(() => {
     bodyRef.current?.querySelector(`[data-point="${selectedId}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [selectedId]);
+  }, [selectedId, collapsed]);
   return (
-    <section className="h-[280px] shrink-0 flex flex-col border-t border-slate-200 bg-white shadow-inner">
+    <section className={`${collapsed ? "" : "h-[280px] max-h-[45%]"} shrink-0 flex flex-col border-t border-slate-200 bg-white shadow-inner`}>
       <div className="flex items-center justify-between gap-3 border-b bg-slate-100 px-4 py-2">
         <h3 className="text-xs font-bold text-slate-800">{title} 측정항목</h3>
-        <span className="text-[11px] text-slate-500">추출 {points.length}건 · 번호 선택 시 도면·상세 연동</span>
+        <div className="flex items-center gap-3"><span className="text-[11px] text-slate-500">추출 {points.length}건</span>
+          <button type="button" aria-expanded={!collapsed} aria-controls="ocr-measurement-body" onClick={()=>setCollapsed(v=>!v)} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-cyan-50">{collapsed ? '측정항목 펼치기 ▴' : '측정항목 접기 ▾'}</button></div>
       </div>
-      <div className="flex-1 overflow-auto">
+      <div id="ocr-measurement-body" hidden={collapsed} className="min-h-0 flex-1 overflow-auto">
         <table className="w-full text-left text-xs">
           <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600"><tr>
             {['상태', '번호', '측정항목', '추출 표기', '형상', '허용 범위 / 확인'].map((label) => <th key={label} className="px-3 py-2">{label}</th>)}

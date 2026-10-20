@@ -1,3 +1,4 @@
+import { PointErrorForm } from './PointErrorForm';
 import { useEffect, useRef, useState } from 'react';
 import { fetchItemErrors, type ErrorCandidate } from '../lib/drawingAPI';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
@@ -45,6 +46,7 @@ export function OcrDetailPanel({ drawingId, revision, point, total, onNavigate }
         <p className="text-slate-500">공차·형상 검토가 끝나기 전에는 자동 판정하지 않습니다.</p>
         {(item.review_reasons || []).map((reason) => <p key={reason} className="text-amber-800">• {reason}</p>)}
       </div>
+      <PointErrorForm key={key} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
       <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
         <h3 className="text-xs font-extrabold text-amber-900">측정 전 확인 사항 · 관련 오류 후보</h3>
         {loading ? <p role="status" className="text-xs text-amber-900">관련 오류·주의사항 검색 중…</p>
@@ -52,14 +54,14 @@ export function OcrDetailPanel({ drawingId, revision, point, total, onNavigate }
           : !result.errors.length ? <p className="text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
           : result.errors.map((error) => <article key={error.case_id} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-xs">
             <h4 className="font-bold text-rose-800">{error.case_title || error.case_id}</h4>
-            <p className="text-[10px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : ''} · 적용 조건 확인 필요</p>
+            <p className="text-[10px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
             <p>{error.error_description}</p>
             {error.cause && <p><b>원인:</b> {error.cause}</p>}
             {error.precaution && <div className="rounded bg-emerald-50 p-2 text-emerald-900"><b>주의사항:</b> {error.precaution}</div>}
             {error.recommended_instrument && <p><b>측정기 후보:</b> {error.recommended_instrument}</p>}
             {error.applicable_condition && <p><b>적용 조건:</b> {error.applicable_condition}</p>}
             {error.exclude_condition && <p><b>제외·확인 조건:</b> {error.exclude_condition}</p>}
-            <p className="text-[10px] text-slate-400">출처: {error.source_file || '오류사례 DB'}</p>
+            <p className="text-[10px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
           </article>)}
       </div>
     </section>

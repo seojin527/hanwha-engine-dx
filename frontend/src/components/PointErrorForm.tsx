@@ -2,8 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchPointReports, registerPointError, retryCaseIndex, type RegistrationResult } from '../lib/pointAPI';
 import type { OcrItem } from '../lib/ocr';
 
+function newRequestId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes=new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for(let i=0;i<16;i++) bytes[i]=Math.floor(Math.random()*256);
+  bytes[6]=(bytes[6]&15)|64; bytes[8]=(bytes[8]&63)|128;
+  const hex=Array.from(bytes,v=>v.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
 const fields = [
   ['case_title', '오류 제목', true], ['error_description', '발생한 오류', true],
+  ['recommended_instrument', '측정기', false],
   ['cause', '원인', false], ['corrective_action', '조치 내용', false],
   ['precaution', '주의사항·재발 방지', true],
   ['applicable_condition', '적용 조건', false], ['exclude_condition', '제외·확인 조건', false],
@@ -19,7 +30,7 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
   const [history, setHistory] = useState<Awaited<ReturnType<typeof fetchPointReports>>['reports']>([]);
   const [historyError, setHistoryError] = useState('');
   const [version, setVersion] = useState(0);
-  const requestId = useRef(crypto.randomUUID());
+  const requestId = useRef(newRequestId());
   const lock = useRef(false);
   const alive = useRef(true);
   useEffect(() => {alive.current = true; return () => {alive.current = false;};}, []);
@@ -43,13 +54,14 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
     } catch (e) {if (alive.current) setError(e instanceof Error ? e.message : '등록 실패');}
     finally {lock.current = false; if (alive.current) setBusy(false);}
   }
-  async function retry() {
-    if (!saved || lock.current) return;
+  async function retry(caseId = saved?.case_id) {
+    if (!caseId || lock.current) return;
     lock.current = true; setBusy(true); setError('');
     try {
-      const result = await retryCaseIndex(saved.case_id);
+      const result = await retryCaseIndex(caseId);
       if (!alive.current) return;
-      setSaved({...saved, ...result}); setVersion(v => v + 1);
+      setSaved(previous => previous?.case_id === caseId ? {...previous, ...result} : previous); setVersion(v => v + 1);
+      if (result.vector_status !== 'ready') setError(result.message);
       if (result.vector_status === 'ready') onIndexed();
     } catch (e) {if (alive.current) setError(e instanceof Error ? e.message : '검색 반영 실패');}
     finally {lock.current = false; if (alive.current) setBusy(false);}
@@ -61,9 +73,12 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
       <p className="rounded bg-cyan-50 p-2 text-xs text-cyan-900">{number}번 · {item.raw_text}<br/>도면·항목·OCR 버전과 인식 정보는 자동 연결됩니다.</p>
       {saved ? <div role="status" className="space-y-2 text-xs"><p>{saved.vector_status === 'ready' ? '오류 기록 저장과 검색 반영이 완료됐습니다.' : '오류 기록은 저장됐지만 검색 반영에 실패했습니다.'}</p>
         <p className="break-all text-slate-500">{saved.case_id}</p>
-        {saved.vector_status === 'failed' && <button disabled={busy} onClick={retry} className="rounded bg-amber-100 px-3 py-2">{busy ? '반영 중…' : '검색 반영 재시도'}</button>}
-        <button disabled={busy} onClick={() => {setSaved(null); setValues({}); requestId.current = crypto.randomUUID();}} className="ml-2 underline">새 오류 작성</button>
+        {saved.vector_status === 'failed' && <button disabled={busy} onClick={()=>void retry()} className="rounded bg-amber-100 px-3 py-2">{busy ? '반영 중…' : '검색 반영 재시도'}</button>}
+        <button disabled={busy} onClick={() => {setSaved(null); setValues({}); requestId.current = newRequestId();}} className="ml-2 underline">새 오류 작성</button>
       </div> : <form onSubmit={e => {e.preventDefault(); void submit();}} className="space-y-3">
+        <label className="block text-xs font-semibold">오류 분류
+          <select disabled={busy} value={values.error_category || ''} onChange={e=>setValues(v=>({...v,error_category:e.target.value}))} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal"><option value="">선택 안 함</option>{['측정','가공','환경','기타'].map(label=><option key={label} value={label}>{label}</option>)}</select>
+        </label>
         {fields.map(([key, label, required]) => <label key={key} className="block text-xs font-semibold">{label}{required ? ' *' : ''}
           <textarea required={required} maxLength={10000} rows={key === 'case_title' ? 1 : 2} disabled={busy}
             value={values[key] || ''} onChange={e => setValues(v => ({...v, [key]: e.target.value}))}
@@ -75,6 +90,7 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
     </div>}
     {historyError ? <p className="text-xs text-rose-700">기록 조회 실패: {historyError}</p> : history.length ? history.map(r => <article key={r.case_id} className="space-y-1 rounded-lg border bg-white p-3 text-xs">
       <h4 className="font-bold">{r.case_title}</h4><p>{r.error_description}</p><p className="text-[10px] text-slate-500">{r.created_at} · {r.vector_status === 'ready' ? '검색 반영 완료' : '검색 반영 필요'}</p>
+      {r.vector_status !== 'ready' && <button disabled={busy} onClick={()=>void retry(r.case_id)} className="mt-1 text-[11px] text-cyan-800 underline disabled:opacity-40">검색 반영 재시도</button>}
     </article>) : <p className="text-xs text-slate-500">이 OCR 버전의 포인트에 직접 등록된 오류 기록이 없습니다.</p>}
   </section>;
 }

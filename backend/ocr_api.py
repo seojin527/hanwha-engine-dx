@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from ocr_results import get_result_image, read_ocr_result
+from drawing_library import database
 
 
 router = APIRouter(
@@ -90,8 +91,19 @@ def item_errors(
     collection = request.app.state.collection
     feature = item.get("feature_type")
 
-    # 현재 피스톤로드 도면으로 테스트하는 동안 사용할 부품 필터.
-    conditions = [{"part_family": "피스톤 로드"}]
+    with database() as db:
+        part = db.execute("SELECT p.name FROM drawings d JOIN parts p ON p.part_id=d.part_id WHERE d.drawing_id=?", (drawing_id,)).fetchone()
+    family = part["name"] if part else ""
+    if family.replace(" ", "") == "피스톤로드":
+        family = "피스톤 로드"
+    families = [family] if family else []
+    # 원문 표제란이 피스톤로드인 경우 기존 공통 피스톤로드 사례도 함께 검색한다.
+    part_name = str(snapshot['result'].get('part_name') or '').replace(' ', '').upper()
+    if part_name in ('PISTONROD', '피스톤로드') and '피스톤 로드' not in families:
+        families.append('피스톤 로드')
+    if not families:
+        raise HTTPException(409, "도면의 소속 부품을 확인해주세요.")
+    conditions = [{"part_family": {"$in": families}}]
 
     if feature and feature != "UNKNOWN":
         conditions.append({"feature_type": feature})
