@@ -12,6 +12,7 @@ import { applyEditToItem, buildConfirmRecords, buildPointsWithEdits, computeRead
 import { loadSegments, pickLineAt } from '../lib/admin/pickLine';
 import type { Point } from '../lib/admin/highlights';
 import type { AddDraft, AddedDimension, EditLogEntry, ItemEdit } from '../lib/admin/adminStore';
+import { featureLabel } from '../lib/admin/featureTypes';
 import type { OcrSnapshot } from '../lib/ocr';
 
 type State = { edits: Record<string, ItemEdit>; added: AddedDimension[]; nextOrder: number };
@@ -34,6 +35,8 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
   const [references, setReferences] = useState<DemoDrawingEntry[]>([]);
   const [referenceId, setReferenceId] = useState(() => initialDrawing ? '' : localStorage.getItem('hanwha_demo_drawing_id') || 'HDH_63_01');
   const [state, setState] = useState<State>(empty);
+  // 서버에 마지막으로 저장된(또는 처음 불러온) 상태. state 와 다르면 저장 안 된 변경이다.
+  const [baseline, setBaseline] = useState<State>(empty);
   const [history, setHistory] = useState<EditLogEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selected, setSelected] = useState(1);
@@ -61,8 +64,9 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     setSnapshot(next);
     const result = next.result as ServerDoc | null;
     const saved = result?.admin_ui_state;
-    if (saved) setState(saved);
-    else setState({...empty(), edits: Object.fromEntries((result?.review?.confirmed_ids || []).map(id => [id, {confirmed:true}]))});
+    const loaded: State = saved ? saved
+      : {...empty(), edits: Object.fromEntries((result?.review?.confirmed_ids || []).map(id => [id, {confirmed:true}]))};
+    setState(loaded); setBaseline(loaded);
   }
   async function loadHistory(id: string) {
     const data = await request('/api/ocr-review/history/entries');
@@ -72,9 +76,10 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
         const before = change.before, after = change.after;
         const confirmation = change.confirmed_before !== change.confirmed_after ? [{itemNo:change.item_no || 0,itemName:change.item_id,field:'확인 상태',from:change.confirmed_before ? '확인 완료' : '미확인',to:change.confirmed_after ? '확인 완료' : '미확인'}] : [];
         if (!before || !after) return [{itemNo:change.item_no || 0,itemName:change.item_id,field: after ? '치수 추가' : '항목 삭제', from: before?.raw_text || '(없음)', to: after?.raw_text || '(삭제)'}];
-        const labels: Record<string,string> = {raw_text:'도면 표기', nominal_value:'기준 치수', upper_limit:'상한', lower_limit:'하한', tolerance_value:'공차값', datum_references:'데이텀', equipment:'측정기', upper_deviation:'상한 공차(+)',lower_deviation:'하한 공차(-)'};
+        const labels: Record<string,string> = {raw_text:'도면 표기', nominal_value:'기준 치수', upper_limit:'상한', lower_limit:'하한', tolerance_value:'공차값', datum_references:'데이텀', equipment:'측정기', feature_type:'형상', upper_deviation:'상한 공차(+)',lower_deviation:'하한 공차(-)'};
+        const show = (field: string, value: unknown) => field === 'feature_type' ? featureLabel(value as string | undefined) : JSON.stringify(value ?? '(없음)');
         return [...confirmation,...Object.entries(labels).filter(([field]) => JSON.stringify(before[field]) !== JSON.stringify(after[field])).map(([field,label]) => ({
-          itemNo:change.item_no || 0,itemName:change.item_id,field:label, from:JSON.stringify(before[field] ?? '(없음)'), to:JSON.stringify(after[field] ?? '(없음)'),
+          itemNo:change.item_no || 0,itemName:change.item_id,field:label, from:show(field,before[field]), to:show(field,after[field]),
         }))];
       }).map((change:any,index:number) => ({...change,id:entry.review_id+'-'+index,at,drawingId:entry.drawing_id || id}));
       return [...rows, ...(!!entry.completed !== !!entry.previous_completed ? [{id:entry.review_id,at,drawingId:entry.drawing_id || id,itemNo:0,itemName:'도면 전체',field:'검토 상태',from:entry.previous_completed ? '검토 완료' : '미완료',to:entry.completed ? '검토 완료' : '완료 취소'}] : [])];
@@ -85,7 +90,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
   useEffect(() => {
     const token = ++generation.current;
     const controller = new AbortController();
-    setSnapshot(null); setState(empty()); setHistory([]); setAdding(null); setSelected(1); setError('');
+    setSnapshot(null); setState(empty()); setBaseline(empty()); setHistory([]); setAdding(null); setSelected(1); setError('');
     const load = referenceId ? request('/api/ocr-review/demo/'+encodeURIComponent(referenceId), {}, controller.signal)
       : drawing ? fetchOcr(drawing.drawing_id, controller.signal) : Promise.resolve(null);
     load.then(async (next: OcrSnapshot | null) => {
@@ -139,8 +144,9 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     finally {lock.current=false; setBusy(false);}
   }
   function commit(id: string, edit: ItemEdit | undefined) {
+    // 서버에는 저장하지 않고 화면 상태에만 쌓는다. 검토 완료(변경 저장)를 누를 때 한 번에 저장한다.
     const edits = {...state.edits}; if (edit) edits[id]=edit; else delete edits[id];
-    void persist({...state, edits});
+    setState({...state, edits});
   }
   async function place(pt: Point) {
     if (!adding || lock.current) return;
@@ -154,18 +160,43 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     }
     const entry = makeAddedDimension(state.nextOrder,adding.draft.kind,adding.draft.nominal,Math.round(pt.x),Math.round(pt.y),adding.lines);
     const {plus,minus,equipment} = adding.draft;
-    const saved = await persist({...state,nextOrder:state.nextOrder+1,added:[...state.added,entry],edits:{...state.edits,[entry.id]:{plus,minus,equipment}}});
-    if (saved) {setSelected((doc?.items.length || 0)+state.added.length+1); setAdding(null);}
+    setState({...state,nextOrder:state.nextOrder+1,added:[...state.added,entry],edits:{...state.edits,[entry.id]:{plus,minus,equipment}}});
+    setSelected((doc?.items.length || 0)+state.added.length+1); setAdding(null);
   }
-  // 관리자가 모든 항목을 확인하기 전에는 작업자 모드로 넘어가지 못하게 막는다. (불러온 항목이 없으면 확인할 대상이 없으므로 막지 않는다)
+  // 저장하지 않은 변경 건수: 마지막으로 저장한 상태(baseline)와 다른 항목(수정·확인·추가·삭제)의 수
+  const dirtyCount = useMemo(() => {
+    const changed = new Set<string>();
+    for (const id of new Set([...Object.keys(state.edits), ...Object.keys(baseline.edits)])) {
+      if (JSON.stringify(state.edits[id] ?? null) !== JSON.stringify(baseline.edits[id] ?? null)) changed.add(id);
+    }
+    const before = new Set(baseline.added.map(item => item.id)), now = new Set(state.added.map(item => item.id));
+    for (const id of before) if (!now.has(id)) changed.add(id);
+    for (const id of now) if (!before.has(id)) changed.add(id);
+    return changed.size;
+  }, [state, baseline]);
+  const confirmLeave = () => dirtyCount === 0 || window.confirm(`저장 안 된 변경 ${dirtyCount}건이 사라집니다. 이동할까요?`);
+  useEffect(() => {
+    if (dirtyCount === 0) return;
+    const handler = (event: BeforeUnloadEvent) => {event.preventDefault(); event.returnValue = '';};
+    window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler);
+  }, [dirtyCount]);
+  // 작업자 모드는 서버에 저장된 값을 보여 주므로, 모든 항목을 확인하고 "검토 완료"로 저장하기 전에는 넘어가지 못하게 막는다.
+  // (불러온 항목이 없으면 확인할 대상이 없으므로 막지 않는다)
   function blockWorker() {
-    if (points.length === 0 || readiness.ready) return false;
+    if (points.length === 0) return false;
+    if (readiness.ready) {
+      if (completedAt && dirtyCount === 0) return false;
+      setError('관리자 검토 완료(변경 저장)를 눌러 서버에 저장해야 작업자 모드로 전환할 수 있습니다.');
+      return true;
+    }
     const numbers = readiness.pendingNumbers;
     const shown = numbers.slice(0, 10).join(', ') + (numbers.length > 10 ? ` 외 ${numbers.length - 10}건` : '');
     setError(`미확인 항목 ${numbers.length}건이 남아 있어 작업자 모드로 전환할 수 없습니다. 모든 치수·기하공차를 확인해 주세요. (번호 ${shown})`);
     return true;
   }
-  useEffect(() => {if (readiness.ready) setError(prev => prev.startsWith('미확인 항목') ? '' : prev);}, [readiness.ready]);
+  useEffect(() => {
+    setError(prev => (readiness.ready && prev.startsWith('미확인 항목')) || (completedAt && dirtyCount === 0 && prev.startsWith('관리자 검토 완료(변경 저장)')) ? '' : prev);
+  }, [readiness.ready, completedAt, dirtyCount]);
   const focused = collapsed && !sideOpen;
   const toolbar = <>
     <button type="button" onClick={() => setSideOpen(v=>!v)} className="rounded bg-slate-800 px-2 py-1 hover:bg-slate-700">{sideOpen ? '측정 패널 접기 ▶' : '◀ 측정 패널 펼치기'}</button>
@@ -184,12 +215,13 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     }} />}
     <div className="flex shrink-0 items-center gap-2 border-b border-cyan-900 bg-cyan-950 px-4 py-1 text-[11px] text-cyan-200">
       <span className="rounded bg-cyan-700 px-1.5 py-0.5 font-bold text-white">관리자 모드</span>
-      <span>수정한 값은 작업자 모드에도 반영됩니다. 항목·확인 상태·수정 내역은 서버에 저장됩니다.</span>
+      <span>수정한 값은 작업자 모드에도 반영됩니다. 확인·수정 내용은 "관리자 검토 완료"를 누를 때 서버에 한 번에 저장됩니다.</span>
+      {dirtyCount > 0 && <span className="ml-auto rounded bg-amber-400 px-1.5 py-0.5 font-bold text-slate-900">저장 안 된 변경 {dirtyCount}건</span>}
     </div>
-    <DrawingLibrary uploadRequest={uploadRequest} onSelectDrawing={d=>{if(!busy){setReferenceId('');setDrawing(d);}}} onClearDrawing={()=>{if(!busy){setDrawing(null);setReferenceId('');}}} />
+    <DrawingLibrary uploadRequest={uploadRequest} onSelectDrawing={d=>{if(!busy && confirmLeave()){setReferenceId('');setDrawing(d);}}} onClearDrawing={()=>{if(!busy && confirmLeave()){setDrawing(null);setReferenceId('');}}} />
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-1.5 text-xs">
       <span className="flex items-center gap-2 text-slate-300"><label htmlFor="demo-drawing" className="text-slate-400">데모 도면</label>
-        <select id="demo-drawing" disabled={busy} value={referenceId} onChange={e=>{setReferenceId(e.target.value);if(e.target.value)setDrawing(null);}} className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs text-white focus:border-cyan-500 focus:outline-none">
+        <select id="demo-drawing" disabled={busy} value={referenceId} onChange={e=>{if(!confirmLeave())return;setReferenceId(e.target.value);if(e.target.value)setDrawing(null);}} className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs text-white focus:border-cyan-500 focus:outline-none">
           <option value="">등록 도면</option>{references.map(entry=><option key={entry.id} value={entry.id}>{entry.label}</option>)}
         </select>
         <span>측정항목 {points.length}건 (치수 {points.filter(p=>p.feature.type!=='GD&T').length} · 기하공차 {points.filter(p=>p.feature.type==='GD&T').length}) · 도면 추출 결과에서 자동 생성{completedAt ? ' · 관리자 검토 완료' : ''}</span>
@@ -205,7 +237,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
           coordinateSize={doc ? {width:doc.image.width_px,height:doc.image.height_px} : undefined}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           isAnalyzing={ocr.status==='applying'} analyzingStep={0} toolbarRight={toolbar}
-          highlightLines={adding ? adding.lines : null} highlightBox={adding ? null : active?.textBox || null} highlightBoxEstimated={!!active?.boxEstimated} onPlaceAt={adding && !busy ? place : undefined} />
+          highlightLines={adding ? adding.lines : null} onPlaceAt={adding && !busy ? place : undefined} />
         <AdminMeasurementTable collapsed={collapsed} onToggleCollapsed={()=>setCollapsed(v=>!v)} points={filtered}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           selectedItemId={active?.items?.[0]?.id || ''} onSelectItem={id=>setSelected(id)} />
@@ -214,11 +246,11 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
       <div className={`${sideOpen ? 'flex' : 'hidden'} w-[39.5%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl`}>
         {withAdded && points.length ? <fieldset disabled={busy} className="contents">
           <AdminChecklist doc={withAdded} points={points} edits={state.edits} selectedPointId={active?.id || 0} onSelectPoint={setSelected}
-            onCommitEdit={commit} readiness={readiness} completedAt={completedAt} onComplete={()=>void persist(state,true)} onReopen={()=>void persist(state,false)}
+            onCommitEdit={commit} readiness={readiness} completedAt={completedAt} dirtyCount={dirtyCount} onComplete={()=>void persist(state,true)} onReopen={()=>void persist(state,false)}
             placing={adding ? {step:adding.step,lineCount:adding.lines.length,text:`${adding.draft.kind} ${adding.draft.nominal}`} : null}
             onStartAdd={draft=>setAdding({draft,step:'lines',lines:[]})} onUndoLine={()=>setAdding(prev=>prev ? {...prev,lines:prev.lines.slice(0,-1)} : null)}
             onFinishLines={()=>setAdding(prev=>prev ? {...prev,step:'marker'} : null)} onCancelAdd={()=>setAdding(null)}
-            onDeleteAdded={id=>{if(window.confirm('추가 항목을 삭제하시겠습니까?')){const edits={...state.edits};delete edits[id];void persist({...state,edits,added:state.added.filter(item=>item.id!==id)});setSelected(1);}}} />
+            onDeleteAdded={id=>{if(window.confirm('추가 항목을 삭제하시겠습니까?')){const edits={...state.edits};delete edits[id];setState({...state,edits,added:state.added.filter(item=>item.id!==id)});setSelected(1);}}} />
         </fieldset> : <p className="p-5 text-xs text-slate-500">{ocr.status==='applying' ? 'CPU OCR 분석 중…' : '도면을 선택하고 추출 결과를 불러와주세요.'}</p>}
       </div>
     </div>

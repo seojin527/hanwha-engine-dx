@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import type { DemoDrawingDoc } from "../lib/demoDrawings";
 import type { AddDraft, AddKind, ItemEdit } from "../lib/admin/adminStore";
 import { formatLogTime, hasValueEdit } from "../lib/admin/adminStore";
+import { FEATURE_OPTIONS, featureLabel } from "../lib/admin/featureTypes";
 import {
   ADD_KIND_LABEL,
   buildEditFromInput,
@@ -38,6 +39,8 @@ interface AdminChecklistProps {
   completedAt: number | null;
   onComplete: () => void;
   onReopen: () => void;
+  /** 아직 서버에 저장하지 않은 변경 건수. 검토 완료를 누를 때 한 번에 저장한다 */
+  dirtyCount: number;
   /** 치수 추가: 진행 중인 위치 지정 단계 (없으면 null) */
   placing: { step: "lines" | "marker"; lineCount: number; text: string } | null;
   /** 입력을 확인한 뒤 도면에서 위치를 고르는 단계로 들어간다 */
@@ -65,6 +68,7 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
   completedAt,
   onComplete,
   onReopen,
+  dirtyCount,
   placing,
   onStartAdd,
   onUndoLine,
@@ -131,13 +135,25 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
             {completedAt ? `관리자 검토 완료 (${formatLogTime(completedAt)})` : "관리자 검토 미완료"}
           </div>
           {completedAt ? (
-            <button
-              type="button"
-              onClick={onReopen}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              완료 취소
-            </button>
+            <div className="flex items-center gap-1.5">
+              {dirtyCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  disabled={!readiness.ready}
+                  className="rounded-lg bg-cyan-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  변경 저장
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onReopen}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                완료 취소
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -167,11 +183,14 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
             {readiness.pendingNumbers.length > 12 ? ` 외 ${readiness.pendingNumbers.length - 12}건` : ""}
           </p>
         )}
-        {!completedAt && (
-          <p className="mt-1 text-[11px] text-slate-500">
-            완료 전 측정값은 판정을 보류합니다. 완료한 뒤 확인을 해제하면 완료가 자동으로 취소됩니다.
+        {dirtyCount > 0 && (
+          <p className="mt-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">
+            저장 안 된 변경 {dirtyCount}건 — {completedAt ? "'변경 저장'" : "'관리자 검토 완료'"}을 누르면 서버에 한 번에 저장됩니다.
           </p>
         )}
+        <p className="mt-1 text-[11px] text-slate-500">
+          확인·수정 내용은 이 화면에만 쌓이고, 검토 완료(또는 변경 저장)를 누를 때 서버에 한 번에 저장됩니다. 저장하기 전에 새로고침하면 사라집니다.
+        </p>
       </div>
 
       <AddPanel
@@ -321,6 +340,31 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ doc, point, itemId, edit, onCom
           <input type="checkbox" checked={point.confirmed} onChange={onToggleConfirm} className="h-3.5 w-3.5 accent-cyan-600" />
           확인 완료
         </label>
+      </div>
+
+      <div>
+        <label className={labelClass} htmlFor={`feature-${point.sourceId}`}>
+          형상{hint(featureLabel(item.feature_type))}
+        </label>
+        <select
+          id={`feature-${point.sourceId}`}
+          aria-label="형상"
+          value={edit?.featureType ?? ""}
+          onChange={(event) => {
+            const next: ItemEdit = { ...edit };
+            if (event.target.value) next.featureType = event.target.value;
+            else delete next.featureType;
+            onCommitEdit(point.sourceId, Object.keys(next).length > 0 ? next : undefined);
+          }}
+          className={inputClass}
+        >
+          <option value="">도면 추출 값 ({featureLabel(item.feature_type)})</option>
+          {FEATURE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {point.warning && (

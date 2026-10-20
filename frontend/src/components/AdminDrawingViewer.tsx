@@ -28,10 +28,6 @@ interface DrawingViewerProps {
   highlightLines?: Array<Array<{ x: number; y: number }>> | null;
   /** 지정하면 도면 위를 클릭해 위치를 고르는 모드가 된다(관리자 항목 추가). 이미지 px 좌표를 넘긴다 */
   onPlaceAt?: (point: { x: number; y: number }) => void;
-  /** 선택한 항목의 치수·기하공차 글자 영역 [x1, y1, x2, y2] (도면 좌표) */
-  highlightBox?: [number, number, number, number] | null;
-  /** highlightBox 가 도면 데이터가 아니라 글자 수로 추정한 값이면 점선으로 구분해 그린다 */
-  highlightBoxEstimated?: boolean;
 }
 
 export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
@@ -46,8 +42,6 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
   toolbarRight,
   highlightLines,
   onPlaceAt,
-  highlightBox,
-  highlightBoxEstimated,
 }) => {
   const [zoom, setZoom] = useState(100);
   const [panMode, setPanMode] = useState(false);
@@ -267,7 +261,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
                 className="pointer-events-none block h-auto w-full bg-white"
               />
 
-              {((highlightLines && highlightLines.length > 0) || highlightBox) && imageSize.width > 0 && (
+              {highlightLines && highlightLines.length > 0 && imageSize.width > 0 && (
                 <svg
                   aria-hidden="true"
                   data-testid="highlight-overlay"
@@ -275,21 +269,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
                   viewBox={`0 0 ${coordinateSize?.width || imageSize.width} ${coordinateSize?.height || imageSize.height}`}
                   preserveAspectRatio="none"
                 >
-                  {highlightBox && (
-                    <rect
-                      data-testid="text-box-highlight"
-                      x={highlightBox[0]}
-                      y={highlightBox[1]}
-                      width={highlightBox[2] - highlightBox[0]}
-                      height={highlightBox[3] - highlightBox[1]}
-                      fill="rgba(14,165,233,0.12)"
-                      stroke="#0ea5e9"
-                      strokeWidth={3}
-                      strokeDasharray={highlightBoxEstimated ? "8 5" : undefined}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  )}
-                  {(highlightLines || []).map((line, index) => (
+                  {highlightLines.map((line, index) => (
                     <polyline
                       key={index}
                       points={line.map((p) => `${p.x},${p.y}`).join(" ")}

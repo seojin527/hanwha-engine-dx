@@ -18,6 +18,8 @@ export interface ItemEdit {
   datum?: string;
   /** 측정기 */
   equipment?: string;
+  /** 형상 (feature_type 코드. lib/admin/featureTypes.ts 의 목록 중 하나) */
+  featureType?: string;
   /** 관리자가 확인을 마쳤는가 */
   confirmed?: boolean;
 }
@@ -86,7 +88,7 @@ export interface AddDraft {
 export type ReviewByDrawing = Record<string, { completedAt: number }>;
 
 /** 값이 바뀌는 필드(확인 표시는 제외) */
-const VALUE_FIELDS: Array<keyof ItemEdit> = ["nominal", "plus", "minus", "toleranceValue", "datum", "equipment"];
+const VALUE_FIELDS: Array<keyof ItemEdit> = ["nominal", "plus", "minus", "toleranceValue", "datum", "equipment", "featureType"];
 
 /** 값 수정이 하나라도 있는가 (확인 표시만 있으면 false) */
 export function hasValueEdit(edit: ItemEdit | undefined): boolean {

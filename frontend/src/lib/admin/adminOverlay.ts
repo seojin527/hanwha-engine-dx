@@ -149,6 +149,7 @@ export function parseDatums(text: string): string[] {
 export function applyEditToItem(item: DemoItem, edit: ItemEdit | undefined): DemoItem {
   if (!hasValueEdit(edit) || !edit) return item;
   const next: DemoItem = { ...item };
+  if (edit.featureType !== undefined) next.feature_type = edit.featureType;
 
   if (item.category === "GDT") {
     if (edit.toleranceValue !== undefined) next.tolerance_value = edit.toleranceValue;
@@ -389,6 +390,7 @@ export function buildEditFromInput(
   const base = readValues(doc, item, undefined);
   const edit: ItemEdit = {};
   if (prevEdit?.confirmed) edit.confirmed = true;
+  if (prevEdit?.featureType !== undefined) edit.featureType = prevEdit.featureType;
 
   if (base.kind === "GDT") {
     const tolerance = parseNumber(input.tolerance);

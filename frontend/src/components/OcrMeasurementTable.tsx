@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
+import { featureLabel } from '../lib/admin/featureTypes';
 
 export function OcrMeasurementTable({ points, selectedId, onSelect, title }: {
   points: OcrPoint[]; selectedId: number; onSelect: (id: number) => void; title: string;
@@ -29,7 +30,7 @@ export function OcrMeasurementTable({ points, selectedId, onSelect, title }: {
               <td className="px-3 py-2 font-bold">{point.displayNumber}</td>
               <td className="px-3 py-2">{point.feature.name}</td>
               <td className="px-3 py-2 font-mono font-bold text-cyan-900">{point.source.raw_text}</td>
-              <td className="px-3 py-2 text-slate-600">{point.source.feature_type === 'UNKNOWN' ? '미확정' : point.source.feature_type || '미확정'}</td>
+              <td className="px-3 py-2 text-slate-600">{featureLabel(point.source.feature_type)}</td>
               <td className="px-3 py-2">{toleranceText(point.source)}</td>
             </tr>)}
             {!points.length && <tr><td colSpan={6} className="p-5 text-center text-slate-400">검색 조건에 맞는 항목이 없습니다.</td></tr>}

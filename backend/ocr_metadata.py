@@ -2,6 +2,8 @@
 import ast
 import re
 
+from gdt_metadata import parse_frame_line, parse_gdt_frame, parse_gdt_row
+
 NUMBER = r'\d+(?:\.\d+)?'
 
 
@@ -97,9 +99,9 @@ def convert(source, drawing_id, image_file=None):
         elif section == 'GD&T':
             match = re.match(r'^\s*(\d+)\.\s*(\[.*\])\s*$',line)
             if match:
-                raw, position = ast.literal_eval(match[2])
-                if not isinstance(raw,str) or len(position)!=2: raise ValueError('GD&T 형식 오류')
-                gdts.append((int(match[1]),raw,*position))
+                # 프레임 1개(여러 줄이면 글자 안에 줄바꿈)와 좌표 1개. 줄 나누기는 아래 항목 만들 때 한다.
+                raw, x, y = parse_frame_line(match[2])
+                gdts.append((int(match[1]),raw,x,y))
         elif section == 'TITLE / TABLE':
             match = re.match(r'^\s*table\s+\d+:\s*(.+)$',line)
             if match:
@@ -125,15 +127,29 @@ def convert(source, drawing_id, image_file=None):
             if category=='DIMENSION': x+=ox;y+=oy
             if not (isinstance(x,(int,float)) and isinstance(y,(int,float)) and 0<=x<width and 0<=y<height):
                 raise ValueError(f'{category}_{n:03d}: 이미지 범위 밖 좌표 {x},{y}')
-            item=dict(id=f'{category}_{n:03d}',category=category,raw_text=raw,
-                      position={'x':x,'y':y},original_position=original)
-            if category=='DIMENSION':item.update(parse_dimension(raw,unit))
-            else:item.update(feature_type='UNKNOWN',tol_type='UNKNOWN',
-                measurement_characteristic='GEOMETRIC_TOLERANCE',requires_review=True,
-                review_reasons=['기하공차 원문·데이텀·공차역 확인 필요'])
-            if unit is None:
-                item['requires_review']=True;item['review_reasons'].append('단위 확인 필요')
-            doc['items'].append(item)
+            base=dict(category=category,position={'x':x,'y':y},original_position=original)
+            if category=='DIMENSION':
+                item=dict(id=f'{category}_{n:03d}',**base,raw_text=raw)
+                item.update(parse_dimension(raw,unit))
+                new_items=[item]
+            else:
+                # eDOCr2 는 프레임 하나에 좌표 하나만 주므로 같은 프레임의 줄들은 position 이 같다.
+                # 줄마다 항목을 만들고(id: GDT_001_1, GDT_001_2) 프레임·줄 번호를 남긴다.
+                rows=parse_gdt_frame(raw) or [parse_gdt_row(raw.strip())]   # 빈 프레임도 버리지 않는다
+                new_items=[]
+                for row_no,row in enumerate(rows,start=1):
+                    item=dict(id=f'{category}_{n:03d}_{row_no}',**base,
+                              frame_id=f'{category}_{n:03d}',row_index=row_no,
+                              feature_type='UNKNOWN',tol_type='UNKNOWN',
+                              measurement_characteristic='GEOMETRIC_TOLERANCE')
+                    item.update(row)
+                    item['requires_review']=True
+                    item['review_reasons']=['기하공차 원문·데이텀·공차역 확인 필요']+row['review_reasons']
+                    new_items.append(item)
+            for item in new_items:
+                if unit is None:
+                    item['requires_review']=True;item['review_reasons'].append('단위 확인 필요')
+                doc['items'].append(item)
     if not doc['items']:raise ValueError('추출된 측정항목이 없습니다.')
     doc['item_count']=len(doc['items'])
     return doc

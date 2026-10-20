@@ -5,6 +5,7 @@
 
 import React from "react";
 import { CollapseToggle } from "./CollapseToggle";
+import { featureLabel } from "../lib/admin/featureTypes";
 
 interface MeasurementTableProps {
   collapsed?: boolean;
@@ -138,7 +139,7 @@ export const AdminMeasurementTable: React.FC<MeasurementTableProps> = ({
                     </span>
                   </td>
                   <td className="py-2 px-3 text-slate-600">
-                    {!pt.featureType || pt.featureType === "UNKNOWN" ? "미확정" : pt.featureType}
+                    {featureLabel(pt.featureType)}
                   </td>
                   <td className="py-2 px-3 text-slate-700">
                     {pt.items?.[0]?.name || pt.feature?.name}
