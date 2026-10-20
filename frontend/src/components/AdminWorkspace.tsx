@@ -157,6 +157,15 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     const saved = await persist({...state,nextOrder:state.nextOrder+1,added:[...state.added,entry],edits:{...state.edits,[entry.id]:{plus,minus,equipment}}});
     if (saved) {setSelected((doc?.items.length || 0)+state.added.length+1); setAdding(null);}
   }
+  // 관리자가 모든 항목을 확인하기 전에는 작업자 모드로 넘어가지 못하게 막는다. (불러온 항목이 없으면 확인할 대상이 없으므로 막지 않는다)
+  function blockWorker() {
+    if (points.length === 0 || readiness.ready) return false;
+    const numbers = readiness.pendingNumbers;
+    const shown = numbers.slice(0, 10).join(', ') + (numbers.length > 10 ? ` 외 ${numbers.length - 10}건` : '');
+    setError(`미확인 항목 ${numbers.length}건이 남아 있어 작업자 모드로 전환할 수 없습니다. 모든 치수·기하공차를 확인해 주세요. (번호 ${shown})`);
+    return true;
+  }
+  useEffect(() => {if (readiness.ready) setError(prev => prev.startsWith('미확인 항목') ? '' : prev);}, [readiness.ready]);
   const focused = collapsed && !sideOpen;
   const toolbar = <>
     <button type="button" onClick={() => setSideOpen(v=>!v)} className="rounded bg-slate-800 px-2 py-1 hover:bg-slate-700">{sideOpen ? '측정 패널 접기 ▶' : '◀ 측정 패널 펼치기'}</button>
@@ -166,7 +175,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
   return <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
     <AdminHeader displayInfo={{partName:serverDoc?.part_name || '도면 선택',drawingName:referenceId || drawing?.original_filename || '—',partNo:(serverDoc as any)?.part_no,scale:(serverDoc as any)?.drawing_scale}}
       onUploadDrawing={()=>setUploadRequest(v=>v+1)} onResetData={()=>{setSelected(1);setSearch('');}} searchQuery={search} onSearchChange={setSearch}
-      mode="admin" onModeChange={mode=>{if(mode==='worker' && !busy) onWorker(drawing || (snapshot ? {drawing_id:key,part_id:'jm-reference',name:referenceId,original_filename:referenceId+'.jpg',media_type:'image/jpeg',size_bytes:0,ocr_status:'completed',created_at:'',file_url:'/api/drawings/'+key+'/file'} : null));}} historyOpen={historyOpen} historyCount={history.length} onToggleHistory={()=>setHistoryOpen(v=>!v)} />
+      mode="admin" onModeChange={mode=>{if(mode==='worker' && !busy && blockWorker()) return; if(mode==='worker' && !busy) onWorker(drawing || (snapshot ? {drawing_id:key,part_id:'jm-reference',name:referenceId,original_filename:referenceId+'.jpg',media_type:'image/jpeg',size_bytes:0,ocr_status:'completed',created_at:'',file_url:'/api/drawings/'+key+'/file'} : null));}} historyOpen={historyOpen} historyCount={history.length} onToggleHistory={()=>setHistoryOpen(v=>!v)} />
     {historyOpen && <EditHistoryPopover entries={history} mode="admin" activeDrawingId={key || null} onClose={()=>setHistoryOpen(false)} onClear={async()=>{
       if(window.confirm('수정 내역을 모두 지우시겠습니까?')) {
         try {await request('/api/ocr-review/history/clear',{});setHistory([]);}
@@ -196,7 +205,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
           coordinateSize={doc ? {width:doc.image.width_px,height:doc.image.height_px} : undefined}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           isAnalyzing={ocr.status==='applying'} analyzingStep={0} toolbarRight={toolbar}
-          highlightLines={adding ? adding.lines : active?.highlight || null} onPlaceAt={adding && !busy ? place : undefined} />
+          highlightLines={adding ? adding.lines : null} highlightBox={adding ? null : active?.textBox || null} onPlaceAt={adding && !busy ? place : undefined} />
         <AdminMeasurementTable collapsed={collapsed} onToggleCollapsed={()=>setCollapsed(v=>!v)} points={filtered}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           selectedItemId={active?.items?.[0]?.id || ''} onSelectItem={id=>setSelected(id)} />

@@ -23,6 +23,10 @@ export interface DemoItem {
   raw_text: string;
   position: { x: number; y: number };
   label_anchor?: LabelAnchor;
+  /** 치수·기하공차 글자 영역 [x1, y1, x2, y2] (이미지 px) */
+  text_box?: [number, number, number, number];
+  /** 형상 유형 (예: CHAMFER, HOLE). 없거나 UNKNOWN 이면 미확정 */
+  feature_type?: string;
   measurement_characteristic?: string;
   nominal_value?: number | null;
   tol_type?: string;
@@ -252,6 +256,8 @@ export function buildInspectionPoints(doc: DemoDrawingDoc, cases: ErrorCase[]) {
       x: item.position.x,
       y: item.position.y,
       labelAnchor: item.label_anchor,
+      textBox: item.text_box,
+      featureType: item.feature_type,
       feature: { name: `${kind.name} ${counters[kind.name]}`, type: kind.type },
       dimension: { formatted, nominal, tolerance, lower, upper, rangeText },
       gdgt,

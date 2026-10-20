@@ -83,6 +83,7 @@ export const AdminMeasurementTable: React.FC<MeasurementTableProps> = ({
               <th className="py-2 px-3 w-14 text-center">번호</th>
               <th className="py-2 px-3">측정 위치</th>
               <th className="py-2 px-3">Feature</th>
+              <th className="py-2 px-3">형상</th>
               <th className="py-2 px-3">측정 항목</th>
               <th className="py-2 px-3">도면 규격</th>
               <th className="py-2 px-3">공차 / GD&T</th>
@@ -135,6 +136,9 @@ export const AdminMeasurementTable: React.FC<MeasurementTableProps> = ({
                     <span className="bg-slate-200/70 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono">
                       {pt.feature?.type}
                     </span>
+                  </td>
+                  <td className="py-2 px-3 text-slate-600">
+                    {!pt.featureType || pt.featureType === "UNKNOWN" ? "미확정" : pt.featureType}
                   </td>
                   <td className="py-2 px-3 text-slate-700">
                     {pt.items?.[0]?.name || pt.feature?.name}
