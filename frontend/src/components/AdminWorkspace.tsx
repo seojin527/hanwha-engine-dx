@@ -226,7 +226,12 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
         </select>
         <span>측정항목 {points.length}건 (치수 {points.filter(p=>p.feature.type!=='GD&T').length} · 기하공차 {points.filter(p=>p.feature.type==='GD&T').length}) · 도면 추출 결과에서 자동 생성{completedAt ? ' · 관리자 검토 완료' : ''}</span>
       </span>
-      {!referenceId && drawing && <button disabled={busy || ocr.status==='applying'} onClick={()=>void ocr.run()} className="rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200">{ocr.status==='applying' ? ocr.stage : 'OCR 실행'}</button>}
+      {!referenceId && drawing && <button disabled={busy || ocr.status==='applying'} onClick={()=>{
+        const hasResult = !!snapshot?.result;
+        // 저장된 결과가 있으면 새 OCR 결과로 교체된다: 관리자 확인·수정 내용과 저장 안 된 변경도 사라진다.
+        if (hasResult && !window.confirm('저장된 OCR 결과와 관리자 검토 내용이 새 결과로 교체됩니다.'+(dirtyCount ? ` 저장 안 된 변경 ${dirtyCount}건도 사라집니다.` : '')+' 계속할까요?')) return;
+        void ocr.run(hasResult);
+      }} className="rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200">{ocr.status==='applying' ? ocr.stage : snapshot?.result ? 'OCR 다시 실행' : 'OCR 실행'}</button>}
     </div>
     {(error || ocr.error) && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{error || ocr.error}</p>}
     {busy && <p role="status" className="shrink-0 bg-cyan-950 px-4 py-1 text-xs text-cyan-200">서버에 저장 중…</p>}

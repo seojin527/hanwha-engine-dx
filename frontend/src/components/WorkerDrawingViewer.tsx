@@ -4,6 +4,10 @@ import { MeasurementMarker } from "./WorkerMeasurementMarker";
 
 // 기준점(글자 박스 가장자리)에서 마커를 어느 쪽으로 붙일지
 const MARKER_GAP = "3px";
+// 기하공차 틀의 둘째 줄부터는 마커를 옆으로 밀어 첫째 줄 마커와 겹치지 않게 한다.
+// 줄 간격은 도면을 줄여 보면 마커 크기(24px)보다 좁아지므로, 화면 픽셀 기준으로 항상 떨어뜨린다.
+const ROW_SHIFT = 27;
+const rowShift = (rowIndex?: number) => ((rowIndex || 0) > 1 ? ` translateX(${-(rowIndex! - 1) * ROW_SHIFT}px)` : "");
 const MARKER_TRANSFORM: Record<string, string> = {
   top: `translate(-50%, calc(-100% - ${MARKER_GAP}))`,
   bottom: `translate(-50%, ${MARKER_GAP})`,
@@ -272,7 +276,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                       style={{
                         left: `${(markerX / (coordinateSize?.width || imageSize.width)) * 100}%`,
                         top: `${(markerY / (coordinateSize?.height || imageSize.height)) * 100}%`,
-                        transform: MARKER_TRANSFORM[anchor?.side ?? "center"],
+                        transform: MARKER_TRANSFORM[anchor?.side ?? "center"] + rowShift(point.rowIndex),
                         pointerEvents: panMode ? "none" : "auto",
                       }}
                     >

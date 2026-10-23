@@ -50,6 +50,8 @@ export interface OcrPoint {
   textBox?: Box;
   /** labelAnchor·textBox 가 추정값인가 */
   boxEstimated?: boolean;
+  /** 기하공차 프레임 안 줄 번호(1부터). 치수는 0 */
+  rowIndex?: number;
   source: OcrItem;
 }
 const names: Record<string, string> = {
@@ -64,7 +66,7 @@ export function toOcrPoints(document: OcrDocument): OcrPoint[] {
       id: index + 1, displayNumber: index + 1,
       x: source.position.x, y: source.position.y,
       feature: { name: names[source.measurement_characteristic || ''] || source.category },
-      labelAnchor: geometry.labelAnchor, textBox: geometry.textBox, boxEstimated: geometry.estimated,
+      labelAnchor: geometry.labelAnchor, textBox: geometry.textBox, boxEstimated: geometry.estimated, rowIndex: rows[index],
       source,
     };
   });

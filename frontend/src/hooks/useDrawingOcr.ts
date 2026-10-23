@@ -63,13 +63,14 @@ export function useDrawingOcr(drawingId: string | null) {
     return ()=>{controller.abort();if(timer)clearTimeout(timer);++sequence.current;};
   },[drawingId,reload]);
 
-  async function run() {
+  /** force=true 이면 저장된 결과가 있어도 OCR 을 다시 실행해 결과를 교체한다 */
+  async function run(force = false) {
     if (!drawingId || starting.current) return;
     starting.current=true;
     const target=drawingId; const token=++sequence.current;
     setState(p=>({...p,drawingId:target,status:'applying',error:'',stage:'OCR 작업 요청 중'}));
     try {
-      const response=await fetch(apiUrl(`/api/drawings/${encodeURIComponent(target)}/ocr/run`),{method:'POST'});
+      const response=await fetch(apiUrl(`/api/drawings/${encodeURIComponent(target)}/ocr/run${force?'?force=true':''}`),{method:'POST'});
       const body=await response.json();
       if (!response.ok) throw new Error(typeof body.detail==='string'?body.detail:`OCR 요청 실패 (${response.status})`);
       if (activeId.current===target && token===sequence.current) setReload(v=>v+1);

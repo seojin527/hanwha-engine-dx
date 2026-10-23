@@ -38,8 +38,9 @@ def get_automatic_ocr(drawing_id: str):
 
 
 @router.post('/api/drawings/{drawing_id}/ocr/run',status_code=202)
-def start_ocr(drawing_id: str):
-    return enqueue(drawing_id)
+def start_ocr(drawing_id: str, force: bool = False):
+    # ?force=true 이면 저장된 결과가 있어도 다시 실행한다 (기본은 기존 동작)
+    return enqueue(drawing_id, force)
 
 
 # Place the automatic handlers before the old handlers, across FastAPI versions.

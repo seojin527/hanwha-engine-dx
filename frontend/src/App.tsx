@@ -53,8 +53,10 @@ export function App() {
   }
 
   async function runSelectedOcr() {
+    // 저장된 결과가 있으면 새 OCR 결과로 교체되므로 먼저 확인받는다.
+    if (document && !window.confirm('저장된 OCR 결과와 관리자 검토 내용이 새 결과로 교체됩니다. 계속할까요?')) return;
     setSelectedPointId(1);
-    await ocr.run();
+    await ocr.run(!!document);
   }
 
   // 기존 데모 검사 기록 유지
@@ -174,7 +176,7 @@ export function App() {
         {!demoMode && selectedDrawing && <button type="button" disabled={ocr.status === 'loading' || ocr.status === 'applying'}
           onClick={() => void runSelectedOcr()}
           className="shrink-0 rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200 disabled:opacity-40">
-          {ocr.status === 'applying' ? (ocr.stage || 'OCR 분석 중…') : document ? 'OCR 결과 다시 조회' : ocr.status === 'error' ? 'OCR 재시도' : 'OCR 실행'}
+          {ocr.status === 'applying' ? (ocr.stage || 'OCR 분석 중…') : document ? 'OCR 다시 실행' : ocr.status === 'error' ? 'OCR 재시도' : 'OCR 실행'}
         </button>}
         {!demoMode && (
           <button

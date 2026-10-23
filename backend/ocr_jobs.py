@@ -36,7 +36,8 @@ def latest_job(drawing_id):
     return dict(row) if row else None
 
 
-def enqueue(drawing_id):
+def enqueue(drawing_id, force=False):
+    # force=True: 저장된 결과가 있어도 새로 OCR 을 돌려 그 결과로 교체한다. (이미 대기·실행 중인 작업이 있으면 그것을 돌려준다)
     drawing=drawing_exists(drawing_id)
     if not (UPLOAD_DIR / drawing['stored_filename']).is_file():raise HTTPException(404,'원본 도면 파일이 없습니다.')
     with database() as db:
@@ -44,7 +45,7 @@ def enqueue(drawing_id):
         existing=db.execute("SELECT * FROM ocr_jobs WHERE drawing_id=? AND status IN ('queued','running')",(drawing_id,)).fetchone()
         if existing:return dict(existing)
         done=db.execute('SELECT 1 FROM ocr_results WHERE drawing_id=?',(drawing_id,)).fetchone()
-        if done:
+        if done and not force:
             return {'drawing_id':drawing_id,'status':'completed','stage':'저장된 결과가 있습니다.','error':''}
         job_id=uuid4().hex
         db.execute("INSERT INTO ocr_jobs(job_id,drawing_id,status,stage) VALUES(?,?,'queued','CPU OCR 대기 중')",(job_id,drawing_id))

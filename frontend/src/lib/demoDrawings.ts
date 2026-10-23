@@ -262,6 +262,8 @@ export function buildInspectionPoints(doc: DemoDrawingDoc, cases: ErrorCase[]) {
       labelAnchor: geometry.labelAnchor,
       textBox: geometry.textBox,
       boxEstimated: geometry.estimated,
+      /** 기하공차 프레임 안 줄 번호(1부터). 치수는 0 */
+      rowIndex: rows[index],
       featureType: item.feature_type,
       feature: { name: `${kind.name} ${counters[kind.name]}`, type: kind.type },
       dimension: { formatted, nominal, tolerance, lower, upper, rangeText },
