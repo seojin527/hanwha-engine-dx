@@ -81,6 +81,34 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
     return () => observer.disconnect();
   }, [drawingUrl, isPdf]);
 
+  // 마우스 휠 확대·축소 (커서 위치 기준, 한 칸당 약 10%)
+  const viewRef = useRef({ zoom: 100, offset: { x: 0, y: 0 } });
+  viewRef.current = { zoom, offset };
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || isPdf) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const { zoom: z, offset: o } = viewRef.current;
+      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const next = Math.max(25, Math.min(400, z * factor));
+      if (next === z) return;
+      const rect = stage.getBoundingClientRect();
+      // 영역 중심 기준 커서 좌표
+      const cx = event.clientX - rect.left - rect.width / 2;
+      const cy = event.clientY - rect.top - rect.height / 2;
+      const ratio = next / z;
+      setOffset({
+        x: cx - (cx - o.x) * ratio,
+        y: cy - (cy - o.y) * ratio,
+      });
+      setZoom(next);
+    };
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, [drawingUrl, isPdf]);
+
   const FIT_PADDING = 16;
   const fitScale =
     imageSize.width > 0 && stageSize.width > 0 && stageSize.height > 0
@@ -141,18 +169,18 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.max(25, value - 25))}
+          onClick={() => setZoom((value) => Math.max(25, Math.round(value) - 25))}
           className="px-2 disabled:opacity-40"
         >
           −
         </button>
 
-        <span>{isPdf ? "PDF" : `${zoom}%`}</span>
+        <span>{isPdf ? "PDF" : `${Math.round(zoom)}%`}</span>
 
         <button
           type="button"
           disabled={!drawingUrl || isPdf}
-          onClick={() => setZoom((value) => Math.min(400, value + 25))}
+          onClick={() => setZoom((value) => Math.min(400, Math.round(value) + 25))}
           className="px-2 disabled:opacity-40"
         >
           +

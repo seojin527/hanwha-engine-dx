@@ -148,6 +148,15 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     const edits = {...state.edits}; if (edit) edits[id]=edit; else delete edits[id];
     setState({...state, edits});
   }
+  function bulkConfirm(ids: string[], confirmed: boolean) {
+    const edits = {...state.edits};
+    for (const id of ids) {
+      const next: ItemEdit = {...edits[id]};
+      if (confirmed) next.confirmed = true; else delete next.confirmed;
+      if (Object.keys(next).length > 0) edits[id] = next; else delete edits[id];
+    }
+    setState({...state, edits});
+  }
   async function place(pt: Point) {
     if (!adding || lock.current) return;
     if (adding.step === 'lines') {
@@ -174,6 +183,14 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
     for (const id of now) if (!before.has(id)) changed.add(id);
     return changed.size;
   }, [state, baseline]);
+  // 저장 안 된 변경을 마지막으로 저장한 상태로 되돌린다 (서버는 건드리지 않음)
+  const revertDrafts = () => {
+    if (dirtyCount > 0) {
+      if (!window.confirm(`저장 안 된 변경 ${dirtyCount}건을 마지막으로 저장한 상태로 되돌립니다.\n서버에 저장된 내용은 바뀌지 않습니다.`)) return;
+      setState(baseline);
+    }
+    setSelected(1); setSearch('');
+  };
   const confirmLeave = () => dirtyCount === 0 || window.confirm(`저장 안 된 변경 ${dirtyCount}건이 사라집니다. 이동할까요?`);
   useEffect(() => {
     if (dirtyCount === 0) return;
@@ -205,7 +222,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
   const filtered = points.filter(p => `${p.displayNumber} ${p.feature.name} ${p.dimension.formatted}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
     <AdminHeader displayInfo={{partName:serverDoc?.part_name || '도면 선택',drawingName:referenceId || drawing?.original_filename || '—',partNo:(serverDoc as any)?.part_no,scale:(serverDoc as any)?.drawing_scale}}
-      onUploadDrawing={()=>setUploadRequest(v=>v+1)} onResetData={()=>{setSelected(1);setSearch('');}} searchQuery={search} onSearchChange={setSearch}
+      onUploadDrawing={()=>setUploadRequest(v=>v+1)} onResetData={revertDrafts} searchQuery={search} onSearchChange={setSearch}
       mode="admin" onModeChange={mode=>{if(mode==='worker' && !busy && blockWorker()) return; if(mode==='worker' && !busy) onWorker(drawing || (snapshot ? {drawing_id:key,part_id:'jm-reference',name:referenceId,original_filename:referenceId+'.jpg',media_type:'image/jpeg',size_bytes:0,ocr_status:'completed',created_at:'',file_url:'/api/drawings/'+key+'/file'} : null));}} historyOpen={historyOpen} historyCount={history.length} onToggleHistory={()=>setHistoryOpen(v=>!v)} />
     {historyOpen && <EditHistoryPopover entries={history} mode="admin" activeDrawingId={key || null} onClose={()=>setHistoryOpen(false)} onClear={async()=>{
       if(window.confirm('수정 내역을 모두 지우시겠습니까?')) {
@@ -218,7 +235,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
       <span>수정한 값은 작업자 모드에도 반영됩니다. 확인·수정 내용은 "관리자 검토 완료"를 누를 때 서버에 한 번에 저장됩니다.</span>
       {dirtyCount > 0 && <span className="ml-auto rounded bg-amber-400 px-1.5 py-0.5 font-bold text-slate-900">저장 안 된 변경 {dirtyCount}건</span>}
     </div>
-    <DrawingLibrary uploadRequest={uploadRequest} onSelectDrawing={d=>{if(!busy && confirmLeave()){setReferenceId('');setDrawing(d);}}} onClearDrawing={()=>{if(!busy && confirmLeave()){setDrawing(null);setReferenceId('');}}} />
+    <DrawingLibrary uploadRequest={uploadRequest} onSelectDrawing={d=>{if(!busy && confirmLeave()){setReferenceId('');setDrawing(d);}}} onClearDrawing={()=>{if(busy || !confirmLeave()) return false;setDrawing(null);setReferenceId('');return true;}} />
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-1.5 text-xs">
       <span className="flex items-center gap-2 text-slate-300"><label htmlFor="demo-drawing" className="text-slate-400">데모 도면</label>
         <select id="demo-drawing" disabled={busy} value={referenceId} onChange={e=>{if(!confirmLeave())return;setReferenceId(e.target.value);if(e.target.value)setDrawing(null);}} className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs text-white focus:border-cyan-500 focus:outline-none">
@@ -243,7 +260,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           isAnalyzing={ocr.status==='applying'} analyzingStep={0} toolbarRight={toolbar}
           highlightLines={adding ? adding.lines : null} onPlaceAt={adding && !busy ? place : undefined} />
-        <AdminMeasurementTable collapsed={collapsed} onToggleCollapsed={()=>setCollapsed(v=>!v)} points={filtered}
+        <AdminMeasurementTable partName={serverDoc?.part_name} collapsed={collapsed} onToggleCollapsed={()=>setCollapsed(v=>!v)} points={filtered}
           selectedPointId={active?.id || 0} onSelectPoint={setSelected} inspectionRecords={buildConfirmRecords(points)}
           selectedItemId={active?.items?.[0]?.id || ''} onSelectItem={id=>setSelected(id)} />
       </div>
@@ -251,7 +268,7 @@ export function AdminWorkspace({initialDrawing, onWorker}: {initialDrawing: Draw
       <div className={`${sideOpen ? 'flex' : 'hidden'} w-[39.5%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl`}>
         {withAdded && points.length ? <fieldset disabled={busy} className="contents">
           <AdminChecklist doc={withAdded} points={points} edits={state.edits} selectedPointId={active?.id || 0} onSelectPoint={setSelected}
-            onCommitEdit={commit} readiness={readiness} completedAt={completedAt} dirtyCount={dirtyCount} onComplete={()=>void persist(state,true)} onReopen={()=>void persist(state,false)}
+            onCommitEdit={commit} onBulkConfirm={bulkConfirm} readiness={readiness} completedAt={completedAt} dirtyCount={dirtyCount} onComplete={()=>void persist(state,true)} onReopen={()=>void persist(state,false)}
             placing={adding ? {step:adding.step,lineCount:adding.lines.length,text:`${adding.draft.kind} ${adding.draft.nominal}`} : null}
             onStartAdd={draft=>setAdding({draft,step:'lines',lines:[]})} onUndoLine={()=>setAdding(prev=>prev ? {...prev,lines:prev.lines.slice(0,-1)} : null)}
             onFinishLines={()=>setAdding(prev=>prev ? {...prev,step:'marker'} : null)} onCancelAdd={()=>setAdding(null)}

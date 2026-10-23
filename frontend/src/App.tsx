@@ -142,7 +142,7 @@ export function App() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
         onAdminMode={() => setMode("admin")}
-        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
+        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기", partNo: document?.part_no, scale: document?.drawing_scale }}
         onUploadDrawing={() => setUploadRequest((value) => value + 1)}
         onResetData={handleResetData}
         searchQuery={searchQuery}

@@ -8,7 +8,7 @@ import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
   onAdminMode?: () => void;
-  displayInfo?: { partName: string; drawingName: string };
+  displayInfo?: { partName: string; drawingName: string; partNo?: string | null; scale?: string | null };
   onUploadDrawing: (fileName: string) => void;
   onResetData: () => void;
   searchQuery: string;
@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">PART NO.:</span>
-            <span className="font-semibold text-cyan-300">{displayInfo ? "—" : MOCK_PART_INFO?.partNo}</span>
+            <span className="font-semibold text-cyan-300">{displayInfo ? displayInfo.partNo || "—" : MOCK_PART_INFO?.partNo}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">DRAWING:</span>
@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">SCALE:</span>
-            <span className="font-semibold text-slate-200">{displayInfo ? "—" : MOCK_PART_INFO?.scale}</span>
+            <span className="font-semibold text-slate-200">{displayInfo ? displayInfo.scale || "—" : MOCK_PART_INFO?.scale}</span>
           </div>
           <div>
             <span className="text-slate-500 mr-1.5">REVISION:</span>
@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onResetData}
           className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5"
         >
-          🔄 초기화
+          🔄 데모 기록 초기화
         </button>
 
         <button

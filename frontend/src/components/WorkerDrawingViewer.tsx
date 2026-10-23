@@ -79,6 +79,35 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
     setFitMode(false);
   }
 
+  // 마우스 휠 확대·축소 (커서 위치 기준, 한 칸당 약 10%)
+  const stageRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef({ scale: 1, offset: { x: 0, y: 0 } });
+  viewRef.current = { scale: displayScale, offset };
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || isPdf) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const { scale: s, offset: o } = viewRef.current;
+      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const next = Math.max(0.02, Math.min(4, s * factor));
+      if (next === s) return;
+      const rect = stage.getBoundingClientRect();
+      const cx = event.clientX - rect.left - rect.width / 2;
+      const cy = event.clientY - rect.top - rect.height / 2;
+      const ratio = next / s;
+      setOffset({
+        x: cx - (cx - o.x) * ratio,
+        y: cy - (cy - o.y) * ratio,
+      });
+      setManualScale(next);
+      setFitMode(false);
+    };
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, [drawingUrl, isPdf]);
+
   // 도면 변경 시 확대·이동 상태 초기화
   useEffect(() => {
     setFitMode(true);
@@ -178,6 +207,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
         />
       ) : (
         <div
+          ref={stageRef}
           className="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
           style={{
             cursor: panMode

@@ -27,6 +27,9 @@ export interface OcrDocument {
   drawing_id: string;
   source_drawing_id?: string;
   part_name?: string | null;
+  /** 표제란에서 읽은 값 (못 읽으면 없음) */
+  part_no?: string | null;
+  drawing_scale?: string | null;
   image: { width_px: number; height_px: number; coordinate_status?: string };
   review_reasons?: string[];
   items: OcrItem[];

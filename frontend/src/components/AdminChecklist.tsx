@@ -51,6 +51,8 @@ interface AdminChecklistProps {
   onCancelAdd: () => void;
   /** 관리자가 추가한 항목 삭제 */
   onDeleteAdded: (sourceId: string) => void;
+  /** 여러 항목을 한 번에 확인/확인 해제한다 (화면 상태에만 반영, 서버 저장은 검토 완료 때) */
+  onBulkConfirm: (sourceIds: string[], confirmed: boolean) => void;
 }
 
 /**
@@ -75,6 +77,7 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
   onFinishLines,
   onCancelAdd,
   onDeleteAdded,
+  onBulkConfirm,
 }) => {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -96,6 +99,24 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
 
   const selected = points.find((point) => point.id === selectedPointId) || points[0];
   const selectedItem = selected ? doc.items.find((item) => item.id === selected.sourceId) : undefined;
+
+  // 일괄 확인 대상: 현재 필터에 보이는 미확인 항목. ⚠ 항목은 "⚠ 확인 필요" 필터에서만 포함한다.
+  const bulkTargets = shown.filter((point) => !point.confirmed && (filter === "warn" || !point.warning));
+  const skippedWarn = shown.filter((point) => !point.confirmed && !!point.warning && filter !== "warn").length;
+  const bulkUndo = shown.filter((point) => point.confirmed);
+
+  function bulkConfirm() {
+    if (bulkTargets.length === 0) return;
+    const skipNote = skippedWarn > 0 ? `\n⚠ 확인 필요 항목 ${skippedWarn}건은 제외됩니다.` : "";
+    if (!window.confirm(`화면에 보이는 ${bulkTargets.length}건을 확인 처리합니다.${skipNote}`)) return;
+    onBulkConfirm(bulkTargets.map((point) => point.sourceId), true);
+  }
+
+  function bulkUnconfirm() {
+    if (bulkUndo.length === 0) return;
+    if (!window.confirm(`화면에 보이는 ${bulkUndo.length}건의 확인을 해제합니다.`)) return;
+    onBulkConfirm(bulkUndo.map((point) => point.sourceId), false);
+  }
 
   function toggleConfirm(point: AdminPoint) {
     const prev = edits[point.sourceId];
@@ -217,6 +238,28 @@ export const AdminChecklist: React.FC<AdminChecklistProps> = ({
             {label}
           </button>
         ))}
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+        <button
+          type="button"
+          onClick={bulkConfirm}
+          disabled={bulkTargets.length === 0}
+          className="rounded border border-cyan-600 bg-white px-2.5 py-0.5 font-semibold text-cyan-700 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          화면의 항목 모두 확인 ({bulkTargets.length})
+        </button>
+        <button
+          type="button"
+          onClick={bulkUnconfirm}
+          disabled={bulkUndo.length === 0}
+          className="rounded border border-slate-300 bg-white px-2.5 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          확인 모두 해제 ({bulkUndo.length})
+        </button>
+        {skippedWarn > 0 && (
+          <span className="text-amber-700">⚠ 확인 필요 {skippedWarn}건은 직접 확인</span>
+        )}
       </div>
 
       <ul className="mt-3 max-h-72 shrink-0 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">

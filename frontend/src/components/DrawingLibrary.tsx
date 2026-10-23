@@ -8,10 +8,12 @@ import {
   type Drawing,
   type Part,
 } from "../lib/drawingAPI";
+import { loadHidden, saveHidden, type HiddenMap } from "../lib/hiddenDrawings";
 
 interface DrawingLibraryProps {
   onSelectDrawing: (drawing: Drawing, fileUrl: string) => void;
-  onClearDrawing: () => void;
+  // false를 돌려주면 (저장 안 된 변경 때문에) 선택 해제가 취소된 것으로 본다
+  onClearDrawing: () => void | boolean;
   uploadRequest?: number;
 }
 
@@ -32,6 +34,8 @@ export function DrawingLibrary({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [hidden, setHidden] = useState<HiddenMap>(() => loadHidden());
+  const [showHidden, setShowHidden] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPartRef = useRef("");
@@ -125,6 +129,41 @@ export function DrawingLibrary({
     onClearDrawing();
   }
 
+  // 목록에서만 빼기: 서버 DB·파일은 그대로 두고 이 브라우저에만 기록한다
+  function hideDrawing(drawing: Drawing) {
+    if (
+      !window.confirm(
+        `"${drawing.original_filename}"을(를) 목록에서 숨길까요?\n서버 데이터는 삭제되지 않습니다.`
+      )
+    )
+      return;
+    if (selectedDrawingId === drawing.drawing_id) {
+      if (onClearDrawing() === false) return;
+      setSelectedDrawingId("");
+    }
+    const next = {
+      ...hidden,
+      [drawing.drawing_id]: {
+        partId: drawing.part_id,
+        name: drawing.original_filename,
+      },
+    };
+    setHidden(next);
+    saveHidden(next);
+  }
+
+  function restoreDrawing(drawingId: string) {
+    const next = { ...hidden };
+    delete next[drawingId];
+    setHidden(next);
+    saveHidden(next);
+  }
+
+  function hiddenCountOf(partId: string) {
+    return Object.values(hidden).filter((entry) => entry.partId === partId)
+      .length;
+  }
+
   async function handleAddPart() {
     const name = newPartName.trim();
     if (!name || addingPart) return;
@@ -202,6 +241,13 @@ export function DrawingLibrary({
     }
   }
 
+  const visibleDrawings = drawings.filter(
+    (drawing) => !hidden[drawing.drawing_id]
+  );
+  const hiddenInPart = Object.entries(hidden).filter(
+    ([, entry]) => entry.partId === selectedPartId
+  );
+
   return (
     <section className="shrink-0 border-b border-slate-700 bg-slate-900 text-white">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
@@ -229,7 +275,7 @@ export function DrawingLibrary({
           >
             {part.name}
             <span className="ml-2 text-slate-400">
-              {part.drawing_count}
+              {Math.max(0, part.drawing_count - hiddenCountOf(part.part_id))}
             </span>
           </button>
         ))}
@@ -285,31 +331,44 @@ export function DrawingLibrary({
             <span className="text-xs text-slate-400">
               도면 불러오는 중...
             </span>
-          ) : drawings.length === 0 ? (
+          ) : visibleDrawings.length === 0 ? (
             <span className="text-xs text-slate-400">
               등록된 도면이 없습니다.
             </span>
           ) : (
-            drawings.map((drawing) => (
-              <button
+            visibleDrawings.map((drawing) => (
+              <span
                 key={drawing.drawing_id}
-                type="button"
-                onClick={() => {
-                  setSelectedDrawingId(drawing.drawing_id);
-                  onSelectDrawing(drawing, drawingFileUrl(drawing));
-                }}
-                aria-pressed={
-                  selectedDrawingId === drawing.drawing_id
-                }
-                className={`max-w-64 truncate rounded border px-3 py-1.5 text-xs ${
+                className={`inline-flex max-w-72 items-center rounded border text-xs ${
                   selectedDrawingId === drawing.drawing_id
                     ? "border-cyan-400 bg-cyan-950 text-cyan-200"
                     : "border-slate-600 hover:bg-slate-800"
                 }`}
-                title={drawing.original_filename}
               >
-                {drawing.original_filename}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDrawingId(drawing.drawing_id);
+                    onSelectDrawing(drawing, drawingFileUrl(drawing));
+                  }}
+                  aria-pressed={
+                    selectedDrawingId === drawing.drawing_id
+                  }
+                  className="min-w-0 truncate py-1.5 pl-3 pr-2"
+                  title={drawing.original_filename}
+                >
+                  {drawing.original_filename}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => hideDrawing(drawing)}
+                  aria-label={`${drawing.original_filename} 목록에서 숨기기`}
+                  title="목록에서 숨기기"
+                  className="py-1.5 pl-1 pr-2 text-slate-400 hover:text-rose-300"
+                >
+                  ×
+                </button>
+              </span>
             ))
           )}
 
@@ -321,6 +380,16 @@ export function DrawingLibrary({
           >
             {uploading ? "업로드 중..." : "+ 도면 등록"}
           </button>
+
+          {hiddenInPart.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowHidden((value) => !value)}
+              className="rounded border border-dashed border-slate-500 px-3 py-1.5 text-xs text-slate-300"
+            >
+              숨긴 도면 {hiddenInPart.length}개
+            </button>
+          )}
 
           <input
             ref={inputRef}
@@ -338,6 +407,24 @@ export function DrawingLibrary({
         <p className="px-4 pb-2 text-xs text-slate-400">
           부품을 선택하면 등록된 도면을 볼 수 있습니다.
         </p>
+      )}
+
+      {selectedPartId && showHidden && hiddenInPart.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-800 px-4 py-2 text-xs">
+          <span className="text-slate-400">
+            숨긴 도면 · 클릭하면 다시 표시
+          </span>
+          {hiddenInPart.map(([id, entry]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => restoreDrawing(id)}
+                            className="max-w-64 truncate rounded border border-slate-600 px-3 py-1.5 text-slate-300 hover:bg-slate-800"
+            >
+              ↩ {entry.name}
+            </button>
+          ))}
+        </div>
       )}
 
       {error && (

@@ -8,6 +8,8 @@ import { CollapseToggle } from "./CollapseToggle";
 import { featureLabel } from "../lib/admin/featureTypes";
 
 interface MeasurementTableProps {
+  /** 표 제목에 쓸 부품명 (표제란에서 읽은 값). 없으면 제목에 부품명을 쓰지 않는다 */
+  partName?: string | null;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   points: any[];
@@ -19,6 +21,7 @@ interface MeasurementTableProps {
 }
 
 export const AdminMeasurementTable: React.FC<MeasurementTableProps> = ({
+  partName,
   points = [],
   selectedPointId,
   onSelectPoint,
@@ -47,7 +50,7 @@ export const AdminMeasurementTable: React.FC<MeasurementTableProps> = ({
       >
         <div className="flex items-center gap-3">
           <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-            피스톤 로드 측정 항목 (Piston Rod Inspection Sheet)
+            {partName ? `${partName} 측정 항목` : "측정 항목"}
           </h3>
           <span className="text-[11px] text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200 font-semibold">
             검사 진행률: {completedCount} / {points.length} 완료 ({points.length ? Math.round((completedCount / points.length) * 100) : 0}%)

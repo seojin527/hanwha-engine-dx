@@ -120,7 +120,7 @@ export const AdminHeader: React.FC<HeaderProps> = ({
           onClick={onResetData}
           className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5"
         >
-          🔄 초기화
+          ↩ 되돌리기
         </button>
 
         <button
