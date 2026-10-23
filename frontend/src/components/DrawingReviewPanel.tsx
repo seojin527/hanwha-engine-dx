@@ -26,6 +26,7 @@ interface AddedDimension {
   text: string;
   x: string;
   y: string;
+  positionConfirmed?: boolean;
 }
 
 const inputClass =
@@ -147,9 +148,42 @@ export default function DrawingReviewPanel({
 
   function updateAdded(id: string, patch: Partial<AddedDimension>) {
     setAdded((previous) =>
-      previous.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      previous.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              ...patch,
+              positionConfirmed:
+                patch.x !== undefined || patch.y !== undefined
+                  ? false
+                  : patch.positionConfirmed ?? item.positionConfirmed,
+            }
+          : item,
+      ),
     );
     setError("");
+  }
+
+  function confirmAddedPosition(item: AddedDimension) {
+    const x = Number(item.x);
+    const y = Number(item.y);
+
+    if (
+      !item.text.trim() ||
+      !item.x.trim() ||
+      !item.y.trim() ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < 0 ||
+      y < 0 ||
+      x >= source.result.image.width_px ||
+      y >= source.result.image.height_px
+    ) {
+      setError("치수 표기를 입력하고 도면 안의 위치를 선택해주세요.");
+      return;
+    }
+
+    updateAdded(item.id, { positionConfirmed: true });
   }
 
   async function pickPosition(id: string) {
@@ -190,6 +224,11 @@ export default function DrawingReviewPanel({
 
     if (!reviewer.trim()) {
       setError("검토자 이름을 입력해주세요.");
+      return;
+    }
+
+    if (added.some((item) => !item.positionConfirmed)) {
+      setError("추가한 치수의 「측정 위치 확정」을 먼저 눌러주세요.");
       return;
     }
 
@@ -599,8 +638,16 @@ export default function DrawingReviewPanel({
           })}
         </div>
 
-        <div className="space-y-3 border-t pt-3">
-          <h3 className="text-sm font-bold">누락 치수 추가</h3>
+        <details
+          open
+          className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
+        >
+          <summary className="cursor-pointer text-sm font-bold text-slate-800">
+            + 치수 추가
+            <span className="ml-1 text-xs font-normal text-slate-500">
+              OCR이 놓친 치수 보충
+            </span>
+          </summary>
           <p className="text-xs text-slate-600">
             표기를 입력하고 원본 이미지 픽셀 기준 위치를 지정해주세요.
           </p>
@@ -636,23 +683,57 @@ export default function DrawingReviewPanel({
                   }
                 />
               </div>
-              <div className="flex gap-3 text-xs">
-                {onPickPosition && (
-                  <button type="button" onClick={() => void pickPosition(item.id)}>
-                    도면에서 위치 선택
+                            <div className="space-y-3">
+                <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  {item.x.trim() && item.y.trim()
+                    ? `선택 위치: X ${item.x} · Y ${item.y}`
+                    : "아직 위치를 선택하지 않았습니다."}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {onPickPosition && (
+                    <button
+                      type="button"
+                      onClick={() => void pickPosition(item.id)}
+                      className="rounded-lg border border-cyan-600 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 transition hover:bg-cyan-100"
+                    >
+                      ① 도면에서 위치 선택
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => confirmAddedPosition(item)}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                      item.positionConfirmed
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-cyan-700 text-white hover:bg-cyan-800"
+                    }`}
+                  >
+                    {item.positionConfirmed
+                      ? "✓ 측정 위치 확정됨"
+                      : "② 측정 위치 확정"}
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAdded((previous) =>
+                        previous.filter((entry) => entry.id !== item.id),
+                      )
+                    }
+                    className="rounded-lg px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-700"
+                  >
+                    추가 취소
+                  </button>
+                </div>
+
+                {item.positionConfirmed && (
+                  <p className="text-xs text-emerald-700">
+                    위치를 확정했습니다. 최종 서버 저장은 아래의
+                    「검토 완료 및 서버 저장」을 눌러주세요.
+                  </p>
                 )}
-                <button
-                  type="button"
-                  className="text-red-700"
-                  onClick={() =>
-                    setAdded((previous) =>
-                      previous.filter((entry) => entry.id !== item.id),
-                    )
-                  }
-                >
-                  추가 취소
-                </button>
               </div>
             </div>
           ))}
@@ -669,7 +750,7 @@ export default function DrawingReviewPanel({
           >
             + 치수 추가
           </button>
-        </div>
+        </details>
 
         {error && (
           <p

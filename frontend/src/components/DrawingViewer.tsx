@@ -287,19 +287,21 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 previewMarkers.map((marker) => (
                   <div
                     key={`preview-${marker.id}`}
-                    className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
+                    className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full"
                     style={{
                       left: `${(marker.x / imageSize.width) * 100}%`,
                       top: `${(marker.y / imageSize.height) * 100}%`,
+                      marginTop: -20,
                     }}
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-amber-500 text-xs font-bold text-slate-950 shadow-lg">
                       {marker.number}
                     </div>
 
-                    <span className="absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-[11px] text-amber-950 shadow">
-                      {marker.text || "추가 치수"} · 저장 전
-                    </span>
+                    <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-[11px] text-amber-950 shadow">
+                    {marker.text || "추가 치수"} · 저장 전
+                  </span>
+                  
                   </div>
                 ))}
 
@@ -319,13 +321,19 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                   return (
                     <div
                       key={id}
-                      className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                      className="absolute z-10 -translate-x-1/2 -translate-y-full"
                       style={{
                         left: `${(point.x / (coordinateSize?.width || imageSize.width)) * 100}%`,
                         top: `${(point.y / (coordinateSize?.height || imageSize.height)) * 100}%`,
+                        marginTop: -20,
                         pointerEvents: panMode ? "none" : "auto",
                       }}
                     >
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-1/2 top-full h-3 w-px -translate-x-1/2 bg-cyan-600/70"
+                      />
+
                       <MeasurementMarker
                         point={point}
                         isSelected={id === selectedPointId}

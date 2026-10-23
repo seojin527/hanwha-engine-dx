@@ -60,6 +60,8 @@ export function App() {
   const [reviewFiles, setReviewFiles] = useState<ReviewResultFile[]>([]);
   const [generatingFiles, setGeneratingFiles] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [previewFile, setPreviewFile] = useState<ReviewResultFile | null>(null);
+  const filePreviewDialog = useRef<HTMLDialogElement>(null);
   const [pickingPosition, setPickingPosition] = useState(false);
   const [reviewPreviewMarkers, setReviewPreviewMarkers] =
     useState<ReviewPreviewMarker[]>([]);
@@ -183,6 +185,8 @@ export function App() {
       return;
     }
 
+  
+
     const controller = new AbortController();
     setReviewLoading(true);
 
@@ -211,6 +215,21 @@ export function App() {
 
     return () => controller.abort();
   }, [reviewOpen, reviewDrawingId, reviewRevision]);
+
+  useEffect(() => {
+    const dialog = filePreviewDialog.current;
+    if (!previewFile || !dialog) return;
+
+    if (!dialog.open) dialog.showModal();
+
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, [previewFile]);
+
+  useEffect(() => {
+    setPreviewFile(null);
+  }, [reviewDrawingId, reviewRevision]);
 
   const activeReviewSource =
     reviewSource?.drawing_id === reviewDrawingId &&
@@ -479,15 +498,14 @@ export function App() {
           )}
 
           {reviewFiles.map((file) => (
-            <a
+            <button
               key={file.kind}
-              href={apiUrl(file.url)}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded border border-slate-600 px-2 py-1 text-slate-200"
+              type="button"
+              onClick={() => setPreviewFile(file)}
+              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white"
             >
               {file.label}
-            </a>
+            </button>
           ))}
 
           {fileError && (
@@ -522,7 +540,29 @@ export function App() {
           </section>
         </div>
       ) : (
-        <ResizablePanels left={<>
+                <ResizablePanels left={<>
+          {!demoMode && reviewOpen && pickingPosition && (
+            <div
+              role="status"
+              className="shrink-0 border-b-2 border-cyan-500 bg-cyan-50 px-4 py-4 text-center"
+            >
+              <p className="text-base font-bold text-cyan-900">
+                👇 추가할 치수의 위치를 아래 도면에서 클릭하세요!
+              </p>
+              <p className="mt-1 text-xs text-cyan-800">
+                클릭하면 임시 번호가 표시됩니다. 위치 확인 후
+                오른쪽에서 「측정 위치 확정」을 눌러주세요.
+              </p>
+              <button
+                type="button"
+                onClick={() => finishPositionPick(null)}
+                className="mt-2 rounded-lg border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100"
+              >
+                위치 선택 취소 · Esc
+              </button>
+            </div>
+          )}
+
           <DrawingViewer
             key={
               demoMode
@@ -677,6 +717,95 @@ export function App() {
             </section>
           )}
         </>} />
+      )}
+
+            {previewFile && (
+        <dialog
+          ref={filePreviewDialog}
+          aria-labelledby="review-file-preview-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            setPreviewFile(null);
+          }}
+          onClose={() => setPreviewFile(null)}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+
+            if (
+              event.clientX < rect.left ||
+              event.clientX > rect.right ||
+              event.clientY < rect.top ||
+              event.clientY > rect.bottom
+            ) {
+              setPreviewFile(null);
+            }
+          }}
+          className="fixed inset-0 m-auto h-[min(760px,85dvh)] w-[min(960px,92vw)] max-w-none overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/60 backdrop:backdrop-blur-sm"
+        >
+          <div className="flex h-full flex-col">
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile(null)}
+                  className="mb-1 rounded px-1 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 hover:text-cyan-900"
+                >
+                  ← 관리자 화면으로
+                </button>
+
+                <h2
+                  id="review-file-preview-title"
+                  className="truncate text-sm font-bold"
+                >
+                  {previewFile.label}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                aria-label="파일 미리보기 닫기"
+                onClick={() => setPreviewFile(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="min-h-0 flex-1 bg-slate-100 p-3">
+                            {["reviewed_jpg", "edits_log_jpg"].includes(previewFile.kind) ? (
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-2">
+                  <img
+                    key={previewFile.url}
+                    src={apiUrl(previewFile.url)}
+                    alt={previewFile.label}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <iframe
+                  key={previewFile.url}
+                  title={`${previewFile.label} 미리보기`}
+                  src={apiUrl(previewFile.url)}
+                  className="h-full w-full rounded-lg border border-slate-200 bg-white"
+                />
+              )}
+            </div>
+
+            <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
+              <span className="text-xs text-slate-500">
+                Esc 또는 바깥 배경을 눌러 닫을 수 있습니다.
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPreviewFile(null)}
+                className="shrink-0 rounded-lg bg-cyan-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-cyan-800"
+              >
+                관리자 화면으로 돌아가기
+              </button>
+            </footer>
+          </div>
+        </dialog>
       )}
     </div>
   );
