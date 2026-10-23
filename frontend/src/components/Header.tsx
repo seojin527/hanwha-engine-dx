@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <h1 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
             Drawing AI Measurement Guide
-            <span className="text-[11px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800 font-normal">
+            <span className="hidden min-[1800px]:inline text-[11px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800 font-normal">
               Engine Component Quality Inspection Workspace
             </span>
           </h1>
@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
           </p>
         </div>
 
-        <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 border-l border-slate-700 pl-6">
+        <div className="hidden lg:flex items-center gap-3 text-xs text-slate-300 border-l border-slate-700 pl-4">
           <div>
             <span className="text-slate-500 mr-1.5">PART:</span>
             <span className="font-semibold text-slate-200">{displayInfo?.partName || MOCK_PART_INFO?.name}</span>
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
             placeholder="포인트/규격 검색..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 w-40 transition"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 w-32 transition"
           />
         </div>
 

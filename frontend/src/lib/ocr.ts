@@ -55,6 +55,9 @@ export interface OcrPoint {
   boxEstimated?: boolean;
   /** 기하공차 프레임 안 줄 번호(1부터). 치수는 0 */
   rowIndex?: number;
+  /** 기하공차 프레임 좌우 가장자리(px). 줄 마커를 프레임 양옆에 나눠 붙일 때 쓴다 */
+  frameLeft?: number;
+  frameRight?: number;
   source: OcrItem;
 }
 const names: Record<string, string> = {
@@ -70,6 +73,7 @@ export function toOcrPoints(document: OcrDocument): OcrPoint[] {
       x: source.position.x, y: source.position.y,
       feature: { name: names[source.measurement_characteristic || ''] || source.category },
       labelAnchor: geometry.labelAnchor, textBox: geometry.textBox, boxEstimated: geometry.estimated, rowIndex: rows[index],
+      frameLeft: geometry.frameLeft, frameRight: geometry.frameRight,
       source,
     };
   });

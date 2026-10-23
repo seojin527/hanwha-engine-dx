@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MeasurementMarker } from "./MeasurementMarker";
+import { layoutMarkers } from "../lib/markerLayout";
 
 // 기준점(글자 박스 가장자리)에서 마커를 어느 쪽으로 붙일지
 const MARKER_GAP = "3px";
-// 기하공차 틀의 둘째 줄부터는 마커를 옆으로 밀어 첫째 줄 마커와 겹치지 않게 한다.
-// 줄 간격은 도면을 줄여 보면 마커 크기(24px)보다 좁아지므로, 화면 픽셀 기준으로 항상 떨어뜨린다.
-const ROW_SHIFT = 27;
-const rowShift = (rowIndex?: number) => ((rowIndex || 0) > 1 ? ` translateX(${-(rowIndex! - 1) * ROW_SHIFT}px)` : "");
+// 기하공차 틀의 줄별 마커 좌우 배치와 겹침 보정은 lib/markerLayout.ts 에서 계산한다.
 const MARKER_TRANSFORM: Record<string, string> = {
   top: `translate(-50%, calc(-100% - ${MARKER_GAP}))`,
   bottom: `translate(-50%, ${MARKER_GAP})`,
@@ -81,6 +79,20 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
     return () => observer.disconnect();
   }, [drawingUrl, isPdf]);
 
+  // 번호 마커 숨기기: 도면만 보고 싶을 때. 단축키 M (입력창에서는 동작하지 않음)
+  const [markersHidden, setMarkersHidden] = useState(false);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "m" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+      setMarkersHidden((value) => !value);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // 마우스 휠 확대·축소 (커서 위치 기준, 한 칸당 약 10%)
   const viewRef = useRef({ zoom: 100, offset: { x: 0, y: 0 } });
   viewRef.current = { zoom, offset };
@@ -117,6 +129,24 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
           (stageSize.height - FIT_PADDING * 2) / imageSize.height
         )
       : 0;
+  // 마커는 도면과 함께 확대·축소되는 영역 안에 있으므로 확대 전(맞춤) 크기 기준으로 배치한다.
+  const markerLayout = useMemo(
+    () =>
+      layoutMarkers(
+        points.map((point: any) => ({
+          id: point.id ?? point.displayNumber,
+          x: point.labelAnchor?.x ?? point.x,
+          y: point.labelAnchor?.y ?? point.y,
+          side: point.labelAnchor?.side ?? "center",
+          rowIndex: point.rowIndex,
+          sourceId: point.sourceId ?? point.source?.id,
+          frameLeft: point.frameLeft,
+          frameRight: point.frameRight,
+        })),
+        fitScale * (imageSize.width / (coordinateSize?.width || imageSize.width || 1)),
+      ),
+    [points, fitScale, imageSize.width, coordinateSize?.width],
+  );
   const fitBox =
     fitScale > 0
       ? { width: imageSize.width * fitScale, height: imageSize.height * fitScale }
@@ -127,6 +157,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
     setZoom(100);
     setOffset({ x: 0, y: 0 });
     setDragging(false);
+    setMarkersHidden(false);
     dragRef.current = null;
   }, [drawingUrl]);
 
@@ -196,6 +227,17 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
           className="rounded bg-slate-800 px-2 py-1 disabled:opacity-40"
         >
           보기 초기화
+        </button>
+
+        <button
+          type="button"
+          disabled={!drawingUrl || isPdf || !!onPlaceAt}
+          aria-pressed={markersHidden && !onPlaceAt}
+          onClick={() => setMarkersHidden((value) => !value)}
+          title="번호 마커 숨기기/보기 (M)"
+          className={`rounded px-2 py-1 disabled:opacity-40 ${markersHidden && !onPlaceAt ? "bg-cyan-700" : "bg-slate-800"}`}
+        >
+          {markersHidden && !onPlaceAt ? "마커 보기" : "마커 숨기기"}
         </button>
 
         {isPdf && (
@@ -334,7 +376,7 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
 
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
                 <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 PNG의 크기가 달라 마커를 표시하지 않습니다.</div>}
-              {imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
+              {(!markersHidden || !!onPlaceAt) && imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
                 points.map((point) => {
                   const id = point.id ?? point.displayNumber;
 
@@ -351,14 +393,19 @@ export const AdminDrawingViewer: React.FC<DrawingViewerProps> = ({
                     return null;
                   }
 
+                  const lay = markerLayout.get(id);
+                  const shownX = lay?.x ?? markerX;
+                  const shownY = lay?.y ?? markerY;
+                  const shownSide = lay?.side ?? anchor?.side ?? "center";
+
                   return (
                     <div
                       key={id}
                       className="absolute z-10"
                       style={{
-                        left: `${(markerX / (coordinateSize?.width || imageSize.width)) * 100}%`,
-                        top: `${(markerY / (coordinateSize?.height || imageSize.height)) * 100}%`,
-                        transform: MARKER_TRANSFORM[anchor?.side ?? "center"] + rowShift(point.rowIndex),
+                        left: `${(shownX / (coordinateSize?.width || imageSize.width)) * 100}%`,
+                        top: `${(shownY / (coordinateSize?.height || imageSize.height)) * 100}%`,
+                        transform: MARKER_TRANSFORM[shownSide] + (lay ? ` translate(${lay.dx}px, ${lay.dy}px)` : ""),
                         pointerEvents: panMode ? "none" : "auto",
                       }}
                     >

@@ -23,6 +23,9 @@ export interface ItemGeometry {
   labelAnchor?: Anchor;
   /** 추정한 값인가 (false 이거나 없으면 도면 데이터에 있던 값) */
   estimated: boolean;
+  /** 기하공차 프레임의 왼쪽·오른쪽 가장자리 x(px). 줄 마커를 프레임 좌우에 나눠 붙일 때 쓴다 */
+  frameLeft?: number;
+  frameRight?: number;
 }
 
 /** 글자 높이 어림값(px). 데모 도면 2339px 폭에서 약 42px */
@@ -44,9 +47,26 @@ export function gdtRowIndexes(items: Array<Pick<GeometryItem, 'category' | 'posi
   });
 }
 
+/**
+ * 기하공차 프레임 폭 어림값(px). 칸 구분 '|' 로 나뉜 글자("기호|공차값|데이텀...")로 계산한다.
+ * 실제 프레임 폭이 아니라 추정이다. 글자 박스가 없는 서버 OCR 도면에서만 쓴다.
+ */
+export function estimateGdtFrameWidth(rawText: string, imageWidth: number): number {
+  const ch = charHeight(imageWidth);
+  const cells = String(rawText || '').split('|').map((cell) => cell.trim()).filter(Boolean);
+  if (cells.length < 2) return Math.round(ch * (0.8 + 0.3 * Math.max(1, String(rawText || '').length)));
+  const [, ...rest] = cells;
+  const body = rest.reduce((sum, cell) => sum + 0.25 * cell.length + 0.5, 0);
+  return Math.round(ch * (0.8 + body + 0.3));
+}
+
 export function resolveGeometry(item: GeometryItem, imageWidth: number, rowIndex?: number): ItemGeometry {
   if (item.text_box || item.label_anchor) {
-    return { textBox: item.text_box, labelAnchor: item.label_anchor, estimated: false };
+    const box = item.text_box;
+    return {
+      textBox: box, labelAnchor: item.label_anchor, estimated: false,
+      ...(box && item.category === 'GDT' ? { frameLeft: box[0], frameRight: box[2] } : {}),
+    };
   }
   const { x, y } = item.position;
   if (!Number.isFinite(x) || !Number.isFinite(y) || !(imageWidth > 0)) return { estimated: false };
@@ -57,7 +77,10 @@ export function resolveGeometry(item: GeometryItem, imageWidth: number, rowIndex
     // 프레임 폭을 알 수 없어 박스는 만들지 않고, 줄마다 프레임 왼쪽 바깥에 마커를 붙인다.
     const rowHeight = Math.round(ch * 1.3);
     const row = Math.max(1, item.row_index || rowIndex || 1);
-    return { labelAnchor: { x, y: y + rowHeight * (row - 0.5), side: 'left' }, estimated: true };
+    return {
+      labelAnchor: { x, y: y + rowHeight * (row - 0.5), side: 'left' }, estimated: true,
+      frameLeft: x, frameRight: x + estimateGdtFrameWidth(item.raw_text, imageWidth),
+    };
   }
 
   const cw = ch * 0.62;
