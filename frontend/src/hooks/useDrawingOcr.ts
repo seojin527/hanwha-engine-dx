@@ -77,5 +77,13 @@ export function useDrawingOcr(drawingId: string | null) {
       if (activeId.current===target && token===sequence.current) setState(p=>({...p,status:'error',error:e instanceof Error?e.message:'OCR 요청 실패'}));
     } finally {starting.current=false;}
   }
-  return {...(state.drawingId===drawingId?state:empty(drawingId)),run};
+  function refresh() {
+    setReload((value) => value + 1);
+  }
+
+  return {
+    ...(state.drawingId === drawingId ? state : empty(drawingId)),
+    run,
+    refresh,
+  };
 }

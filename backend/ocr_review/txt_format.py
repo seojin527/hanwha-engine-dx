@@ -223,6 +223,20 @@ class OcrTxt:
         self.lines[entry.line] = line.replace(entry.literal, new_literal, 1)
         entry.text, entry.literal = new_text, new_literal
 
+    def set_dimension_text(self, dim: Dimension, new_text: str) -> None:
+        """치수 한 줄의 글자만 바꾼다 (번호·좌표·열 폭은 그대로)."""
+        if "\n" in new_text or not new_text.strip():
+            raise TxtFormatError("치수 텍스트가 비었거나 줄바꿈이 있음")
+        line = self.lines[dim.line]
+        m = re.match(r"^(\s*\d+\s+)(.+?)(\s+)(\[.*)$", line)
+        if not m or m.group(2) != dim.text:
+            raise TxtFormatError(f"치수 {dim.no}번 줄을 고칠 수 없음 (원본 형식 불명)")
+        head, _, gap, pos = m.groups()
+        width = len(dim.text) + len(gap)
+        self.lines[dim.line] = head + new_text.ljust(max(width, len(new_text) + 1)) + pos
+        dim.text = new_text
+
+
     def add_dimension(self, text: str, x: int, y: int) -> Dimension:
         if "\n" in text:
             raise TxtFormatError("치수 텍스트에 줄바꿈 불가")

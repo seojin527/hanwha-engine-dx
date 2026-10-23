@@ -18,6 +18,9 @@ export interface OcrItem {
   review_reasons?: string[];
 }
 export interface OcrDocument {
+  review_status?: string;
+  reviewer?: string;
+  review_history?: OcrReviewHistoryEntry[];
   drawing_id: string;
   source_drawing_id?: string;
   part_name?: string | null;
@@ -58,4 +61,20 @@ export function toleranceText(item: OcrItem): string {
     return `${item.lower_limit} ~ ${item.upper_limit} ${item.unit || ''}`.trim();
   }
   return item.tol_type === 'UNKNOWN' ? '해석 확인 필요' : '기준 확인 필요';
+}
+
+export interface OcrReviewHistoryEntry {
+  previous_revision: string;
+  revision: string;
+  log: {
+    reviewer?: string;
+    reviewed_at?: string;
+    changes: Array<{
+      item_id: string;
+      type: string;
+      action: string;
+      before: string | null;
+      after: string;
+    }>;
+  };
 }

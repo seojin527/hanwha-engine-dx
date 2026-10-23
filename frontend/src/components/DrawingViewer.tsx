@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { OcrLoadingOverlay } from "./OcrLoadingOverlay";
 import { MeasurementMarker } from "./MeasurementMarker";
+import type { ReviewPreviewMarker } from "../lib/admin/drawingReviewAPI";
 
 interface DrawingViewerProps {
+  previewMarkers?: ReviewPreviewMarker[];
+  onPlaceAt?: (position: { x: number; y: number }) => void;
   points: any[];
   coordinateSize?: { width: number; height: number };
   selectedPointId: number;
@@ -26,6 +29,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   coordinateSize,
   isAnalyzing,
   analyzingStage,
+  onPlaceAt,
+  previewMarkers = [],
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({width: 0, height: 0});
@@ -172,7 +177,9 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 : "grab"
               : "default",
           }}
+
           onPointerDown={(event) => {
+            if (onPlaceAt) return;
             if (!panMode || event.button !== 0) return;
 
             event.preventDefault();
@@ -213,12 +220,48 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           ) : (
             <div
               className="relative shrink-0"
+              onClickCapture={(event) => {
+                if (!onPlaceAt || isAnalyzing) return;
+
+                // 번호 마커를 눌러도 위치 선택으로 처리한다.
+                event.preventDefault();
+                event.stopPropagation();
+
+                const width = coordinateSize?.width || imageSize.width;
+                const height = coordinateSize?.height || imageSize.height;
+
+                if (!width || !height) return;
+
+                // 좌표계와 실제 이미지가 다르면 위치를 저장하지 않는다.
+                if (
+                  coordinateSize &&
+                  (coordinateSize.width !== imageSize.width ||
+                    coordinateSize.height !== imageSize.height)
+                ) {
+                  return;
+                }
+
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+
+                // 확대·이동된 화면 좌표를 원본 이미지 픽셀로 변환한다.
+                const x = ((event.clientX - rect.left) / rect.width) * width;
+                const y = ((event.clientY - rect.top) / rect.height) * height;
+
+                if (x < 0 || y < 0 || x >= width || y >= height) return;
+
+                onPlaceAt({
+                  x: Math.min(width - 1, Math.max(0, Math.round(x))),
+                  y: Math.min(height - 1, Math.max(0, Math.round(y))),
+                });
+              }}
               style={{
                 width: imageSize.width ? imageSize.width*displayScale : '90%',
                 height: imageSize.height ? imageSize.height*displayScale : undefined,
                 transform: `translate(${offset.x}px, ${offset.y}px)`,
                 visibility: imageSize.width ? 'visible' : 'hidden',
                 transformOrigin: "center",
+                cursor: onPlaceAt ? "crosshair" : undefined,
               }}
             >
               <img
@@ -236,6 +279,29 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 onError={() => setErrorUrl(drawingUrl)}
                 className="pointer-events-none block h-auto w-full bg-white"
               />
+
+                {imageSize.width > 0 &&
+                (!coordinateSize ||
+                  (coordinateSize.width === imageSize.width &&
+                    coordinateSize.height === imageSize.height)) &&
+                previewMarkers.map((marker) => (
+                  <div
+                    key={`preview-${marker.id}`}
+                    className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: `${(marker.x / imageSize.width) * 100}%`,
+                      top: `${(marker.y / imageSize.height) * 100}%`,
+                    }}
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-amber-500 text-xs font-bold text-slate-950 shadow-lg">
+                      {marker.number}
+                    </div>
+
+                    <span className="absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-[11px] text-amber-950 shadow">
+                      {marker.text || "추가 치수"} · 저장 전
+                    </span>
+                  </div>
+                ))}
 
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
                 <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 이미지의 크기가 달라 마커를 표시하지 않습니다.</div>}

@@ -31,9 +31,13 @@ async function readResponse<T>(response: Response): Promise<T> {
         message = body.detail;
       } else if (Array.isArray(body.detail)) {
         message = body.detail
-          .map((entry) =>
-            typeof entry === "string" ? entry : entry.msg
-          )
+          .map((entry: unknown) => {
+            if (typeof entry === "string") return entry;
+            if (entry !== null && typeof entry === "object" && "msg" in entry) {
+              return String(entry.msg);
+            }
+            return JSON.stringify(entry);
+          })
           .join(", ");
       }
     } catch {

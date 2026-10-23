@@ -154,7 +154,7 @@ def build_reviewed_json(reviewed_txt: str, log: dict, name: str = "drawing") -> 
         iid = f"D{d.no:02d}"
         dims.append({
             "item_id": iid, "text": d.text,
-            "source": "added" if action.get(iid) == "added" else "ocr",
+            "source": {"added": "added", "edited": "edited"}.get(action.get(iid), "ocr"),
             "position": {"x": d.x, "y": d.y, "anchor": "text_center", "coord": "frame"},
             "position_image": {"x": d.x + off[0], "y": d.y + off[1]} if off else None,
         })
@@ -175,7 +175,10 @@ def build_reviewed_json(reviewed_txt: str, log: dict, name: str = "drawing") -> 
 def compose_dimension_text(item: dict) -> str:
     """작업자 입력(값·종류·공차) → eDOCr2와 같은 모양의 치수 텍스트."""
     if item.get("text"):
-        return str(item["text"]).strip()
+        text = str(item["text"]).strip()
+        if "\n" in text or not re.search(r"\d", text):
+            raise ReviewError([f"치수 텍스트에 숫자가 없음: {text!r}"])
+        return text
     value = str(item.get("value", "")).strip()
     if not INPUT_VALUE_RE.match(value):
         raise ReviewError([f"추가 치수 값이 숫자가 아님: {value!r}"])
@@ -211,6 +214,7 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
     {
       "reviewer": "이종민",
       "gdt": [{"item_id": "G01-1", "value": "0.0035"}, ...],      # 기하공차 줄마다 확정 값
+      "dimensions": [{"item_id": "D06", "value": "84"}],          # 선택: 잘못 읽은 치수 값 고치기
       "added_dimensions": [{"value": "7", "kind": "length",
                             "tolerance": {"type": "general"},
                             "x": 1266, "y": 1103, "coord": "image",
@@ -249,6 +253,25 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
     missing = [iid for iid in rows if iid not in decided]
     if missing and require_all:
         errors.append("확정하지 않은 기하공차: " + ", ".join(missing))
+
+    dims_by_id = {f"D{d.no:02d}": d for d in doc.dims}
+    dim_edits = []
+    seen_dims = set()
+    for k, item in enumerate(edits.get("dimensions", []) or [], 1):
+        iid = item.get("item_id")
+        if iid not in dims_by_id:
+            errors.append(f"없는 치수 항목: {iid!r}")
+            continue
+        if iid in seen_dims:
+            errors.append(f"같은 치수가 두 번 들어옴: {iid}")
+            continue
+        seen_dims.add(iid)
+        try:
+            text = compose_dimension_text(item)
+        except ReviewError as e:
+            errors.extend(f"{iid}: {m}" for m in e.errors)
+            continue
+        dim_edits.append((dims_by_id[iid], text, item))
 
     off = edits.get("frame_offset") or doc.frame_offset
     added_specs = []
@@ -305,6 +328,19 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
         if new_text != entry.text:
             doc.set_gdt_text(entry, new_text)
 
+    # --- 잘못 읽은 치수 고치기 (예: 84 → 5)
+    for dim, text, item in dim_edits:
+        before = dim.text
+        if text == before:
+            continue
+        doc.set_dimension_text(dim, text)
+        changes.append({
+            "item_id": f"D{dim.no:02d}", "type": "DIMENSION", "action": "edited",
+            "before": before, "after": text,
+            "position_frame": {"x": dim.x, "y": dim.y},
+            "input": {k: item.get(k) for k in ("value", "kind", "tolerance", "text") if k in item},
+        })
+
     # --- 누락 치수 추가
     for item, text, x, y, box in added_specs:
         coord = item.get("coord", "image")
@@ -335,9 +371,13 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
     summary = {
         "gdt_rows": len(rows),
         "gdt_confirmed": sum(1 for c in changes if c["action"] == "confirmed"),
-        "gdt_edited": sum(1 for c in changes if c["action"] == "edited"),
+        "gdt_edited": sum(
+            1 for c in changes
+            if c["type"] == "GDT" and c["action"] == "edited"
+        ),
         "gdt_unreviewed": len(missing),
         "dimensions_ocr": len(doc.dims) - len(added_specs),
+        "dimensions_edited": sum(1 for c in changes if c["type"] == "DIMENSION" and c["action"] == "edited"),
         "dimensions_added": len(added_specs),
     }
     log = {
@@ -353,3 +393,73 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
         "warnings": warnings,
     }
     return reviewed, log
+
+
+# ---------------------------------------------------------------------------
+# 화면 항목 → edits  (팀 화면은 도면 추출 JSON 의 항목 목록을 그대로 들고 있다)
+# ---------------------------------------------------------------------------
+_SCREEN_DIM_RE = re.compile(r"^DIMENSION_(\d+)$")
+_SCREEN_GDT_RE = re.compile(r"^GDT_(\d+)_(\d+)$")
+
+
+def _num_text(value) -> str:
+    if isinstance(value, bool) or value is None:
+        return ""
+    if isinstance(value, (int, float)):
+        text = format(value, "f").rstrip("0").rstrip(".") if isinstance(value, float) else str(value)
+        return text or "0"
+    return str(value).strip()
+
+
+def edits_from_items(origin_txt: str, items: List[dict], reviewer: str = "",
+                     frame_offset: Optional[List[int]] = None) -> Tuple[dict, List[str]]:
+    """화면에 보이는 최종 항목 목록 → apply_review 용 edits (+ 경고).
+
+    항목 id 규칙 (ocr_to_metadata.py 와 같음)
+      GDT_001_2      → 기하공차 01번 틀 2번째 줄 (G01-2)   값: tolerance_value 또는 raw_text '기호|값|데이텀'
+      DIMENSION_006  → 원본 TXT 치수 6번 (D06)            raw_text 가 원본과 다르면 '값 수정'
+      DIMENSION_018  → 원본에 없는 번호면 '추가' (검수 때 추가된 치수)
+      그 밖의 id (관리자가 추가한 ADM1 등) → '추가'.  위치 position 은 이미지 픽셀
+    """
+    doc = OcrTxt.parse(origin_txt)
+    origin_dims = {d.no: d for d in doc.dims}
+    warnings: List[str] = []
+    edits: dict = {"reviewer": reviewer, "gdt": [], "dimensions": [], "added_dimensions": []}
+    if frame_offset:
+        edits["frame_offset"] = [int(v) for v in frame_offset]
+    seen_dims = set()
+    for item in items or []:
+        iid = str(item.get("id", ""))
+        cat = str(item.get("category", "")).upper()
+        raw = str(item.get("raw_text") or "").strip()
+        g = _SCREEN_GDT_RE.match(iid)
+        if cat == "GDT" or g:
+            if not g:
+                warnings.append(f"{iid}: 기하공차 id 형식이 아니라 건너뜀")
+                continue
+            cells = raw.split("|")
+            value = _num_text(item.get("tolerance_value")) or (cells[1].strip() if len(cells) > 1 else "")
+            row = {"item_id": gdt_item_id(int(g.group(1)), int(g.group(2))), "value": value}
+            if isinstance(item.get("datum_references"), list):
+                row["datums"] = [str(d).strip().upper() for d in item["datum_references"] if str(d).strip()]
+            edits["gdt"].append(row)
+            continue
+        if cat and cat != "DIMENSION":
+            continue
+        d = _SCREEN_DIM_RE.match(iid)
+        no = int(d.group(1)) if d else None
+        if no is not None and no in origin_dims:
+            seen_dims.add(no)
+            if raw and raw != origin_dims[no].text:
+                edits["dimensions"].append({"item_id": f"D{no:02d}", "text": raw})
+            continue
+        pos = item.get("position") or {}
+        if not raw or pos.get("x") is None or pos.get("y") is None:
+            warnings.append(f"{iid}: 추가 치수인데 값이나 위치가 없어 건너뜀")
+            continue
+        edits["added_dimensions"].append({"text": raw, "x": pos["x"], "y": pos["y"], "coord": "image",
+                                          "source_id": iid})
+    missing = [f"D{no:02d}" for no in origin_dims if no not in seen_dims]
+    if missing:
+        warnings.append("화면에 없는 OCR 치수 (그대로 둠): " + ", ".join(missing))
+    return edits, warnings

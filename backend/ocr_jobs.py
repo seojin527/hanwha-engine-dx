@@ -174,5 +174,12 @@ class OcrWorker:
         metadata=convert(txt.read_text(encoding='utf-8-sig'),drawing['drawing_id'],jpg.name)
         metadata['source_filename']=drawing['original_filename']
         (output/'metadata.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
+        
+        # 실제 OCR 원본을 도면 ID로 검수 API에 연결한다.
+        review_origin_dir = ROOT / "data" / "origin"
+        review_origin_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(txt, review_origin_dir / f"{drawing['drawing_id']}_origin.txt")
+        shutil.copy2(jpg, review_origin_dir / f"{drawing['drawing_id']}_result.jpg")
+
         save_ocr_result(drawing['drawing_id'],metadata,jpg.read_bytes())
         self.update(job['job_id'],status='completed',stage='OCR 결과 저장 완료',error='')
