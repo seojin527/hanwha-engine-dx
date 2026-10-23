@@ -33,6 +33,7 @@ export function DrawingLibrary({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const deletingRef = useRef(false);
 
@@ -44,12 +45,16 @@ export function DrawingLibrary({
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (!uploadRequest) return;
-    if (inputRef.current?.disabled) return;
+        if (!uploadRequest) return;
+
     if (!selectedPartRef.current) {
+      setLibraryOpen(true);
       setError("도면을 등록할 부품을 먼저 선택해주세요.");
       return;
     }
+
+    if (inputRef.current?.disabled) return;
+
     inputRef.current?.click();
   }, [uploadRequest]);
 
@@ -244,6 +249,7 @@ export function DrawingLibrary({
 
     if (drawing) {
       onSelectDrawing(drawing, drawingFileUrl(drawing));
+      setLibraryOpen(false);
     } else {
       onClearDrawing();
     }
@@ -362,7 +368,34 @@ export function DrawingLibrary({
 
 
     return (
-    <section className="shrink-0 border-b border-slate-700 bg-slate-900 text-white">
+        <section className="shrink-0 border-b border-slate-700 bg-slate-900 text-white">
+      <button
+        type="button"
+        aria-expanded={libraryOpen}
+        aria-controls="drawing-library-controls"
+        onClick={() => setLibraryOpen((previous) => !previous)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-xs hover:bg-slate-800"
+      >
+        <span className="min-w-0 truncate">
+          <span className="font-bold text-cyan-300">
+            부품·도면 관리
+          </span>
+          <span className="ml-3 text-slate-300">
+            {parts.find((part) => part.part_id === selectedPartId)?.name ||
+              "부품 미선택"}
+            {" / "}
+            {drawings.find(
+              (drawing) => drawing.drawing_id === selectedDrawingId,
+            )?.original_filename || "도면 미선택"}
+          </span>
+        </span>
+
+        <span className="shrink-0 text-slate-400">
+          {libraryOpen ? "접기 ▴" : "변경·등록 ▾"}
+        </span>
+      </button>
+
+      <div id="drawing-library-controls" hidden={!libraryOpen}>
       <div className="grid gap-3 px-4 py-3 lg:grid-cols-2">
         <div className="min-w-0 space-y-2">
           <div className="flex items-center justify-between">
@@ -580,6 +613,7 @@ export function DrawingLibrary({
           </div>
         </details>
       )}
+      </div>
 
       {deleting && (
         <p role="status" className="px-4 pb-2 text-xs text-slate-300">
