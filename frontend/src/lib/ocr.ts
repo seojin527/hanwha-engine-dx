@@ -16,6 +16,9 @@ export interface OcrItem {
   requires_review?: boolean;
   coordinate_requires_review?: boolean;
   review_reasons?: string[];
+  measurement_mode?: "numeric" | "gauge";
+  gauge_criteria?: string;
+  instrument?: string;
 }
 export interface OcrDocument {
   review_status?: string;

@@ -21,6 +21,13 @@ import DrawingReviewHistory from "./components/DrawingReviewHistory";
 
 import { ResizablePanels } from "./components/ResizablePanels";
 
+import {
+  fetchMeasurements,
+  type MeasurementRecord,
+  type SavedMeasurement,
+} from "./lib/measurementAPI";
+
+
 import DrawingReviewPanel from "./components/DrawingReviewPanel";
 import {
   fetchDrawingReview,
@@ -60,6 +67,12 @@ export function App() {
   const [reviewFiles, setReviewFiles] = useState<ReviewResultFile[]>([]);
   const [generatingFiles, setGeneratingFiles] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [measurementData, setMeasurementData] = useState<{
+    target: string;
+    records: Record<string, MeasurementRecord>;
+  }>({ target: "", records: {} });
+
+  const [measurementError, setMeasurementError] = useState("");
   const [previewFile, setPreviewFile] = useState<ReviewResultFile | null>(null);
   const filePreviewDialog = useRef<HTMLDialogElement>(null);
   const [pickingPosition, setPickingPosition] = useState(false);
@@ -96,6 +109,99 @@ export function App() {
     ? null
     : selectedDrawing?.drawing_id || null;
   const reviewRevision = ocr.snapshot?.revision;
+  
+  const measurementTarget = `${reviewDrawingId}:${reviewRevision}`;
+  const activeMeasurementTarget = useRef(measurementTarget);
+  activeMeasurementTarget.current = measurementTarget;
+
+  const measurementRecords =
+    measurementData.target === measurementTarget
+      ? measurementData.records
+      : {};
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setMeasurementError("");
+
+    if (!reviewDrawingId || !reviewRevision) return;
+
+    const target = `${reviewDrawingId}:${reviewRevision}`;
+
+    fetchMeasurements(
+      reviewDrawingId,
+      reviewRevision,
+      controller.signal,
+    )
+      .then((response) => {
+        if (
+          controller.signal.aborted ||
+          activeMeasurementTarget.current !== target
+        ) {
+          return;
+        }
+
+        if (
+          response.drawing_id !== reviewDrawingId ||
+          response.revision !== reviewRevision
+        ) {
+          throw new Error("측정 결과의 버전이 일치하지 않습니다.");
+        }
+
+        const records = Object.fromEntries(
+          response.records.map((record) => [record.item_id, record]),
+        );
+
+        setMeasurementData((previous) => ({
+          target,
+          records: {
+            ...records,
+            ...(previous.target === target ? previous.records : {}),
+          },
+        }));
+      })
+      .catch((cause: unknown) => {
+        if (
+          !controller.signal.aborted &&
+          activeMeasurementTarget.current === target
+        ) {
+          setMeasurementError(
+            cause instanceof Error ? cause.message : "측정 결과 조회 실패",
+          );
+        }
+      });
+
+    return () => controller.abort();
+  }, [reviewDrawingId, reviewRevision]);
+
+  function handleMeasurementSaved(record: SavedMeasurement) {
+    const target = `${record.drawing_id}:${record.revision}`;
+
+    if (activeMeasurementTarget.current !== target) return;
+
+    setMeasurementData((previous) => ({
+      target,
+      records: {
+        ...(previous.target === target ? previous.records : {}),
+        [record.item_id]: record,
+      },
+    }));
+  }
+
+  const ocrInspectionRecords = Object.fromEntries(
+    ocrPoints.map((point) => {
+      const record = measurementRecords[point.source.id];
+
+      return [
+        point.id,
+        {
+          status:
+            document?.review_status !== "reviewed"
+              ? "review_required"
+              : record?.status ?? "pending",
+        },
+      ];
+    }),
+  );
   const workerBlocked =
     !demoMode &&
     !reviewOpen &&
@@ -439,6 +545,14 @@ export function App() {
       </div>
 
       {!demoMode && ocr.error && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{ocr.error}</p>}
+            {!demoMode && measurementError && (
+        <p
+          role="alert"
+          className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200"
+        >
+          측정 결과 조회 실패: {measurementError}
+        </p>
+      )}
       {!demoMode && document?.image.coordinate_status === 'UNVERIFIED' && <p className="shrink-0 bg-amber-950 px-4 py-1 text-[11px] text-amber-200">좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.</p>}
       {!demoMode && reviewNotice && (
         <p
@@ -579,7 +693,7 @@ export function App() {
             coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
             selectedPointId={demoMode ? selectedPointId : activeOcrPoint?.id || 0}
             onSelectPoint={demoMode ? selectPoint : setSelectedPointId}
-            inspectionRecords={demoMode ? inspectionRecords : {}}
+            inspectionRecords={demoMode ? inspectionRecords : ocrInspectionRecords}
             isAnalyzing={!demoMode && ocr.status === "applying"}
             analyzingStep={0}
             analyzingStage={ocr.stage}
@@ -606,8 +720,16 @@ export function App() {
               }}
             />
           ) : document ? (
-            <OcrMeasurementTable points={filteredOcrPoints} selectedId={activeOcrPoint?.id || 0}
-              onSelect={setSelectedPointId} title={document.part_name || '도면'} />
+            <OcrMeasurementTable
+              points={filteredOcrPoints}
+              selectedId={activeOcrPoint?.id || 0}
+              onSelect={setSelectedPointId}
+              title={document.part_name || "도면"}
+              records={measurementRecords}
+              reviewed={document.review_status === "reviewed"}
+            />
+            
+              
           ) : (
             <section className="shrink-0 border-t border-slate-700 bg-slate-900 p-4">
               <h2 className="text-sm font-semibold text-white">
@@ -676,8 +798,14 @@ export function App() {
               onSelectItemId={setSelectedItemId}
             />
           ) : document && selectedDrawing && ocr.snapshot?.revision ? (
-            <OcrDetailPanel drawingId={selectedDrawing.drawing_id} revision={ocr.snapshot.revision}
-              point={activeOcrPoint} total={ocrPoints.length} onNavigate={navigateOcr} />
+            <OcrDetailPanel
+              drawingId={selectedDrawing.drawing_id}
+              revision={ocr.snapshot.revision}
+              point={activeOcrPoint}
+              total={ocrPoints.length}
+              onNavigate={navigateOcr}
+              onMeasurementSaved={handleMeasurementSaved}
+            />
           ) : (
             <section className="space-y-4 p-5">
               <h2 className="text-sm font-bold text-slate-900">

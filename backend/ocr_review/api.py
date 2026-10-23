@@ -24,6 +24,7 @@ import json
 import os
 import re
 from typing import Any, Dict, List, Optional
+import math
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -234,7 +235,152 @@ class DrawingReviewInput(BaseModel):
     reviewer: str = ""
     confirmed_item_ids: List[str]
     edits: Dict[str, Any]
+    inspection_settings: Optional[Dict[str, Dict[str, Any]]] = None
 
+def apply_inspection_settings(item: dict, setting: dict) -> dict:
+    allowed = {
+        "measurement_mode",
+        "feature_type",
+        "nominal_value",
+        "upper_deviation",
+        "lower_deviation",
+        "unit",
+        "instrument",
+        "gauge_criteria",
+        "position_confirmed",
+    }
+
+    unknown = set(setting) - allowed
+    if unknown:
+        raise HTTPException(
+            422,
+            f"{item['id']}: 지원하지 않는 검사 기준 {sorted(unknown)}",
+        )
+
+    mode = setting.get("measurement_mode")
+
+    if mode not in ("numeric", "gauge"):
+        raise HTTPException(
+            422,
+            f"{item['id']}: 실측값 또는 게이지 방식을 선택해주세요.",
+        )
+
+    feature = setting.get("feature_type")
+    if feature not in {
+        "HOLE", "SHAFT", "PLANE", "SLOT",
+        "THREAD", "EDGE", "RADIUS", "CHAMFER",
+    }:
+        raise HTTPException(
+            422,
+            f"{item['id']}: 측정 형상을 선택해주세요.",
+        )
+
+    if setting.get("position_confirmed") is not True:
+        raise HTTPException(
+            422,
+            f"{item['id']}: 도면의 측정 위치를 확인해주세요.",
+        )
+
+    instrument = setting.get("instrument", "")
+    if not isinstance(instrument, str) or not instrument.strip():
+        raise HTTPException(
+            422,
+            f"{item['id']}: 사용할 측정기를 입력해주세요.",
+        )
+
+    result = dict(item)
+    result["measurement_mode"] = mode
+    result["feature_type"] = feature
+    result["instrument"] = instrument.strip()
+
+    if mode == "numeric":
+        if item.get("category") != "DIMENSION":
+            raise HTTPException(
+                422,
+                f"{item['id']}: 기하공차의 숫자 판정은 별도 기준 연결이 필요합니다.",
+            )
+
+        def number(name: str) -> float:
+            value = setting.get(name)
+
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
+                raise HTTPException(
+                    422,
+                    f"{item['id']}: 기준치수와 상한·하한 편차를 숫자로 입력해주세요.",
+                )
+
+            return float(value)
+
+        nominal = number("nominal_value")
+        upper = number("upper_deviation")
+        lower = number("lower_deviation")
+
+        if nominal < 0:
+            raise HTTPException(
+                422,
+                f"{item['id']}: 기준치수는 0 이상이어야 합니다.",
+            )
+
+        if lower > upper:
+            raise HTTPException(
+                422,
+                f"{item['id']}: 하한 편차가 상한 편차보다 큽니다.",
+            )
+
+        unit = setting.get("unit")
+        if not isinstance(unit, str) or not unit.strip():
+            raise HTTPException(
+                422,
+                f"{item['id']}: 측정 단위를 입력해주세요.",
+            )
+
+        # 부호를 포함한 편차를 그대로 더한다.
+        low = nominal + lower
+        high = nominal + upper
+
+        if not math.isfinite(low) or not math.isfinite(high):
+            raise HTTPException(
+                422,
+                f"{item['id']}: 허용범위가 유효하지 않습니다.",
+            )
+
+        result.update({
+            "nominal_value": nominal,
+            "upper_deviation": upper,
+            "lower_deviation": lower,
+            "lower_limit": round(low, 12),
+            "upper_limit": round(high, 12),
+            "unit": unit.strip(),
+            "tol_type": "DIMENSION",
+            "gauge_criteria": "",
+        })
+
+    else:
+        criteria = setting.get("gauge_criteria")
+        if not isinstance(criteria, str) or not criteria.strip():
+            raise HTTPException(
+                422,
+                f"{item['id']}: 게이지 검사 기준을 입력해주세요.",
+            )
+
+        result["gauge_criteria"] = criteria.strip()
+
+    # 검사 기준과 위치가 명시적으로 확인된 항목만 확정한다.
+    # 기존 OCR 경고는 원본 기록으로 남긴다.
+    result.setdefault(
+        "ocr_review_reasons",
+        list(item.get("review_reasons") or []),
+    )
+    result["requires_review"] = False
+    result["coordinate_requires_review"] = False
+    result["review_reasons"] = []
+    result["inspection_approved"] = True
+
+    return result
 
 def _drawing_origin_text(drawing_id: str, document: dict) -> str:
     # 재검수: 직전 검수에서 수정·추가한 내용을 이어서 사용한다.
@@ -357,6 +503,50 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
             # 값이 바뀐 항목은 main 변환기로 기준·허용범위를 다시 계산한다.
             items.append(item)
 
+        if req.inspection_settings is not None:
+            settings = req.inspection_settings
+            current_ids = {item["id"] for item in items}
+
+            unknown_ids = set(settings) - current_ids
+            if unknown_ids:
+                raise HTTPException(
+                    422,
+                    f"현재 도면에 없는 검사 항목입니다: {sorted(unknown_ids)}",
+                )
+
+            updated_items = []
+
+            for item in items:
+                setting = settings.get(item["id"])
+
+                if setting is None:
+                    updated_items.append(item)
+                    continue
+
+                updated = apply_inspection_settings(item, setting)
+                updated_items.append(updated)
+
+                before = {
+                    field: item.get(field)
+                    for field in setting
+                }
+                after = {
+                    field: updated.get(field)
+                    for field in setting
+                    if field != "position_confirmed"
+                }
+                after["position_confirmed"] = True
+
+                log.setdefault("changes", []).append({
+                    "item_id": item["id"],
+                    "type": "INSPECTION",
+                    "action": "edited",
+                    "before": json.dumps(before, ensure_ascii=False),
+                    "after": json.dumps(after, ensure_ascii=False),
+                })
+
+            items = updated_items
+
     saved = save_reviewed_items(
         drawing_id,
         items,
@@ -436,6 +626,6 @@ def export_drawing_review(drawing_id: str, req: DrawingExportInput):
         **result_list(name),
     }
 
-    
+
 # 위에서 독립 실행용 app에 router를 등록한 뒤 추가된 경로도 반영한다.
 # 팀 서버(app_auto)는 이 파일의 router를 가져오므로 별도 등록이 필요 없다.

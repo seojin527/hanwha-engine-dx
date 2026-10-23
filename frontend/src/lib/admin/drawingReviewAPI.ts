@@ -51,12 +51,25 @@ export interface DrawingReviewEdits {
     coord: "image";
   }>;
 }
+export interface InspectionSetting {
+  measurement_mode: "numeric" | "gauge";
+  feature_type: string;
+  nominal_value?: number;
+  upper_deviation?: number;
+  lower_deviation?: number;
+  unit: string;
+  instrument: string;
+  gauge_criteria: string;
+  position_confirmed: boolean;
+}
+
 
 export interface DrawingReviewRequest {
   revision: string;
   reviewer: string;
   confirmed_item_ids: string[];
   edits: DrawingReviewEdits;
+  inspection_settings?: Record<string, InspectionSetting>;
 }
 
 export interface ReviewLog {

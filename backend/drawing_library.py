@@ -55,6 +55,19 @@ def init_library():
             )
         """)
 
+        for table in ("parts", "drawings"):
+            columns = {
+                row["name"]
+                for row in db.execute(
+                    f"PRAGMA table_info({table})"
+                ).fetchall()
+            }
+
+            if "deleted_at" not in columns:
+                db.execute(
+                    f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT"
+                )
+
         # 처음 시작할 때 기본 부품만 등록
         db.execute(
             "INSERT OR IGNORE INTO parts (part_id, name) VALUES (?, ?)",
@@ -73,11 +86,13 @@ def list_parts():
             SELECT p.part_id, p.name, p.created_at,
                    COUNT(d.drawing_id) AS drawing_count
             FROM parts p
-            LEFT JOIN drawings d ON d.part_id = p.part_id
+            LEFT JOIN drawings d
+                ON d.part_id = p.part_id
+               AND d.deleted_at IS NULL
+            WHERE p.deleted_at IS NULL
             GROUP BY p.part_id
             ORDER BY p.created_at, p.part_id
         """).fetchall()
-
     return {"parts": [dict(row) for row in rows]}
 
 
@@ -124,7 +139,7 @@ ALLOWED_TYPES = {
 def list_drawings(part_id: str):
     with database() as db:
         part = db.execute(
-            "SELECT part_id FROM parts WHERE part_id = ?",
+            "SELECT part_id FROM parts WHERE part_id = ? AND deleted_at IS NULL",
             (part_id,),
         ).fetchone()
 
@@ -134,7 +149,7 @@ def list_drawings(part_id: str):
         rows = db.execute(
             """
             SELECT * FROM drawings
-            WHERE part_id = ?
+            WHERE part_id = ? AND deleted_at IS NULL
             ORDER BY created_at DESC, drawing_id
             """,
             (part_id,),
@@ -162,7 +177,7 @@ def upload_drawing(
     try:
         with database() as db:
             part = db.execute(
-                "SELECT part_id FROM parts WHERE part_id = ?",
+                "SELECT part_id FROM parts WHERE part_id = ? AND deleted_at IS NULL",
                 (part_id,),
             ).fetchone()
 
@@ -265,7 +280,7 @@ def upload_drawing(
 def get_drawing_file(drawing_id: str):
     with database() as db:
         row = db.execute(
-            "SELECT * FROM drawings WHERE drawing_id = ?",
+            "SELECT * FROM drawings WHERE drawing_id = ? AND deleted_at IS NULL",
             (drawing_id,),
         ).fetchone()
 
@@ -283,3 +298,102 @@ def get_drawing_file(drawing_id: str):
         filename=row["original_filename"],
         content_disposition_type="inline",
     )
+
+def ensure_no_active_ocr(db, drawing_ids):
+    if not drawing_ids:
+        return
+
+    has_jobs = db.execute("""
+        SELECT 1 FROM sqlite_master
+        WHERE type='table' AND name='ocr_jobs'
+    """).fetchone()
+
+    if not has_jobs:
+        return
+
+    for drawing_id in drawing_ids:
+        active = db.execute("""
+            SELECT 1 FROM ocr_jobs
+            WHERE drawing_id=?
+              AND status IN ('queued', 'running')
+            LIMIT 1
+        """, (drawing_id,)).fetchone()
+
+        if active:
+            raise HTTPException(
+                409,
+                "OCR 대기·실행 중인 도면이 있습니다. 완료 후 삭제해주세요.",
+            )
+
+
+@router.delete("/drawings/{drawing_id}")
+def delete_drawing(drawing_id: str):
+    with database() as db:
+        db.execute("BEGIN IMMEDIATE")
+
+        drawing = db.execute("""
+            SELECT drawing_id, part_id
+            FROM drawings
+            WHERE drawing_id=? AND deleted_at IS NULL
+        """, (drawing_id,)).fetchone()
+
+        if drawing is None:
+            raise HTTPException(404, "등록된 도면을 찾을 수 없습니다.")
+
+        ensure_no_active_ocr(db, [drawing_id])
+
+        db.execute("""
+            UPDATE drawings
+            SET deleted_at=CURRENT_TIMESTAMP
+            WHERE drawing_id=?
+        """, (drawing_id,))
+
+    return {
+        "deleted": True,
+        "drawing_id": drawing_id,
+        "part_id": drawing["part_id"],
+        "message": "도면을 목록에서 삭제했습니다. 연결 기록은 보관됩니다.",
+    }
+
+
+@router.delete("/parts/{part_id}")
+def delete_part(part_id: str):
+    with database() as db:
+        db.execute("BEGIN IMMEDIATE")
+
+        part = db.execute("""
+            SELECT part_id, name
+            FROM parts
+            WHERE part_id=? AND deleted_at IS NULL
+        """, (part_id,)).fetchone()
+
+        if part is None:
+            raise HTTPException(404, "등록된 부품을 찾을 수 없습니다.")
+
+        drawings = db.execute("""
+            SELECT drawing_id
+            FROM drawings
+            WHERE part_id=? AND deleted_at IS NULL
+        """, (part_id,)).fetchall()
+
+        drawing_ids = [row["drawing_id"] for row in drawings]
+        ensure_no_active_ocr(db, drawing_ids)
+
+        db.execute("""
+            UPDATE drawings
+            SET deleted_at=CURRENT_TIMESTAMP
+            WHERE part_id=? AND deleted_at IS NULL
+        """, (part_id,))
+
+        db.execute("""
+            UPDATE parts
+            SET deleted_at=CURRENT_TIMESTAMP
+            WHERE part_id=?
+        """, (part_id,))
+
+    return {
+        "deleted": True,
+        "part_id": part_id,
+        "drawing_count": len(drawing_ids),
+        "message": "부품과 연결 도면을 목록에서 삭제했습니다. 기록은 보관됩니다.",
+    }

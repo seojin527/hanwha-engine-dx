@@ -1,8 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
+import {
+  measurementStatusLabels,
+  measurementStatusClasses,
+  type MeasurementRecord,
+} from "../lib/measurementAPI";
 
-export function OcrMeasurementTable({ points, selectedId, onSelect, title }: {
-  points: OcrPoint[]; selectedId: number; onSelect: (id: number) => void; title: string;
+
+export function OcrMeasurementTable({
+  points,
+  selectedId,
+  onSelect,
+  title,
+  records = {},
+  reviewed = false,
+}: {
+  points: OcrPoint[];
+  selectedId: number;
+  onSelect: (id: number) => void;
+  title: string;
+  records?: Record<string, MeasurementRecord>;
+  reviewed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
@@ -25,7 +43,23 @@ export function OcrMeasurementTable({ points, selectedId, onSelect, title }: {
             {points.map((point) => <tr key={point.source.id} data-point={point.id}
               onClick={() => onSelect(point.id)}
               className={`cursor-pointer hover:bg-cyan-50 ${selectedId === point.id ? 'bg-cyan-100/80' : ''}`}>
-              <td className="px-3 py-2"><span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-800">{point.source.requires_review ? '확인 필요' : '추출됨'}</span></td>
+                            <td className="px-3 py-2">
+                <span
+                  className={`whitespace-nowrap rounded px-2 py-1 text-[10px] font-bold ${
+                    !reviewed
+                      ? "bg-amber-100 text-amber-800"
+                      : measurementStatusClasses[
+                          records[point.source.id]?.status ?? "pending"
+                        ]
+                  }`}
+                >
+                  {!reviewed
+                    ? "확인 필요"
+                    : measurementStatusLabels[
+                        records[point.source.id]?.status ?? "pending"
+                      ]}
+                </span>
+              </td>
               <td className="px-3 py-2 font-bold">{point.displayNumber}</td>
               <td className="px-3 py-2">{point.feature.name}</td>
               <td className="px-3 py-2 font-mono font-bold text-cyan-900">{point.source.raw_text}</td>

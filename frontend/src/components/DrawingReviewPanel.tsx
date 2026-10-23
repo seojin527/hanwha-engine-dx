@@ -4,6 +4,7 @@ import {
   type DrawingReviewResponse,
   type DrawingReviewSource,
   type ReviewPreviewMarker,
+  type InspectionSetting,
 } from "../lib/admin/drawingReviewAPI";
 
 interface Props {
@@ -19,6 +20,17 @@ interface GdtEdit {
   value: string;
   symbol: string;
   datums: string;
+}
+interface InspectionDraft {
+  mode: "numeric" | "gauge";
+  feature: string;
+  nominal: string;
+  upper: string;
+  lower: string;
+  unit: string;
+  instrument: string;
+  criteria: string;
+  positionConfirmed: boolean;
 }
 
 interface AddedDimension {
@@ -49,6 +61,8 @@ export default function DrawingReviewPanel({
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState("");
+  const [inspection, setInspection] =
+    useState<Record<string, InspectionDraft>>({});
   const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
 
   const selectedId =
@@ -78,6 +92,24 @@ export default function DrawingReviewPanel({
             value: item.value,
             symbol: item.symbol,
             datums: item.datums.join(", "),
+          },
+        ]),
+      ),
+    );
+      setInspection(
+      Object.fromEntries(
+        source.result.items.map((item) => [
+          item.id,
+          {
+            mode: item.measurement_mode ?? "numeric",
+            feature: item.feature_type ?? "",
+            nominal: String(item.nominal_value ?? ""),
+            upper: String(item.upper_deviation ?? ""),
+            lower: String(item.lower_deviation ?? ""),
+            unit: item.unit ?? "",
+            instrument: item.instrument ?? "",
+            criteria: item.gauge_criteria ?? "",
+            positionConfirmed: false,
           },
         ]),
       ),
@@ -131,6 +163,20 @@ export default function DrawingReviewPanel({
   function invalidate(itemId: string) {
     setConfirmed((previous) => ({ ...previous, [itemId]: false }));
     setError("");
+  }
+  function updateInspection(
+    itemId: string,
+    patch: Partial<InspectionDraft>,
+  ) {
+    setInspection((previous) => ({
+      ...previous,
+      [itemId]: {
+        ...previous[itemId],
+        ...patch,
+      },
+    }));
+
+    invalidate(itemId);
   }
 
   function updateGdt(
@@ -259,12 +305,83 @@ export default function DrawingReviewPanel({
       return;
     }
 
+        const inspectionSettings: Record<string, InspectionSetting> = {};
+
+    for (const item of points) {
+      const draft = inspection[item.id];
+
+      // 체크한 항목의 검사 기준만 적용한다.
+      if (!draft?.positionConfirmed) continue;
+
+      const supportedFeatures = [
+        "HOLE", "SHAFT", "PLANE", "SLOT",
+        "THREAD", "EDGE", "RADIUS", "CHAMFER",
+      ];
+
+      if (!supportedFeatures.includes(draft.feature)) {
+        setError(`${item.id}: 측정 형상을 선택해주세요.`);
+        return;
+      }
+
+      if (!draft.instrument.trim()) {
+        setError(`${item.id}: 사용할 측정기를 입력해주세요.`);
+        return;
+      }
+
+      const setting: InspectionSetting = {
+        measurement_mode: draft.mode,
+        feature_type: draft.feature,
+        unit: draft.unit.trim(),
+        instrument: draft.instrument.trim(),
+        gauge_criteria: draft.criteria.trim(),
+        position_confirmed: true,
+      };
+
+      if (draft.mode === "numeric") {
+        if (item.category !== "DIMENSION") {
+          setError(`${item.id}: 기하공차 숫자 판정은 아직 지원하지 않습니다.`);
+          return;
+        }
+
+        const texts = [draft.nominal, draft.upper, draft.lower];
+        const values = texts.map((text) => Number(text));
+
+        if (
+          texts.some((text) => !text.trim()) ||
+          values.some((value) => !Number.isFinite(value))
+        ) {
+          setError(`${item.id}: 기준치수와 상한·하한 편차를 입력해주세요.`);
+          return;
+        }
+
+        if (!draft.unit.trim()) {
+          setError(`${item.id}: 측정 단위를 입력해주세요.`);
+          return;
+        }
+
+        if (values[0] < 0 || values[2] > values[1]) {
+          setError(`${item.id}: 기준치수와 편차의 범위를 확인해주세요.`);
+          return;
+        }
+
+        setting.nominal_value = values[0];
+        setting.upper_deviation = values[1];
+        setting.lower_deviation = values[2];
+      } else if (!draft.criteria.trim()) {
+        setError(`${item.id}: 게이지 검사 기준을 입력해주세요.`);
+        return;
+      }
+
+      inspectionSettings[item.id] = setting;
+    }
+
     setSaving(true);
     try {
       const result = await saveDrawingReview(source.drawing_id, {
         revision: source.revision,
         reviewer: reviewer.trim(),
         confirmed_item_ids: points.map((item) => item.id),
+        inspection_settings: inspectionSettings,
         edits: {
           gdt: source.review.gdt.map((row) => {
             const edit = gdt[row.item_id];
@@ -571,6 +688,173 @@ export default function DrawingReviewPanel({
                     >
                       마지막 저장값으로 되돌리기
                     </button>
+                  </div>
+                )} 
+
+                                {inspection[item.id] && (
+                  <div className="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50/40 p-3">
+                    <h4 className="text-sm font-bold text-cyan-900">
+                      작업자 검사 기준
+                    </h4>
+
+                    <label className="block space-y-1 text-xs">
+                      <span>측정 방식</span>
+                      <select
+                        className={inputClass}
+                        value={inspection[item.id].mode}
+                        onChange={(event) =>
+                          updateInspection(item.id, {
+                            mode: event.target.value as "numeric" | "gauge",
+                          })
+                        }
+                      >
+                        <option value="numeric">실측값 입력</option>
+                        <option value="gauge">게이지 검사</option>
+                      </select>
+                    </label>
+
+                    <label className="block space-y-1 text-xs">
+                      <span>측정 형상</span>
+                      <select
+                        className={inputClass}
+                        value={inspection[item.id].feature}
+                        onChange={(event) =>
+                          updateInspection(item.id, {
+                            feature: event.target.value,
+                          })
+                        }
+                      >
+                        <option value="">선택해주세요</option>
+                        <option value="UNKNOWN">미확정</option>
+                        <option value="HOLE">구멍</option>
+                        <option value="SHAFT">축·외경</option>
+                        <option value="PLANE">평면·길이 측정면</option>
+                        <option value="SLOT">홈</option>
+                        <option value="THREAD">나사</option>
+                        <option value="EDGE">모서리</option>
+                        <option value="RADIUS">반지름</option>
+                        <option value="CHAMFER">모따기</option>
+                      </select>
+                    </label>
+
+                    {inspection[item.id].mode === "numeric" ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="space-y-1 text-xs">
+                            <span>기준치수</span>
+                            <input
+                              className={inputClass}
+                              inputMode="decimal"
+                              value={inspection[item.id].nominal}
+                              onChange={(event) =>
+                                updateInspection(item.id, {
+                                  nominal: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-xs">
+                            <span>단위</span>
+                            <input
+                              className={inputClass}
+                              placeholder="예: mm"
+                              value={inspection[item.id].unit}
+                              onChange={(event) =>
+                                updateInspection(item.id, {
+                                  unit: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-xs">
+                            <span>상한 편차 · 부호 포함</span>
+                            <input
+                              className={inputClass}
+                              inputMode="decimal"
+                              placeholder="예: +0.2"
+                              value={inspection[item.id].upper}
+                              onChange={(event) =>
+                                updateInspection(item.id, {
+                                  upper: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-xs">
+                            <span>하한 편차 · 부호 포함</span>
+                            <input
+                              className={inputClass}
+                              inputMode="decimal"
+                              placeholder="예: -0.2"
+                              value={inspection[item.id].lower}
+                              onChange={(event) =>
+                                updateInspection(item.id, {
+                                  lower: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                        </div>
+
+                        <p className="text-[11px] text-slate-600">
+                          허용범위는 기준치수에 각 편차를 더해 계산합니다.
+                          도면에 명시되거나 적용이 확인된 공차를 입력해주세요.
+                        </p>
+
+                        {item.category !== "DIMENSION" && (
+                          <p className="text-xs text-amber-800">
+                            기하공차의 숫자 판정은 아직 지원하지 않습니다.
+                            실제 검사 방식에 맞는 기준 연결이 필요합니다.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <label className="block space-y-1 text-xs">
+                        <span>게이지 검사 기준</span>
+                        <textarea
+                          className={inputClass}
+                          rows={3}
+                          placeholder="사용할 게이지 규격과 적합·부적합 조건을 입력하세요."
+                          value={inspection[item.id].criteria}
+                          onChange={(event) =>
+                            updateInspection(item.id, {
+                              criteria: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                    )}
+
+                    <label className="block space-y-1 text-xs">
+                      <span>사용 측정기</span>
+                      <input
+                        className={inputClass}
+                        placeholder="예: 버니어 캘리퍼스"
+                        value={inspection[item.id].instrument}
+                        onChange={(event) =>
+                          updateInspection(item.id, {
+                            instrument: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+
+                    <label className="flex items-start gap-2 text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={inspection[item.id].positionConfirmed}
+                        onChange={(event) =>
+                          updateInspection(item.id, {
+                            positionConfirmed: event.currentTarget.checked,
+                          })
+                        }
+                      />
+                      도면의 측정 위치와 위 검사 기준을 확인했습니다.
+                      이 기준을 작업자 판정에 적용합니다.
+                    </label>
                   </div>
                 )}
 
