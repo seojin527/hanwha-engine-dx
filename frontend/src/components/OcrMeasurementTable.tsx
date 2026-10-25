@@ -5,6 +5,7 @@ import {
   measurementStatusClasses,
   type MeasurementRecord,
 } from "../lib/measurementAPI";
+import { FEATURE_LABEL } from "../lib/inspection/instruments";
 
 
 export function OcrMeasurementTable({
@@ -63,8 +64,8 @@ export function OcrMeasurementTable({
               <td className="px-3 py-2 font-bold">{point.displayNumber}</td>
               <td className="px-3 py-2">{point.feature.name}</td>
               <td className="px-3 py-2 font-mono font-bold text-cyan-900">{point.source.raw_text}</td>
-              <td className="px-3 py-2 text-slate-600">{point.source.feature_type === 'UNKNOWN' ? '미확정' : point.source.feature_type || '미확정'}</td>
-              <td className="px-3 py-2">{toleranceText(point.source)}</td>
+              <td className="px-3 py-2 text-slate-600">{FEATURE_LABEL[point.source.feature_type ?? ''] ?? '미확정'}</td>
+              <td className="px-3 py-2">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : toleranceText(point.source)}</td>
             </tr>)}
             {!points.length && <tr><td colSpan={6} className="p-5 text-center text-slate-400">검색 조건에 맞는 항목이 없습니다.</td></tr>}
           </tbody>

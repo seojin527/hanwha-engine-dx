@@ -54,6 +54,8 @@ export interface DrawingReviewEdits {
 export interface InspectionSetting {
   measurement_mode: "numeric" | "gauge";
   feature_type: string;
+  /** 실측값 방식의 공차 출처. drawing·general은 서버가 표기에서 다시 계산한다. */
+  tolerance_source?: "drawing" | "general" | "special";
   nominal_value?: number;
   upper_deviation?: number;
   lower_deviation?: number;
@@ -89,6 +91,8 @@ export interface ReviewLog {
 export interface DrawingReviewResponse {
   snapshot: OcrSnapshot;
   log: ReviewLog;
+  /** 결과 파일 자동 생성이 실패했을 때 이유 (검토 저장은 된 상태) */
+  files_error?: string | null;
 }
 
 async function readResponse<T>(response: Response): Promise<T> {
@@ -167,20 +171,24 @@ export interface ReviewResultFile {
   updated_at?: number;
 }
 
-export async function generateDrawingReviewFiles(
+export interface ReviewFileList {
+  drawing_id: string;
+  revision: string;
+  files: ReviewResultFile[];
+  error?: string | null;
+}
+
+/** 검토 완료 때 자동으로 만들어진 결과 파일 목록 (정답본·기록·이미지·작업자 입력 JSON·누적 CSV). */
+export async function fetchDrawingReviewFiles(
   drawingId: string,
   revision: string,
-): Promise<{ files: ReviewResultFile[] }> {
+  signal?: AbortSignal,
+): Promise<ReviewFileList> {
   const response = await fetch(
     apiUrl(
-      `/api/ocr-review/drawing/${encodeURIComponent(drawingId)}/export`,
+      `/api/ocr-review/drawing/${encodeURIComponent(drawingId)}/files?revision=${encodeURIComponent(revision)}`,
     ),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ revision }),
-    },
+    { signal },
   );
-
-  return readResponse<{ files: ReviewResultFile[] }>(response);
+  return readResponse<ReviewFileList>(response);
 }

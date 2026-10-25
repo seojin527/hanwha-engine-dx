@@ -8,6 +8,9 @@ import {
   type MeasurementRecord,
   type SavedMeasurement,
 } from "../lib/measurementAPI";
+import InstrumentSelect from "./review/InstrumentSelect";
+import { recommendedInstruments } from "../lib/inspection/instruments";
+import { formatNumber } from "../lib/inspection/tolerance";
 
 interface Props {
   drawingId: string;
@@ -16,19 +19,20 @@ interface Props {
   onSaved?: (record: SavedMeasurement) => void;
 }
 
-export default function OcrMeasurementEntry({
-  drawingId,
-  revision,
-  item,
-  onSaved,
-}: Props) {
+const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+
+/**
+ * 작업자 측정 입력.
+ * - 실측값: 관리자가 정한 허용 범위(기준치수 ± 공차) 안이면 [합격], 밖이면 [불합격]만 눌린다.
+ * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
+ * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
+ */
+export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
-  const [gauge, setGauge] = useState<"pass" | "fail" | null>(null);
   const [instrument, setInstrument] = useState(item.instrument ?? "");
   const [note, setNote] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
   const [record, setRecord] = useState<MeasurementRecord | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,9 +53,7 @@ export default function OcrMeasurementEntry({
     setLoading(true);
     setError("");
     setRecord(null);
-    setConfirmed(false);
     setValue("");
-    setGauge(null);
     setInstrument(item.instrument ?? "");
     setNote("");
     setDirty(false);
@@ -59,32 +61,20 @@ export default function OcrMeasurementEntry({
     fetchMeasurements(drawingId, revision, controller.signal)
       .then((response) => {
         if (controller.signal.aborted) return;
-
-        if (
-          response.drawing_id !== drawingId ||
-          response.revision !== revision
-        ) {
+        if (response.drawing_id !== drawingId || response.revision !== revision) {
           throw new Error("측정 결과의 버전이 일치하지 않습니다.");
         }
-
-        const saved =
-          response.records.find((entry) => entry.item_id === item.id) ?? null;
-
+        const saved = response.records.find((entry) => entry.item_id === item.id) ?? null;
         setRecord(saved);
-
         if (saved) {
           setValue(saved.measured_value);
-          setGauge(saved.gauge_result);
           setInstrument(saved.instrument);
           setNote(saved.note);
-          setConfirmed(saved.confirmed);
         }
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
-          setError(
-            cause instanceof Error ? cause.message : "측정 결과 조회 실패",
-          );
+          setError(cause instanceof Error ? cause.message : "측정 결과 조회 실패");
         }
       })
       .finally(() => {
@@ -96,56 +86,55 @@ export default function OcrMeasurementEntry({
 
   function markChanged() {
     setDirty(true);
-    setConfirmed(false);
     setError("");
   }
 
-  async function save() {
+  // ------------------------------------------------ 허용 범위 (관리자가 정한 기준치수 ± 공차)
+  const low = typeof item.lower_limit === "number" ? item.lower_limit : null;
+  const high = typeof item.upper_limit === "number" ? item.upper_limit : null;
+  const hasRange = mode === "numeric" && item.inspection_approved === true && low !== null && high !== null;
+  const unit = item.unit || "mm";
+  const trimmed = value.trim();
+  const numeric = NUMBER_RE.test(trimmed) ? Number(trimmed) : null;
+  const EPS = 1e-9;
+  const inRange = hasRange && numeric !== null ? numeric >= low! - EPS && numeric <= high! + EPS : null;
+  const offBy =
+    hasRange && numeric !== null && inRange === false
+      ? numeric > high!
+        ? `상한보다 +${formatNumber(numeric - high!)} ${unit} 큼`
+        : `하한보다 -${formatNumber(low! - numeric)} ${unit} 작음`
+      : "";
+
+  async function save(result: "pass" | "fail" | "record") {
     if (loading || savingRef.current) return;
-
-    if (mode === "numeric" && !value.trim()) {
-      setError("실측값을 입력해주세요.");
-      return;
-    }
-
-    if (mode === "gauge" && !gauge) {
-      setError("게이지 검사 결과를 선택해주세요.");
+    if (mode === "numeric" && numeric === null) {
+      setError("실측값을 숫자로 입력해주세요.");
       return;
     }
 
     savingRef.current = true;
     setSaving(true);
     setError("");
-
     try {
       const saved = await saveMeasurement(drawingId, item.id, {
         revision,
         measurement_mode: mode,
-        measured_value: mode === "numeric" ? value.trim() : "",
-        gauge_result: mode === "gauge" ? gauge : null,
-        confirmed: !dirty && record?.judgement === "pass" && confirmed,
+        measured_value: mode === "numeric" ? trimmed : "",
+        gauge_result: mode === "gauge" ? (result === "pass" ? "pass" : "fail") : null,
+        // 합격이면 바로 측정 완료로 저장한다 (서버도 적합일 때만 완료로 받는다).
+        confirmed: result === "pass",
         instrument: instrument.trim(),
         note: note.trim(),
       });
-
       if (!mounted.current) return;
-
-      if (
-        saved.drawing_id !== drawingId ||
-        saved.revision !== revision ||
-        saved.item_id !== item.id
-      ) {
+      if (saved.drawing_id !== drawingId || saved.revision !== revision || saved.item_id !== item.id) {
         throw new Error("다른 항목의 측정 결과가 반환됐습니다.");
       }
-
       setRecord(saved);
-      setConfirmed(saved.confirmed);
       setDirty(false);
       onSaved?.(saved);
     } catch (cause: unknown) {
-      if (mounted.current) {
-        setError(cause instanceof Error ? cause.message : "측정 저장 실패");
-      }
+      if (mounted.current) setError(cause instanceof Error ? cause.message : "측정 저장 실패");
     } finally {
       savingRef.current = false;
       if (mounted.current) setSaving(false);
@@ -153,13 +142,13 @@ export default function OcrMeasurementEntry({
   }
 
   const currentRecord = dirty ? null : record;
-  const canConfirm = currentRecord?.judgement === "pass";
-  const inputClass =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+  const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+  const passClass =
+    "rounded-lg border px-3 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-35";
 
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <h3 className="text-sm font-bold">측정 결과 및 판정</h3>
+    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5">
+      <h3 className="text-xs font-extrabold text-slate-800">측정 입력</h3>
 
       {loading && (
         <p role="status" className="text-xs text-slate-500">
@@ -169,78 +158,75 @@ export default function OcrMeasurementEntry({
 
       <fieldset disabled={loading || saving} className="space-y-3">
         {mode === "gauge" ? (
-          <>
-            <p className="rounded-lg bg-white p-3 text-xs text-slate-600">
-              검사 기준: {item.gauge_criteria || "관리자 설정이 필요합니다."}
-            </p>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                aria-pressed={gauge === "pass"}
-                onClick={() => {
-                  setGauge("pass");
-                  markChanged();
-                }}
-                className={`rounded-lg border px-3 py-2 text-sm font-bold ${
-                  gauge === "pass"
-                    ? "border-emerald-600 bg-emerald-100 text-emerald-800"
-                    : "border-slate-300 bg-white text-slate-600"
-                }`}
-              >
-                검사 적합
-              </button>
-
-              <button
-                type="button"
-                aria-pressed={gauge === "fail"}
-                onClick={() => {
-                  setGauge("fail");
-                  markChanged();
-                }}
-                className={`rounded-lg border px-3 py-2 text-sm font-bold ${
-                  gauge === "fail"
-                    ? "border-red-600 bg-red-100 text-red-700"
-                    : "border-slate-300 bg-white text-slate-600"
-                }`}
-              >
-                검사 부적합
-              </button>
-            </div>
-          </>
+          <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
+            판정 기준: {item.gauge_criteria || "관리자 설정이 필요합니다."}
+          </p>
         ) : (
-          <label className="block space-y-1 text-xs font-semibold">
-            <span>실측값 ({item.unit || "단위 확인 필요"})</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={value}
-              placeholder="실제 측정한 값을 입력하세요"
-              onChange={(event) => {
-                setValue(event.target.value);
-                markChanged();
-              }}
-              className={`${inputClass} ${
-                currentRecord?.judgement === "fail"
-                  ? "border-red-500 bg-red-50"
-                  : currentRecord?.judgement === "pass"
+          <>
+            {hasRange ? (
+              <div className="rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-300">
+                허용 범위{" "}
+                <b className="font-mono text-sm text-cyan-300">
+                  {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
+                </b>
+                {typeof item.nominal_value === "number" && (
+                  <span className="ml-1.5 text-[11px] text-slate-400">(기준 {formatNumber(item.nominal_value)})</span>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+                허용 범위가 지정되지 않아 자동 판정 없이 기록만 합니다.
+              </p>
+            )}
+            <label className="block space-y-1 text-xs font-semibold">
+              <span>실측값 ({unit})</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={value}
+                placeholder="측정한 값을 입력하세요"
+                onChange={(event) => {
+                  setValue(event.target.value);
+                  markChanged();
+                }}
+                className={`${inputClass} font-mono ${
+                  inRange === true
                     ? "border-emerald-500 bg-emerald-50"
-                    : ""
-              }`}
-            />
-          </label>
+                    : inRange === false
+                      ? "border-rose-500 bg-rose-50"
+                      : ""
+                }`}
+              />
+            </label>
+            {trimmed && numeric === null && <p className="text-[11px] text-rose-700">숫자로 입력해주세요.</p>}
+            {inRange === true && <p className="text-[11px] font-semibold text-emerald-700">✓ 허용 범위 안입니다.</p>}
+            {inRange === false && (
+              <p className="text-[11px] font-semibold text-rose-700">✗ 허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
+            )}
+          </>
         )}
 
         <label className="block space-y-1 text-xs">
-          <span>사용 측정기</span>
-          <input
+          <span>
+            사용 측정기 {item.instrument && <span className="text-slate-500">· 관리자 지정: {item.instrument}</span>}
+          </span>
+          <InstrumentSelect
             className={inputClass}
             value={instrument}
-            onChange={(event) => {
-              setInstrument(event.target.value);
+            onChange={(next) => {
+              setInstrument(next);
               markChanged();
             }}
-            placeholder="예: 외경 마이크로미터"
+            recommended={Array.from(
+              new Set([
+                ...(item.instrument ? [item.instrument] : []),
+                ...recommendedInstruments({
+                  feature: item.feature_type,
+                  gdtSymbols:
+                    item.category === "GDT" ? item.raw_text.split("\n").map((row) => row.split("|")[0]) : [],
+                }),
+              ]),
+            )}
           />
         </label>
 
@@ -257,76 +243,59 @@ export default function OcrMeasurementEntry({
           />
         </label>
 
-        {currentRecord ? (
-          <div
-            role="status"
-            className={`space-y-1 rounded-lg p-3 text-xs ${
-              measurementStatusClasses[currentRecord.status]
-            }`}
+        {mode === "numeric" && !hasRange ? (
+          <button
+            type="button"
+            disabled={numeric === null}
+            onClick={() => void save("record")}
+            className="w-full rounded-lg bg-slate-700 px-3 py-2.5 text-sm font-bold text-white disabled:opacity-35"
           >
+            {saving ? "저장 중…" : "측정값 기록"}
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={mode === "numeric" && inRange !== true}
+              onClick={() => void save("pass")}
+              className={`${passClass} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
+            >
+              {saving ? "저장 중…" : "합격"}
+            </button>
+            <button
+              type="button"
+              disabled={mode === "numeric" && inRange !== false}
+              onClick={() => void save("fail")}
+              className={`${passClass} border-rose-600 bg-white text-rose-700 hover:bg-rose-50`}
+            >
+              불합격
+            </button>
+          </div>
+        )}
+        {mode === "numeric" && hasRange && (
+          <p className="text-[10px] text-slate-500">값이 허용 범위 안이면 [합격], 밖이면 [불합격]만 누를 수 있습니다.</p>
+        )}
+
+        {currentRecord ? (
+          <div role="status" className={`space-y-1 rounded-lg p-3 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
             <p className="font-bold">
-              {currentRecord.judgement === "pass"
-                ? "적합"
-                : currentRecord.judgement === "fail"
-                  ? "부적합"
-                  : "판정 보류"}
+              {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
               {" · "}
               {measurementStatusLabels[currentRecord.status]}
+              {currentRecord.measured_value ? ` · ${currentRecord.measured_value} ${unit}` : ""}
             </p>
             <p>{currentRecord.judgement_reason}</p>
-
             {currentRecord.judgement === "fail" && (
-              <p>
-                측정 위치와 측정기를 확인한 뒤 다시 측정해주세요.
-                이전에 저장한 결과는 기록으로 남습니다.
-              </p>
+              <p>측정 위치와 측정기를 확인한 뒤 다시 측정해주세요. 이전 결과는 기록으로 남습니다.</p>
             )}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">
-            {dirty
-              ? "입력값이 변경됐습니다. 결과를 저장하면 서버에서 판정합니다."
-              : "측정 대기 중입니다."}
-          </p>
+          dirty && <p className="text-[11px] text-slate-500">입력값이 바뀌었습니다. 버튼을 누르면 저장됩니다.</p>
         )}
-
-        <label className="flex items-center gap-2 text-xs font-semibold">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            disabled={!canConfirm}
-            onChange={(event) => {
-              setConfirmed(event.currentTarget.checked);
-              setError("");
-            }}
-          />
-          측정 결과를 확인했습니다
-        </label>
-
-        {!canConfirm && (
-          <p className="text-[11px] text-slate-500">
-            결과를 저장하여 적합 판정을 받은 후 확인할 수 있습니다.
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={() => void save()}
-          className="w-full rounded-lg bg-cyan-700 px-3 py-2 text-sm font-bold text-white hover:bg-cyan-800 disabled:opacity-40"
-        >
-          {saving
-            ? "저장 중…"
-            : confirmed && canConfirm
-              ? "측정 확인 및 완료 저장"
-              : "측정 결과 저장·판정"}
-        </button>
       </fieldset>
 
       {error && (
-        <p
-          role="alert"
-          className="whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-xs text-red-700"
-        >
+        <p role="alert" className="whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-xs text-red-700">
           {error}
         </p>
       )}

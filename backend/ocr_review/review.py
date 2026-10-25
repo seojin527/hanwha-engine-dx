@@ -30,6 +30,13 @@ SYMBOL_NAMES = {
 GDT_VALUE_RE = re.compile(r"^\d+\.\d+$")          # OCR 값 형식 검사 (0.012)
 INPUT_VALUE_RE = re.compile(r"^\d+(\.\d+)?$")      # 작업자 입력 허용 (0.01, 1)
 DATUM_RE = re.compile(r"^[A-Z](-[A-Z])?$")
+_NUM = r"\d+(?:\.\d+)?"
+# 작업자가 고치거나 추가한 치수 표기 (ocr_metadata.parse_dimension 이 읽을 수 있는 모양)
+#   M16, M16x1.5 / 26, ⌀12, R5, C0.5 / 26±0.05 / 26 +0.02/-0.01
+DIM_TEXT_RE = re.compile(
+    rf"^(?:M\s*{_NUM}(?:\s*[x×]\s*{_NUM})?"
+    rf"|(?:[⌀Øø]|R|C)?\s*{_NUM}(?:\s*±\s*{_NUM}|\s*[+-]{_NUM}\s*/\s*[+-]{_NUM})?)$"
+)
 KIND_PREFIX = {"length": "", "diameter": "⌀", "radius": "R", "chamfer": "C", "thread": "M"}
 
 
@@ -178,6 +185,10 @@ def compose_dimension_text(item: dict) -> str:
         text = str(item["text"]).strip()
         if "\n" in text or not re.search(r"\d", text):
             raise ReviewError([f"치수 텍스트에 숫자가 없음: {text!r}"])
+        if not DIM_TEXT_RE.match(text):
+            raise ReviewError([
+                f"치수 표기 형식이 아님: {text!r} (예: 26, ⌀12±0.01, 26 +0.02/-0.01, R5, C0.5, M16)"
+            ])
         return text
     value = str(item.get("value", "")).strip()
     if not INPUT_VALUE_RE.match(value):
@@ -248,6 +259,9 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
         for d in item.get("datums") or []:
             if not DATUM_RE.match(str(d)):
                 errors.append(f"{iid}: 데이텀 형식이 이상함 ({d!r})")
+        symbol = item.get("symbol")
+        if symbol is not None and (len(str(symbol)) != 1 or str(symbol) not in SYMBOL_NAMES):
+            errors.append(f"{iid}: 모르는 기하공차 기호 ({symbol!r})")
         decided[iid] = item
 
     missing = [iid for iid in rows if iid not in decided]
@@ -323,6 +337,8 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
                 "action": "confirmed" if new_row == row else "edited",
                 "before": row, "after": new_row,
                 "format_error": check_row(row)[0] == "format_error",
+                "symbol_changed": new_symbol != symbol,
+                "value_changed": new_value != value,
             })
         new_text = "\n".join(new_rows)
         if new_text != entry.text:

@@ -39,7 +39,8 @@ from .txt_format import TxtFormatError
 from pathlib import Path
 
 from drawing_library import database, UPLOAD_DIR
-from ocr_metadata import convert
+from general_tolerance import GENERAL_LABEL
+from ocr_metadata import convert, parse_dimension
 from ocr_results import (
     read_ocr_result,
     save_reviewed_items,
@@ -237,13 +238,61 @@ class DrawingReviewInput(BaseModel):
     edits: Dict[str, Any]
     inspection_settings: Optional[Dict[str, Dict[str, Any]]] = None
 
+TOLERANCE_SOURCES = {"drawing": "DRAWING", "general": "GENERAL", "special": "SPECIAL"}
+
+FEATURE_KO = {
+    "HOLE": "구멍·내경", "SHAFT": "축·외경", "PLANE": "평면·길이", "SLOT": "홈",
+    "THREAD": "나사", "EDGE": "모서리", "RADIUS": "반지름", "CHAMFER": "모따기",
+}
+SOURCE_KO = {"DRAWING": "도면 공차", "GENERAL": GENERAL_LABEL, "SPECIAL": "특별 공차"}
+
+
+def _num(value) -> str:
+    return format(float(value), "g") if isinstance(value, (int, float)) and not isinstance(value, bool) else str(value)
+
+
+def inspection_summary(item: dict) -> Optional[str]:
+    """확정된 검사 기준을 한 줄로. 예: 실측값 · 평면·길이 · 80 일반공차 ISO 2768-m ±0.3 → 79.7~80.3 mm · 버니어 캘리퍼스"""
+    if not item.get("inspection_approved"):
+        return None
+    parts = []
+    feature = FEATURE_KO.get(item.get("feature_type") or "", item.get("feature_type") or "-")
+    if item.get("measurement_mode") == "numeric":
+        upper, lower = item.get("upper_deviation"), item.get("lower_deviation")
+        if isinstance(upper, (int, float)) and isinstance(lower, (int, float)) and upper == -lower:
+            deviation = f"±{_num(upper)}"
+        else:
+            sign = lambda v: (f"+{_num(v)}" if isinstance(v, (int, float)) and v >= 0 else _num(v))  # noqa: E731
+            deviation = f"{sign(upper)}/{sign(lower)}"
+        source = SOURCE_KO.get(item.get("tolerance_source") or "", "")
+        parts += [
+            "실측값", feature,
+            f"{_num(item.get('nominal_value'))} {source} {deviation} → "
+            f"{_num(item.get('lower_limit'))}~{_num(item.get('upper_limit'))} {item.get('unit') or ''}".strip(),
+        ]
+    else:
+        parts += ["합격/불합격", feature, item.get("gauge_criteria") or "-"]
+    parts.append(item.get("instrument") or "-")
+    return " · ".join(parts)
+
+
+
 def apply_inspection_settings(item: dict, setting: dict) -> dict:
+    """관리자가 확정한 작업자 검사 기준을 항목에 반영한다.
+
+    실측값 방식의 허용 범위는 tolerance_source 로 정한다.
+      drawing : 도면에 적힌 공차 (서버가 원문에서 다시 계산)
+      general : 일반공차 ISO 2768-m (서버가 표에서 계산)
+      special : 관리자가 입력한 특별 공차 (upper/lower_deviation)
+    tolerance_source 가 없으면 이전 방식대로 보낸 기준치수·편차를 그대로 쓴다.
+    """
     allowed = {
         "measurement_mode",
         "feature_type",
         "nominal_value",
         "upper_deviation",
         "lower_deviation",
+        "tolerance_source",
         "unit",
         "instrument",
         "gauge_criteria",
@@ -262,7 +311,7 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
     if mode not in ("numeric", "gauge"):
         raise HTTPException(
             422,
-            f"{item['id']}: 실측값 또는 게이지 방식을 선택해주세요.",
+            f"{item['id']}: 실측값 또는 합격·불합격 기록 방식을 선택해주세요.",
         )
 
     feature = setting.get("feature_type")
@@ -285,7 +334,7 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
     if not isinstance(instrument, str) or not instrument.strip():
         raise HTTPException(
             422,
-            f"{item['id']}: 사용할 측정기를 입력해주세요.",
+            f"{item['id']}: 사용할 측정기를 선택해주세요.",
         )
 
     result = dict(item)
@@ -297,11 +346,11 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
         if item.get("category") != "DIMENSION":
             raise HTTPException(
                 422,
-                f"{item['id']}: 기하공차의 숫자 판정은 별도 기준 연결이 필요합니다.",
+                f"{item['id']}: 기하공차는 합격·불합격 기록 방식으로 지정해주세요.",
             )
 
-        def number(name: str) -> float:
-            value = setting.get(name)
+        def number(name: str, source: dict) -> float:
+            value = source.get(name)
 
             if (
                 isinstance(value, bool)
@@ -315,9 +364,41 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
 
             return float(value)
 
-        nominal = number("nominal_value")
-        upper = number("upper_deviation")
-        lower = number("lower_deviation")
+        source_key = setting.get("tolerance_source")
+        if source_key is None:
+            tolerance_source = "SPECIAL"
+            nominal = number("nominal_value", setting)
+            upper = number("upper_deviation", setting)
+            lower = number("lower_deviation", setting)
+        else:
+            if source_key not in TOLERANCE_SOURCES:
+                raise HTTPException(
+                    422,
+                    f"{item['id']}: 공차 종류는 도면 공차·일반공차·특별 공차 중 하나여야 합니다.",
+                )
+            tolerance_source = TOLERANCE_SOURCES[source_key]
+
+            # 기준치수는 확정된 도면 표기에서 서버가 다시 읽는다.
+            parsed = parse_dimension(item.get("raw_text", ""), item.get("unit"))
+            if parsed["nominal_value"] is None:
+                raise HTTPException(
+                    422,
+                    f"{item['id']}: 치수 표기에서 기준치수를 읽을 수 없습니다. 표기를 먼저 고쳐주세요.",
+                )
+            nominal = float(parsed["nominal_value"])
+
+            if tolerance_source == "SPECIAL":
+                upper = number("upper_deviation", setting)
+                lower = number("lower_deviation", setting)
+            elif parsed.get("tolerance_source") != tolerance_source:
+                label = "도면 공차" if tolerance_source == "DRAWING" else GENERAL_LABEL
+                raise HTTPException(
+                    422,
+                    f"{item['id']}: 이 치수에는 {label}를 적용할 수 없습니다. 특별 공차를 입력해주세요.",
+                )
+            else:
+                upper = float(parsed["upper_deviation"])
+                lower = float(parsed["lower_deviation"])
 
         if nominal < 0:
             raise HTTPException(
@@ -356,6 +437,7 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
             "upper_limit": round(high, 12),
             "unit": unit.strip(),
             "tol_type": "DIMENSION",
+            "tolerance_source": tolerance_source,
             "gauge_criteria": "",
         })
 
@@ -364,7 +446,7 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
         if not isinstance(criteria, str) or not criteria.strip():
             raise HTTPException(
                 422,
-                f"{item['id']}: 게이지 검사 기준을 입력해주세요.",
+                f"{item['id']}: 합격·불합격 판정 기준을 입력해주세요.",
             )
 
         result["gauge_criteria"] = criteria.strip()
@@ -503,49 +585,54 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
             # 값이 바뀐 항목은 main 변환기로 기준·허용범위를 다시 계산한다.
             items.append(item)
 
-        if req.inspection_settings is not None:
-            settings = req.inspection_settings
-            current_ids = {item["id"] for item in items}
+    if req.inspection_settings is not None:
+        settings = req.inspection_settings
+        current_ids = {item["id"] for item in items}
 
-            unknown_ids = set(settings) - current_ids
-            if unknown_ids:
-                raise HTTPException(
-                    422,
-                    f"현재 도면에 없는 검사 항목입니다: {sorted(unknown_ids)}",
-                )
+        unknown_ids = set(settings) - current_ids
+        if unknown_ids:
+            raise HTTPException(
+                422,
+                f"현재 도면에 없는 검사 항목입니다: {sorted(unknown_ids)}",
+            )
 
-            updated_items = []
+        updated_items = []
 
-            for item in items:
-                setting = settings.get(item["id"])
+        for item in items:
+            setting = settings.get(item["id"])
 
-                if setting is None:
-                    updated_items.append(item)
-                    continue
+            if setting is None:
+                updated_items.append(item)
+                continue
 
-                updated = apply_inspection_settings(item, setting)
-                updated_items.append(updated)
+            updated = apply_inspection_settings(item, setting)
+            updated_items.append(updated)
 
-                before = {
-                    field: item.get(field)
-                    for field in setting
-                }
-                after = {
-                    field: updated.get(field)
-                    for field in setting
-                    if field != "position_confirmed"
-                }
-                after["position_confirmed"] = True
+            log.setdefault("changes", []).append({
+                "item_id": item["id"],
+                "type": "INSPECTION",
+                "action": "edited",
+                "raw_text": item.get("raw_text"),
+                "before": inspection_summary(old_items.get(item["id"]) or {}),
+                "after": inspection_summary(updated),
+                "setting": setting,
+            })
 
-                log.setdefault("changes", []).append({
-                    "item_id": item["id"],
-                    "type": "INSPECTION",
-                    "action": "edited",
-                    "before": json.dumps(before, ensure_ascii=False),
-                    "after": json.dumps(after, ensure_ascii=False),
-                })
+        items = updated_items
 
-            items = updated_items
+    # 도면 이름(원본 파일명)과 작업자 입력을 기록에 같이 남긴다.
+    with database() as db:
+        row = db.execute(
+            "SELECT original_filename FROM drawings WHERE drawing_id=?", (drawing_id,)
+        ).fetchone()
+    log["drawing_name"] = Path(row["original_filename"]).stem if row else drawing_id
+    log["input"] = {
+        "reviewer": req.reviewer,
+        "revision": req.revision,
+        "confirmed_item_ids": req.confirmed_item_ids,
+        "edits": req.edits,
+        "inspection_settings": req.inspection_settings,
+    }
 
     saved = save_reviewed_items(
         drawing_id,
@@ -554,7 +641,84 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
         req.reviewer,
         review_record={"reviewed_txt": reviewed_txt, "log": log},
     )
-    return {"snapshot": saved, "log": log}
+
+    # 검토 완료 → 결과 파일 6종 자동 생성. 실패해도 검토 저장은 그대로 둔다.
+    files_error = None
+    try:
+        _write_review_files(drawing_id, saved["revision"], reviewed_txt, log, append_csv=True)
+        REVIEW_FILE_ERRORS.pop(drawing_id, None)
+    except Exception as exc:  # noqa: BLE001
+        files_error = f"결과 파일 생성 실패: {getattr(exc, 'detail', exc)}"
+        REVIEW_FILE_ERRORS[drawing_id] = files_error
+    return {"snapshot": saved, "log": log, "files_error": files_error}
+
+REVIEW_FILE_ERRORS: Dict[str, str] = {}
+HISTORY_LINK = {"kind": "history_csv", "label": "누적 기록 CSV", "url": f"{router.prefix}/history"}
+
+
+def _write_review_files(drawing_id: str, revision: str, reviewed_txt: str, log: dict,
+                        append_csv: bool) -> dict:
+    """검수 결과 파일: 정답본 TXT · 검수 기록 · 검수 끝난 도면 · 수정 표시 이미지 · 작업자 입력 JSON.
+    append_csv=True 이면 누적 기록 CSV에도 이번 검수를 한 번 쌓는다 (재생성 때는 다시 쌓지 않음)."""
+    name = _check_name(f"{drawing_id}_{revision}")
+    image_path = get_result_image(drawing_id, revision)
+    save_outputs(
+        origin_path=_origin_path(drawing_id),
+        base=os.path.join(ORIGIN_DIR, drawing_id),
+        name=name,
+        reviewed=reviewed_txt,
+        log=log,
+        result_jpg=str(image_path),
+        log_dir="logs" if append_csv else None,
+    )
+    if log.get("input"):
+        write_text(
+            _result_path(name, "edits_json"),
+            json.dumps(log["input"], ensure_ascii=False, indent=2) + "\n",
+        )
+    return result_list(name)
+
+
+def _review_entry(document: dict, revision: str):
+    history_entries = document.get("review_history") or []
+    return next(
+        (item for item in reversed(history_entries) if item.get("revision") == revision),
+        None,
+    )
+
+
+def _file_list(drawing_id: str, revision: str) -> dict:
+    files = result_list(_check_name(f"{drawing_id}_{revision}"))["files"]
+    history_path = os.path.join(REPO_DATA_DIR, "logs", HISTORY_FILE)
+    if files and os.path.isfile(history_path):
+        files.append(dict(HISTORY_LINK))
+    return {
+        "drawing_id": drawing_id,
+        "revision": revision,
+        "files": files,
+        "error": REVIEW_FILE_ERRORS.get(drawing_id),
+    }
+
+
+@router.get("/drawing/{drawing_id}/files")
+def drawing_review_files(drawing_id: str, revision: str):
+    """검토 완료 때 만들어진 결과 파일 목록. 이 패치 전에 검토한 도면은 없으면 여기서 한 번 만든다."""
+    snapshot = read_ocr_result(drawing_id)
+    document = snapshot["result"]
+    if document is None or snapshot["revision"] != revision:
+        raise HTTPException(409, "도면 결과가 변경됐습니다. 다시 조회해주세요.")
+    listing = _file_list(drawing_id, revision)
+    entry = _review_entry(document, revision)
+    if not listing["files"] and document.get("reviewed_txt") and entry is not None:
+        try:
+            _write_review_files(drawing_id, revision, document["reviewed_txt"], entry["log"],
+                                append_csv=False)
+            REVIEW_FILE_ERRORS.pop(drawing_id, None)
+        except Exception as exc:  # noqa: BLE001
+            REVIEW_FILE_ERRORS[drawing_id] = f"결과 파일 생성 실패: {getattr(exc, 'detail', exc)}"
+        listing = _file_list(drawing_id, revision)
+    return listing
+
 
 class DrawingExportInput(BaseModel):
     revision: str
@@ -562,69 +726,19 @@ class DrawingExportInput(BaseModel):
 
 @router.post("/drawing/{drawing_id}/export")
 def export_drawing_review(drawing_id: str, req: DrawingExportInput):
+    """(이전 화면 호환) 결과 파일 목록. 없으면 만든다."""
     snapshot = read_ocr_result(drawing_id)
     document = snapshot["result"]
-
     if document is None:
         raise HTTPException(409, "OCR 결과가 없습니다.")
-
     if snapshot["revision"] != req.revision:
         raise HTTPException(409, "도면 결과가 변경됐습니다. 다시 조회해주세요.")
-
-    reviewed_txt = document.get("reviewed_txt")
-    history_entries = document.get("review_history") or []
-    entry = next(
-        (
-            item for item in reversed(history_entries)
-            if item.get("revision") == req.revision
-        ),
-        None,
-    )
-
-    if not reviewed_txt or entry is None:
-        raise HTTPException(
-            409, "관리자 검토를 서버에 저장한 뒤 파일을 생성해주세요."
-        )
-
-    # 도면 ID와 버전으로 구분해서 이전 결과 파일을 보존한다.
-    name = _check_name(f"{drawing_id}_{req.revision}")
-    image_path = get_result_image(drawing_id, req.revision)
-
-    expected = [
-        _result_path(name, kind)
-        for kind in ("reviewed_txt", "review_log", "reviewed_jpg", "edits_log_jpg")
-    ]
-
-    if not all(os.path.isfile(path) for path in expected):
-        try:
-            save_outputs(
-                origin_path=_origin_path(drawing_id),
-                base=os.path.join(ORIGIN_DIR, drawing_id),
-                name=name,
-                reviewed=reviewed_txt,
-                log=entry["log"],
-                result_jpg=str(image_path),
-                log_dir=None,
-            )
-        except Exception as exc:
-            raise HTTPException(
-                500,
-                "검수 결과는 DB에 보존돼 있습니다. "
-                f"결과 파일 생성에 실패했습니다: {exc}",
-            ) from exc
-
-    if not all(os.path.isfile(path) for path in expected):
-        raise HTTPException(
-            500,
-            "결과 이미지가 생성되지 않았습니다. "
-            "백엔드 실행 환경의 Pillow 설치와 서버 로그를 확인해주세요.",
-        )
-
-    return {
-        "drawing_id": drawing_id,
-        "revision": req.revision,
-        **result_list(name),
-    }
+    if not document.get("reviewed_txt") or _review_entry(document, req.revision) is None:
+        raise HTTPException(409, "관리자 검토를 서버에 저장한 뒤 파일을 확인해주세요.")
+    listing = drawing_review_files(drawing_id, req.revision)
+    if not listing["files"]:
+        raise HTTPException(500, listing["error"] or "결과 파일이 생성되지 않았습니다.")
+    return listing
 
 
 # 위에서 독립 실행용 app에 router를 등록한 뒤 추가된 경로도 반영한다.

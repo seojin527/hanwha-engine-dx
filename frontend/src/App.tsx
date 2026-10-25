@@ -13,7 +13,7 @@ import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 import { apiUrl } from './lib/drawingAPI';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
-import { toOcrPoints } from './lib/ocr';
+import { reviewInfoOf, toOcrPoints } from './lib/ocr';
 import { OcrMeasurementTable } from './components/OcrMeasurementTable';
 import { OcrDetailPanel } from './components/OcrDetailPanel';
 import type { Drawing } from "./lib/drawingAPI";
@@ -33,7 +33,7 @@ import {
   fetchDrawingReview,
   type DrawingReviewSource,
   type ReviewPreviewMarker,
-  generateDrawingReviewFiles,
+  fetchDrawingReviewFiles,
   type ReviewResultFile,
 } from "./lib/admin/drawingReviewAPI";
 
@@ -65,7 +65,7 @@ export function App() {
   const [reviewNotice, setReviewNotice] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [reviewFiles, setReviewFiles] = useState<ReviewResultFile[]>([]);
-  const [generatingFiles, setGeneratingFiles] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(false);
   const [fileError, setFileError] = useState("");
   const [measurementData, setMeasurementData] = useState<{
     target: string;
@@ -207,48 +207,32 @@ export function App() {
     !reviewOpen &&
     !!document &&
     document.review_status !== "reviewed";
-    useEffect(() => {
+  // 검토 완료 때 서버가 결과 파일을 자동으로 만든다. 저장할 때마다 revision 이 바뀌므로 다시 불러온다.
+  const documentReviewed = document?.review_status === "reviewed";
+  useEffect(() => {
     setReviewFiles([]);
     setFileError("");
-  }, [reviewDrawingId, reviewRevision]);
+    if (!reviewDrawingId || !reviewRevision || !documentReviewed) return;
 
-  async function generateReviewFiles() {
-    if (!reviewDrawingId || !reviewRevision || generatingFiles) return;
+    const controller = new AbortController();
+    setLoadingFiles(true);
+    fetchDrawingReviewFiles(reviewDrawingId, reviewRevision, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setReviewFiles(result.files);
+        setFileError(result.error ?? "");
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setFileError(cause instanceof Error ? cause.message : "결과 파일 조회 실패");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingFiles(false);
+      });
+    return () => controller.abort();
+  }, [reviewDrawingId, reviewRevision, documentReviewed]);
 
-    const targetId = reviewDrawingId;
-    const targetRevision = reviewRevision;
-    setGeneratingFiles(true);
-    setFileError("");
-
-    try {
-      const result = await generateDrawingReviewFiles(
-        targetId,
-        targetRevision,
-      );
-
-      // 처리 중 다른 도면으로 이동했다면 결과를 표시하지 않는다.。
-      if (
-        currentFileTarget.current !== `${targetId}:${targetRevision}`
-      ) {
-        return;
-      }
-
-      setReviewFiles(result.files);
-    } catch (cause) {
-      if (
-        currentFileTarget.current === `${targetId}:${targetRevision}`
-      ) {
-        setFileError(
-          cause instanceof Error ? cause.message : "파일 생성 실패",
-        );
-      }
-    } finally {
-      setGeneratingFiles(false);
-    }
-  }
-
-  const currentFileTarget = useRef("");
-  currentFileTarget.current = `${reviewDrawingId}:${reviewRevision}`;
     // 다른 도면·버전으로 이동하거나 검토 패널을 닫으면 선택을 취소한다.
   useEffect(() => {
     setPickingPosition(false);
@@ -592,26 +576,26 @@ export function App() {
 
             {!demoMode && document && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900 px-4 py-2 text-xs">
-          <button
-            type="button"
-            disabled={
-              generatingFiles ||
-              ocr.status !== "ready" ||
-              document.review_status !== "reviewed"
-            }
-            onClick={() => void generateReviewFiles()}
-            className="rounded border border-cyan-600 px-3 py-1 text-cyan-200 disabled:opacity-40"
-          >
-            {generatingFiles ? "파일 생성 중…" : "검수 결과 파일 생성"}
-          </button>
+          <span className="text-slate-400">
+            {document.review_status !== "reviewed"
+              ? "검수 결과 파일은 관리자 검토 완료 때 자동으로 만들어집니다."
+              : loadingFiles
+                ? "검수 결과 파일 불러오는 중…"
+                : reviewFiles.length
+                  ? "검수 결과:"
+                  : ""}
+          </span>
 
-          {document.review_status !== "reviewed" && (
-            <span className="text-slate-400">
-              검토 완료 및 서버 저장 후 사용할 수 있습니다.
-            </span>
-          )}
-
-          {reviewFiles.map((file) => (
+          {reviewFiles.map((file) => file.kind === "history_csv" ? (
+            <a
+              key={file.kind}
+              href={apiUrl(file.url)}
+              download
+              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white"
+            >
+              {file.label} ⬇
+            </a>
+          ) : (
             <button
               key={file.kind}
               type="button"
@@ -761,6 +745,7 @@ export function App() {
                   key={`${activeReviewSource.drawing_id}:${activeReviewSource.revision}`}
                   source={activeReviewSource}
                   selectedItemId={activeOcrPoint?.source.id ?? null}
+                  imageUrl={resultUrl}
                   onPickPosition={requestPositionPick}
                   onPreviewChange={setReviewPreviewMarkers}
                   onSelectItem={(itemId) => {
@@ -805,6 +790,8 @@ export function App() {
               total={ocrPoints.length}
               onNavigate={navigateOcr}
               onMeasurementSaved={handleMeasurementSaved}
+              records={measurementRecords}
+              reviewInfo={reviewInfoOf(document)}
             />
           ) : (
             <section className="space-y-4 p-5">
