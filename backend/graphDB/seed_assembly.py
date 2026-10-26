@@ -20,7 +20,7 @@ UNWIND [
     {id: 'CRANKSHAFT', name: 'Crankshaft'}
 ] AS item
 
-MERGE (p:Part {part_id: item.id})
+MERGE (p:PartFamily {part_id: item.id})
 SET p.name = item.name,
     p.record_type = 'conceptual',
     p.status = 'provisional'
@@ -35,8 +35,8 @@ UNWIND [
     ['CONNECTING_ROD', 'CRANKSHAFT']
 ] AS pair
 
-MATCH (a:Part {part_id: pair[0]})
-MATCH (b:Part {part_id: pair[1]})
+MATCH (a:PartFamily {part_id: pair[0]})
+MATCH (b:PartFamily {part_id: pair[1]})
 
 MERGE (a)-[r:CONNECTED_TO]->(b)
 SET r.status = 'provisional',

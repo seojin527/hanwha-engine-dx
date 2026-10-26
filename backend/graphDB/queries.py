@@ -9,7 +9,7 @@ PASSWORD = os.environ["NEO4J_PASSWORD"]
 
 def get_interface(interface_id):
     query = """
-    MATCH (p:Part)-[:PARTICIPATES_IN]->(i:Interface {
+    MATCH (p:PartFamily)-[:PARTICIPATES_IN]->(i:Interface {
         interface_id: $interface_id
     })
 
@@ -28,8 +28,8 @@ def get_interface(interface_id):
             feature_id: f.feature_id,
             feature_name: f.name,
             spec_id: s.spec_id,
-            nominal: s.nominal,
-            tolerance: s.tolerance
+            nominal: s.nominal_value,
+            tolerance: s.tolerance_value
         }) AS measurements
     """
 

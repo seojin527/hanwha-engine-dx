@@ -7,6 +7,10 @@ CREATE CONSTRAINT part_id IF NOT EXISTS
 FOR (n:Part)
 REQUIRE n.part_id IS UNIQUE;
 
+CREATE CONSTRAINT partfamily_id IF NOT EXISTS
+FOR (n:PartFamily)
+REQUIRE n.part_id IS UNIQUE;
+
 CREATE CONSTRAINT drawing_id IF NOT EXISTS
 FOR (n:Drawing)
 REQUIRE n.drawing_id IS UNIQUE;
