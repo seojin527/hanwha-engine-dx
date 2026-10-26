@@ -1,3 +1,5 @@
+import type { WorkPurpose } from "./purpose";
+
 const API_BASE = "http://127.0.0.1:8000";
 
 export interface Part {
@@ -31,9 +33,13 @@ async function readResponse<T>(response: Response): Promise<T> {
         message = body.detail;
       } else if (Array.isArray(body.detail)) {
         message = body.detail
-          .map((entry) =>
-            typeof entry === "string" ? entry : entry.msg
-          )
+          .map((entry: unknown) => {
+            if (typeof entry === "string") return entry;
+            if (entry !== null && typeof entry === "object" && "msg" in entry) {
+              return String(entry.msg);
+            }
+            return JSON.stringify(entry);
+          })
           .join(", ");
       }
     } catch {
@@ -126,8 +132,9 @@ export interface ErrorCandidate {
   source_file?: string;
   distance: number;
 }
-export async function fetchItemErrors(drawingId: string, itemId: string, signal?: AbortSignal) {
-  return readResponse<{ drawing_id: string; item_id: string; revision: string; errors: ErrorCandidate[] }>(await fetch(
-    `${API_BASE}/api/drawings/${encodeURIComponent(drawingId)}/items/${encodeURIComponent(itemId)}/errors`, { signal }
+/** 작업 목적의 오류사례 컬렉션에서만 검색한다 (다른 목적·공통 컬렉션은 섞지 않는다). */
+export async function fetchItemErrors(purpose: WorkPurpose, drawingId: string, itemId: string, signal?: AbortSignal) {
+  return readResponse<{ purpose: WorkPurpose; drawing_id: string; item_id: string; revision: string; errors: ErrorCandidate[] }>(await fetch(
+    `${API_BASE}/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}/items/${encodeURIComponent(itemId)}/errors`, { signal }
   ));
 }

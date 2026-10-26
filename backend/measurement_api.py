@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from drawing_library import database
 from ocr_results import read_ocr_result
+from typing import Literal
+
 
 router = APIRouter(prefix='/api/drawings', tags=['실측값'])
 
@@ -29,11 +31,43 @@ def init_measurements():
             PRIMARY KEY (drawing_id, ocr_revision, item_id)
         )''')
 
+        columns = {
+            row['name']
+            for row in db.execute(
+                'PRAGMA table_info(measurement_records)'
+            ).fetchall()
+        }
+
+        additions = {
+            'measurement_mode': "TEXT NOT NULL DEFAULT 'numeric'",
+            'gauge_result': 'TEXT',
+            'confirmed': 'INTEGER NOT NULL DEFAULT 0',
+        }
+
+        for name, definition in additions.items():
+            if name not in columns:
+                db.execute(
+                    f'ALTER TABLE measurement_records ADD COLUMN {name} {definition}'
+                )
+
+        db.execute('''CREATE TABLE IF NOT EXISTS measurement_attempts (
+            attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            drawing_id TEXT NOT NULL,
+            ocr_revision TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            record_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )''')
+
 
 class MeasurementInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
     revision: str = Field(min_length=1, max_length=100)
-    measured_value: str = Field(min_length=1, max_length=100)
+    measurement_mode: Literal['numeric', 'gauge'] = 'numeric'
+    measured_value: str = Field(default='', max_length=100)
+    gauge_result: Literal['pass', 'fail'] | None = None
+    confirmed: bool = False
     instrument: str = Field(default='', max_length=200)
     note: str = Field(default='', max_length=5000)
 
@@ -63,48 +97,218 @@ def judge(item, value):
     inside = Decimal(str(low)) <= value <= Decimal(str(high))
     return ('pass', '저장된 허용 범위 이내입니다.') if inside else ('fail', '저장된 허용 범위를 벗어났습니다.')
 
+def measurement_state(judgement, confirmed):
+    if judgement == 'fail':
+        return 'remeasure'
+    if judgement == 'review':
+        return 'review_required'
+    if confirmed:
+        return 'completed'
+    return 'pending'
+
+
+def measurement_response(row):
+    record = dict(row)
+    record['confirmed'] = bool(record.get('confirmed', False))
+    record['status'] = measurement_state(
+        record['judgement'],
+        record['confirmed'],
+    )
+    return record
 
 @router.get('/{drawing_id}/measurements')
 def list_measurements(drawing_id: str, revision: str):
     current_snapshot(drawing_id, revision)
-    with database() as db:
-        rows = db.execute('''SELECT item_id, measured_value, instrument, note,
-            judgement, judgement_reason, updated_at FROM measurement_records
-            WHERE drawing_id=? AND ocr_revision=?''', (drawing_id, revision)).fetchall()
-    return {'drawing_id': drawing_id, 'revision': revision, 'records': [dict(r) for r in rows]}
 
+    with database() as db:
+        rows = db.execute('''
+            SELECT item_id, measured_value, instrument, note,
+                   judgement, judgement_reason, updated_at,
+                   measurement_mode, gauge_result, confirmed
+            FROM measurement_records
+            WHERE drawing_id=? AND ocr_revision=?
+        ''', (drawing_id, revision)).fetchall()
+
+    return {
+        'drawing_id': drawing_id,
+        'revision': revision,
+        'records': [measurement_response(row) for row in rows],
+    }
 
 @router.post('/{drawing_id}/items/{item_id}/measurement')
-def save_measurement(drawing_id: str, item_id: str, payload: MeasurementInput):
+def save_measurement(
+    drawing_id: str,
+    item_id: str,
+    payload: MeasurementInput,
+):
     snapshot = current_snapshot(drawing_id, payload.revision)
-    item = next((i for i in snapshot['result']['items'] if i['id'] == item_id), None)
+    document = snapshot['result']
+
+    if document.get('review_status') != 'reviewed':
+        raise HTTPException(
+            409,
+            '관리자 검토 완료 후 측정 결과를 저장할 수 있습니다.',
+        )
+
+    item = next(
+        (entry for entry in document['items'] if entry['id'] == item_id),
+        None,
+    )
     if item is None:
         raise HTTPException(404, '이 도면의 항목이 아닙니다.')
-    try:
-        if not re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", payload.measured_value.strip()):
-            raise InvalidOperation
-        value = Decimal(payload.measured_value.strip())
-        if not value.is_finite():
-            raise InvalidOperation
-    except InvalidOperation:
-        raise HTTPException(422, '실측값에는 유효한 숫자를 입력해주세요.')
-    status, reason = judge(item, value)
+
+    # 측정 방식은 저장된 관리자 설정을 사용한다.
+    # 기존 숫자 측정 항목과의 호환성을 위해 미설정은 numeric으로 처리한다.
+    expected_mode = item.get('measurement_mode') or 'numeric'
+
+    if expected_mode not in ('numeric', 'gauge'):
+        raise HTTPException(422, '관리자가 측정 방식을 확인해야 합니다.')
+
+    if payload.measurement_mode != expected_mode:
+        raise HTTPException(
+            422,
+            '관리자가 지정한 측정 방식과 입력 방식이 다릅니다.',
+        )
+
+    measured_value = payload.measured_value.strip()
+
+    if expected_mode == 'gauge':
+        if measured_value:
+            raise HTTPException(
+                422,
+                '게이지 검사에서는 숫자 실측값 대신 검사 결과를 선택해주세요.',
+            )
+
+        if payload.gauge_result is None:
+            raise HTTPException(422, '게이지 검사 결과를 선택해주세요.')
+
+        criteria = item.get('gauge_criteria')
+        if not isinstance(criteria, str) or not criteria.strip():
+            raise HTTPException(
+                422,
+                '관리자가 게이지 검사 기준을 먼저 지정해야 합니다.',
+            )
+
+        if (
+            item.get('requires_review') is not False
+            or item.get('coordinate_requires_review')
+        ):
+            judgement = 'review'
+            reason = '항목 또는 측정 위치의 관리자 확인이 필요합니다.'
+        else:
+            judgement = payload.gauge_result
+            reason = (
+                '작업자가 저장된 게이지 검사 기준에 따라 적합으로 기록했습니다.'
+                if judgement == 'pass'
+                else '작업자가 게이지 검사 부적합으로 기록했습니다. 재확인이 필요합니다.'
+            )
+
+    else:
+        if payload.gauge_result is not None:
+            raise HTTPException(
+                422,
+                '실측값 방식에서는 게이지 결과를 함께 보낼 수 없습니다.',
+            )
+
+        try:
+            if not re.fullmatch(
+                r'[+-]?(?:[0-9]+(?:[.][0-9]*)?|[.][0-9]+)(?:[eE][+-]?[0-9]+)?',
+                measured_value,
+            ):
+                raise InvalidOperation
+
+            value = Decimal(measured_value)
+            if not value.is_finite():
+                raise InvalidOperation
+
+        except InvalidOperation:
+            raise HTTPException(
+                422,
+                '실측값에는 유효한 숫자를 입력해주세요.',
+            )
+
+        judgement, reason = judge(item, value)
+
+    if payload.confirmed and judgement != 'pass':
+        raise HTTPException(
+            422,
+            '적합 판정인 항목만 측정 완료로 확인할 수 있습니다. '
+            '부적합 결과는 확인 체크를 해제하고 기록해주세요.',
+        )
+
+    record = {
+        'drawing_id': drawing_id,
+        'revision': payload.revision,
+        'item_id': item_id,
+        'measurement_mode': expected_mode,
+        'measured_value': measured_value,
+        'gauge_result': payload.gauge_result,
+        'instrument': payload.instrument.strip(),
+        'note': payload.note.strip(),
+        'judgement': judgement,
+        'judgement_reason': reason,
+        'confirmed': payload.confirmed,
+        'status': measurement_state(judgement, payload.confirmed),
+    }
+
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
-        current = db.execute('SELECT revision FROM ocr_results WHERE drawing_id=?', (drawing_id,)).fetchone()
+
+        current = db.execute(
+            'SELECT revision FROM ocr_results WHERE drawing_id=?',
+            (drawing_id,),
+        ).fetchone()
+
         if current is None or current['revision'] != payload.revision:
-            raise HTTPException(409, '저장 중 OCR 결과가 변경됐습니다.')
-        db.execute('''INSERT INTO measurement_records (
-            drawing_id, ocr_revision, item_id, measured_value, instrument, note,
-            judgement, judgement_reason, item_snapshot_json) VALUES (?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(drawing_id, ocr_revision, item_id) DO UPDATE SET
-            measured_value=excluded.measured_value, instrument=excluded.instrument,
-            note=excluded.note, judgement=excluded.judgement,
-            judgement_reason=excluded.judgement_reason,
-            item_snapshot_json=excluded.item_snapshot_json, updated_at=CURRENT_TIMESTAMP''',
-            (drawing_id, payload.revision, item_id, payload.measured_value.strip(),
-             payload.instrument.strip(), payload.note.strip(), status, reason,
-             json.dumps(item, ensure_ascii=False)))
-    return {'drawing_id': drawing_id, 'revision': payload.revision, 'item_id': item_id,
-            'measured_value': payload.measured_value.strip(), 'instrument': payload.instrument.strip(),
-            'note': payload.note.strip(), 'judgement': status, 'judgement_reason': reason}
+            raise HTTPException(
+                409,
+                '저장 중 OCR 결과가 변경됐습니다. 다시 조회해주세요.',
+            )
+
+        db.execute('''
+            INSERT INTO measurement_records (
+                drawing_id, ocr_revision, item_id,
+                measured_value, instrument, note,
+                judgement, judgement_reason, item_snapshot_json,
+                measurement_mode, gauge_result, confirmed
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(drawing_id, ocr_revision, item_id)
+            DO UPDATE SET
+                measured_value=excluded.measured_value,
+                instrument=excluded.instrument,
+                note=excluded.note,
+                judgement=excluded.judgement,
+                judgement_reason=excluded.judgement_reason,
+                item_snapshot_json=excluded.item_snapshot_json,
+                measurement_mode=excluded.measurement_mode,
+                gauge_result=excluded.gauge_result,
+                confirmed=excluded.confirmed,
+                updated_at=CURRENT_TIMESTAMP
+        ''', (
+            drawing_id,
+            payload.revision,
+            item_id,
+            measured_value,
+            record['instrument'],
+            record['note'],
+            judgement,
+            reason,
+            json.dumps(item, ensure_ascii=False),
+            expected_mode,
+            payload.gauge_result,
+            int(payload.confirmed),
+        ))
+
+        # 재측정하더라도 이전에 저장한 결과는 이력에 남긴다.
+        db.execute('''
+            INSERT INTO measurement_attempts (
+                drawing_id, ocr_revision, item_id, record_json
+            ) VALUES (?,?,?,?)
+        ''', (
+            drawing_id,
+            payload.revision,
+            item_id,
+            json.dumps(record, ensure_ascii=False),
+        ))
+
+    return record

@@ -21,23 +21,42 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
   if (!point) return null;
 
   const displayNumber = point.displayNumber || point.id || 1;
-  const isCompleted = status === "completed";
+
+  const markerColor =
+    status === "remeasure"
+      ? "bg-red-600 text-white"
+      : status === "completed"
+        ? "bg-emerald-600 text-white"
+        : status === "review_required"
+          ? "bg-amber-500 text-slate-950"
+          : "bg-cyan-700 text-white";
+
+  const statusLabel =
+    status === "remeasure"
+      ? "재측정 필요"
+      : status === "completed"
+        ? "완료"
+        : status === "review_required"
+          ? "확인 필요"
+          : "대기";
 
   return (
     <button
-      onClick={(e) => {
-        e.stopPropagation();
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
         onClick();
       }}
-      // 치수 숫자가 가려지지 않도록 bg-opacity-60 및 backdrop-blur 적용
-      className={`w-6 h-6 rounded-full text-[11px] font-extrabold flex items-center justify-center shadow transition transform hover:scale-125 z-20 backdrop-blur-[1px] ${
+      className={`relative z-20 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold shadow transition-transform hover:scale-125 ${markerColor} ${
         isSelected
-          ? "bg-amber-400/60 text-slate-950 ring-2 ring-cyan-500 scale-110 shadow-lg"
-          : isCompleted
-          ? "bg-emerald-600/50 text-white ring-1 ring-emerald-300"
-          : "bg-cyan-600/50 text-white hover:bg-cyan-500/70"
+          ? "z-30 scale-125 ring-2 ring-slate-950 ring-offset-2 ring-offset-white"
+          : "ring-1 ring-white/70"
       }`}
-      title={`#${displayNumber}: ${point.feature?.name || point.name || "포인트"}`}
+      title={`#${displayNumber}: ${
+        point.feature?.name || point.name || "포인트"
+      } · ${statusLabel}`}
+      aria-label={`${displayNumber}번 · ${statusLabel}`}
+      aria-pressed={isSelected}
     >
       {displayNumber}
     </button>

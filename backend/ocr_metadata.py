@@ -2,14 +2,23 @@
 import ast
 import re
 
+from general_tolerance import GENERAL_LABEL, general_deviation
+
 NUMBER = r'\d+(?:\.\d+)?'
+SIGNED = r'[+-]\d+(?:\.\d+)?'
 
 
 def parse_dimension(raw, unit):
+    """치수 원문 해석. 공차 출처(tolerance_source)
+    DRAWING: 도면에 적힌 공차 (±0.05, +0.02/-0.01)
+    GENERAL: 개별 공차가 없어 일반공차 ISO 2768-m 적용
+    None   : 일반공차를 적용할 수 없음 (나사, 범위 밖 치수 등)
+    """
     result = dict(feature_type='UNKNOWN', measurement_characteristic='UNKNOWN',
                   nominal_value=None, unit=unit, tol_type='UNSPECIFIED',
                   lower_limit=None, upper_limit=None, lower_deviation=None,
-                  upper_deviation=None, requires_review=True, review_reasons=[])
+                  upper_deviation=None, tolerance_source=None,
+                  requires_review=True, review_reasons=[])
     text = raw.strip()
     if text.startswith('M'):
         match = re.fullmatch(rf'M\s*({NUMBER})(?:\s*[x×]\s*({NUMBER}))?', text)
@@ -34,20 +43,38 @@ def parse_dimension(raw, unit):
             result.update(feature_type='RADIUS', measurement_characteristic='RADIUS')
         else:
             result['measurement_characteristic'] = 'LINEAR_DIMENSION'
-        pattern = prefix + rf'({NUMBER})(?:\s*±\s*({NUMBER}))?'
+        pattern = (prefix + rf'({NUMBER})'
+                   rf'(?:\s*±\s*({NUMBER})|\s*({SIGNED})\s*/\s*({SIGNED}))?')
     match = re.fullmatch(pattern, text)
     if not match:
         result['tol_type'] = 'UNKNOWN'
         result['review_reasons'].append('깨졌거나 지원하지 않는 표기: 원문 확인 전 수치 확정 금지')
         return result
-    result['nominal_value'] = float(match[1])
+    nominal = float(match[1])
+    result['nominal_value'] = nominal
     if match[2]:
-        nominal, tolerance = float(match[1]), float(match[2])
-        result.update(tol_type='DIMENSION', lower_limit=round(nominal-tolerance, 9),
-                      upper_limit=round(nominal+tolerance, 9),
-                      upper_deviation=tolerance, lower_deviation=-tolerance)
+        upper, lower = float(match[2]), -float(match[2])
+    elif match[3]:
+        upper, lower = float(match[3]), float(match[4])
+        if lower > upper:
+            upper, lower = lower, upper
     else:
-        result['review_reasons'].append('개별 공차 없음: 일반공차·검사 기준 확인 필요')
+        upper = lower = None
+    if upper is not None:
+        result.update(tol_type='DIMENSION', tolerance_source='DRAWING',
+                      lower_limit=round(nominal+lower, 9), upper_limit=round(nominal+upper, 9),
+                      upper_deviation=upper, lower_deviation=lower)
+    else:
+        deviation = general_deviation(result['measurement_characteristic'], nominal)
+        if deviation is None:
+            result['review_reasons'].append('개별 공차 없음: 일반공차 적용 범위 밖 — 특별 공차 입력 필요')
+        else:
+            result.update(tol_type='DIMENSION', tolerance_source='GENERAL',
+                          lower_limit=round(nominal-deviation, 9),
+                          upper_limit=round(nominal+deviation, 9),
+                          upper_deviation=deviation, lower_deviation=-deviation)
+            result['review_reasons'].append(
+                f'개별 공차 없음: {GENERAL_LABEL} ±{deviation:g} 적용 — 특별 공차 여부 확인')
     if result['feature_type'] == 'UNKNOWN':
         result['review_reasons'].append('문자만으로 구멍·외경·측정면을 확정하지 않음')
     result['requires_review'] = bool(result['review_reasons'])

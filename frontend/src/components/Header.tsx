@@ -4,98 +4,84 @@
  */
 
 import React from "react";
+import { ArrowLeft, Search } from "lucide-react";
 import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
   displayInfo?: { partName: string; drawingName: string };
-  onUploadDrawing: (fileName: string) => void;
-  onResetData: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  /** 시연용 계정 이름 (인증된 사용자가 아님) */
+  userLabel: string;
+  onBackToList: () => void;
 }
 
+/** 상단 제품 헤더: 제품명 · 현재 부품/도면 정보 · 검색 · 사용자. 작업 버튼은 아래 작업 툴바에 둔다. */
 export const Header: React.FC<HeaderProps> = ({
   displayInfo,
-  onUploadDrawing,
-  onResetData,
   searchQuery,
   onSearchChange,
+  userLabel,
+  onBackToList,
 }) => {
-  return (
-    <header className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0 h-16 shadow-md">
-      {/* Left: Title & Part Info */}
-      <div className="flex items-center gap-6">
-        <div>
-          <h1 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
-            Drawing AI Measurement Guide
-            <span className="text-[11px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800 font-normal">
-              Engine Component Quality Inspection Workspace
-            </span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {displayInfo?.partName || MOCK_PART_INFO?.name || "PISTON ROD (피스톤 로드)"}
-          </p>
-        </div>
+  const meta = [
+    { label: "부품", value: displayInfo?.partName || MOCK_PART_INFO?.name },
+    { label: "부품번호", value: displayInfo ? "—" : MOCK_PART_INFO?.partNo },
+    { label: "도면", value: displayInfo?.drawingName || MOCK_PART_INFO?.drawingNo },
+    { label: "축척", value: displayInfo ? "—" : MOCK_PART_INFO?.scale },
+    { label: "개정", value: displayInfo ? "—" : MOCK_PART_INFO?.revision },
+  ];
 
-        <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 border-l border-slate-700 pl-6">
-          <div>
-            <span className="text-slate-500 mr-1.5">PART:</span>
-            <span className="font-semibold text-slate-200">{displayInfo?.partName || MOCK_PART_INFO?.name}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 mr-1.5">PART NO.:</span>
-            <span className="font-semibold text-cyan-300">{displayInfo ? "—" : MOCK_PART_INFO?.partNo}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 mr-1.5">DRAWING:</span>
-            <span className="font-semibold text-slate-200">{displayInfo?.drawingName || MOCK_PART_INFO?.drawingNo}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 mr-1.5">SCALE:</span>
-            <span className="font-semibold text-slate-200">{displayInfo ? "—" : MOCK_PART_INFO?.scale}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 mr-1.5">REVISION:</span>
-            <span className="font-semibold text-amber-300">{displayInfo ? "—" : MOCK_PART_INFO?.revision}</span>
-          </div>
-        </div>
+  return (
+    <header className="flex h-11 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 text-white">
+      <button
+        type="button"
+        onClick={onBackToList}
+        className="btn btn-dark-ghost -ml-2 shrink-0"
+      >
+        <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
+        도면 목록으로
+      </button>
+
+      <span aria-hidden="true" className="-ml-2 h-4 w-px shrink-0 bg-slate-800" />
+
+      <div className="flex min-w-0 shrink-0 items-baseline gap-2">
+        <h1 className="whitespace-nowrap text-[13px] font-semibold tracking-tight text-white">
+          도면 측정 가이드
+        </h1>
+        <span className="hidden whitespace-nowrap text-[11px] text-slate-500 xl:inline">
+          엔진 부품 품질검사
+        </span>
       </div>
 
-      {/* Right: Search, Reset, Upload, User Badge */}
-      <div className="flex items-center gap-3">
-        <div className="relative">
+      <dl className="hidden min-w-0 flex-1 items-center gap-x-4 overflow-hidden border-l border-slate-800 pl-4 text-xs lg:flex">
+        {meta.map(({ label, value }, index) => (
+          <div
+            key={label}
+            className={`flex min-w-0 items-baseline gap-1.5 ${index >= 3 ? "hidden 2xl:flex" : ""}`}
+          >
+            <dt className="shrink-0 text-slate-500">{label}</dt>
+            <dd className="truncate font-medium text-slate-200">{value || "—"}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="ml-auto flex shrink-0 items-center gap-3">
+        <label className="relative block">
+          <span className="sr-only">측정항목 검색</span>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
           <input
-            type="text"
-            placeholder="포인트/규격 검색..."
+            type="search"
+            placeholder="번호·규격 검색"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 w-40 transition"
+            className="field-dark h-7 w-36 pl-7 sm:w-44"
           />
-        </div>
+        </label>
 
-        <button
-          onClick={onResetData}
-          className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5"
-        >
-          🔄 초기화
-        </button>
-
-        <button
-          onClick={() => onUploadDrawing("")}
-          className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5"
-        >
-          📁 도면 업로드
-        </button>
-
-        {/* User Profile Badge */}
-        <div className="flex items-center gap-2 border-l border-slate-700 pl-3 ml-1">
-          <div className="w-7 h-7 rounded-full bg-cyan-700 flex items-center justify-center font-bold text-xs text-white">
-            김
-          </div>
-          <div className="hidden sm:block text-left text-xs">
-            <div className="font-bold text-slate-200">김태호</div>
-            <div className="text-[10px] text-cyan-400">QA Lead</div>
-          </div>
+        <div className="flex items-center gap-2 border-l border-slate-800 pl-3" title="시연용 진입 · 인증되지 않은 사용자">
+          <span className="hidden max-w-[120px] truncate text-xs text-slate-200 sm:inline">{userLabel}</span>
+          <span className="tag bg-slate-800 text-slate-300">시연</span>
         </div>
       </div>
     </header>

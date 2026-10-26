@@ -13,7 +13,12 @@ from error_case_api import router as error_case_router
 from error_case_store import init_error_cases
 from ocr_api import router as ocr_router
 from ocr_results import init_ocr_results
-
+from ocr_review.api import router as review_router
+from measurement_api import init_measurements
+from measurement_api import router as measurement_router
+from purpose_errors.api import router as purpose_error_router
+from purpose_errors.store import init_purpose_tables
+from purpose_errors.vectors import ensure_collections
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -24,7 +29,9 @@ async def lifespan(app: FastAPI):
     init_library()
     init_ocr_results()
     init_error_cases()
-
+    init_measurements()
+    # 작업 목적(부품제작·조립·검증)별 오류사례 원문·연결 기록 테이블
+    init_purpose_tables()
     # 이전 단일 도면 API에서 사용하는 JSON
     json_path = BASE_DIR.parent / "data" / "1_metadata.json"
     app.state.drawing = json.loads(
@@ -46,6 +53,9 @@ async def lifespan(app: FastAPI):
         embedding_function=None,
     )
 
+    # 목적별 오류사례 컬렉션. 비어 있어도 서버는 시작한다 (공통 컬렉션으로 대체하지 않음).
+    app.state.purpose_collections = ensure_collections(app.state.client)
+
     yield
 
 
@@ -57,8 +67,16 @@ app.include_router(library_router)
 # OCR 결과 조회·관련 오류사례 검색
 app.include_router(ocr_router)
 
+
+app.include_router(review_router)
+
+app.include_router(measurement_router)
+
 # 사용자 오류사례 등록·자동 벡터화
 app.include_router(error_case_router)
+
+# 작업 목적별 오류사례 등록·검색·재시도·포인트 연결
+app.include_router(purpose_error_router)
 
 # 로컬 프론트엔드 접근 허용
 app.add_middleware(
@@ -69,7 +87,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 

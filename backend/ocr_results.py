@@ -223,3 +223,76 @@ def get_result_image(drawing_id, revision=None):
         raise HTTPException(404, "OCR 결과 이미지가 없습니다.")
 
     return path
+
+
+def save_reviewed_items(
+    drawing_id, items, expected_revision, reviewer="", review_record=None
+):
+    """검수한 항목을 저장한다. 검수·수치 변환이 끝난 항목만 전달한다."""
+    snapshot = read_ocr_result(drawing_id)
+
+    if snapshot["result"] is None:
+        raise HTTPException(409, "검수할 OCR 결과가 없습니다.")
+
+    if snapshot["revision"] != expected_revision:
+        raise HTTPException(
+            409, "OCR 결과가 변경됐습니다. 새로 불러온 뒤 검수해주세요."
+        )
+
+    # 기존 도면 정보는 보존하고 항목 목록만 교체한다.
+    document = json.loads(json.dumps(snapshot["result"], ensure_ascii=False))
+    document["items"] = items
+    document["item_count"] = len(items)
+
+    image_path = get_result_image(drawing_id, expected_revision)
+
+    try:
+        # 기존 JPG와 항목 ID·좌표·이미지 크기가 맞는지 확인한다.
+        validate_metadata(document, image_path.read_bytes())
+        document = json.loads(
+            json.dumps(document, ensure_ascii=False, allow_nan=False)
+        )
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    revision = uuid4().hex
+    document["review_status"] = "reviewed"
+    document["reviewer"] = reviewer
+
+    if review_record is not None:
+        document["reviewed_txt"] = review_record["reviewed_txt"]
+        history = list(document.get("review_history") or [])
+        history.append({
+            "previous_revision": expected_revision,
+            "revision": revision,
+            "log": review_record["log"],
+        })
+        document["review_history"] = history
+        
+    document["image"]["file"] = (
+        f"/api/drawings/{drawing_id}/ocr/image?revision={revision}"
+    )
+
+    with database() as db:
+        db.execute("BEGIN IMMEDIATE")
+        cursor = db.execute(
+            """
+            UPDATE ocr_results
+            SET metadata_json = ?,
+                revision = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE drawing_id = ? AND revision = ?
+            """,
+            (
+                json.dumps(document, ensure_ascii=False, allow_nan=False),
+                revision,
+                drawing_id,
+                expected_revision,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise HTTPException(
+                409, "저장 중 OCR 결과가 변경됐습니다. 다시 불러와주세요."
+            )
+
+    return read_ocr_result(drawing_id)

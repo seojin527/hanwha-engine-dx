@@ -1,0 +1,113 @@
+{
+  "schema": "ocr-review-log/1",
+  "drawing": "e6c2300a-9376-412a-8278-e292de43a30b",
+  "reviewer": "ㅇㅇ",
+  "reviewed_at": "2026-10-23T03:37:55+00:00",
+  "origin_sha256": "4a4a3f83cb6cac9b603f8438e5ef00f67b8095b1e9e8c92f6ce4a0a197b387fa",
+  "reviewed_sha256": "af7b757830ad25249cd060c1feb201608d0bacea116156fe8e06b216f424a216",
+  "frame_offset": [
+    56,
+    56
+  ],
+  "summary": {
+    "gdt_rows": 9,
+    "gdt_confirmed": 8,
+    "gdt_edited": 1,
+    "gdt_unreviewed": 0,
+    "dimensions_ocr": 18,
+    "dimensions_edited": 0,
+    "dimensions_added": 1
+  },
+  "changes": [
+    {
+      "item_id": "G01-1",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⏥|0.025|A",
+      "after": "⏥|0.025|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G01-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⫽|0.013",
+      "after": "⫽|0.013",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-1",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "○|0.012|A",
+      "after": "○|0.012|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G02-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌯|0.018",
+      "after": "⌯|0.018",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-1",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌖|0.025|A",
+      "after": "⌖|0.025|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G03-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "◎|0.015",
+      "after": "◎|0.015",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-1",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⌭|0.03|A",
+      "after": "⌭|0.03|A",
+      "format_error": false
+    },
+    {
+      "item_id": "G04-2",
+      "type": "GDT",
+      "action": "confirmed",
+      "before": "⏤|0.011",
+      "after": "⏤|0.011",
+      "format_error": false
+    },
+    {
+      "item_id": "G05-1",
+      "type": "GDT",
+      "action": "edited",
+      "before": "⏊|,.2|A",
+      "after": "⏊|2|A",
+      "format_error": true
+    },
+    {
+      "item_id": "D19",
+      "type": "DIMENSION",
+      "action": "added",
+      "before": null,
+      "after": "12",
+      "position_frame": {
+        "x": 1666,
+        "y": 842
+      },
+      "position_image": {
+        "x": 1722,
+        "y": 898
+      },
+      "box_image": null,
+      "input": {}
+    }
+  ],
+  "warnings": []
+}

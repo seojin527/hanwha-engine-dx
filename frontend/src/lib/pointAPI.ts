@@ -1,4 +1,5 @@
 import { apiUrl } from './drawingAPI';
+import type { WorkPurpose } from './purpose';
 
 export interface MeasurementRecord {
   item_id: string;
@@ -41,13 +42,16 @@ export function saveMeasurement(drawingId: string, itemId: string, body: {
   return json<MeasurementRecord & {drawing_id: string; revision: string}>(
     `${base(drawingId)}/items/${encodeURIComponent(itemId)}/measurement`, post(body));
 }
-export function registerPointError(drawingId: string, itemId: string, body: Record<string, string>) {
-  return json<RegistrationResult>(`${base(drawingId)}/items/${encodeURIComponent(itemId)}/error-cases`, post(body));
+// 오류사례 등록·이력·재시도는 작업 목적의 저장소만 사용한다.
+const purposeBase = (purpose: WorkPurpose, drawingId: string) =>
+  `/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}`;
+export function registerPointError(purpose: WorkPurpose, drawingId: string, itemId: string, body: Record<string, string>) {
+  return json<RegistrationResult>(`${purposeBase(purpose, drawingId)}/items/${encodeURIComponent(itemId)}/error-cases`, post(body));
 }
-export function retryCaseIndex(caseId: string) {
-  return json<RegistrationResult>(`/api/error-cases/${encodeURIComponent(caseId)}/retry-index`, post({}));
+export function retryCaseIndex(purpose: WorkPurpose, caseId: string) {
+  return json<RegistrationResult>(`/api/purposes/${purpose}/error-cases/${encodeURIComponent(caseId)}/retry-index`, post({}));
 }
-export function fetchPointReports(drawingId: string, itemId: string, revision: string, signal?: AbortSignal) {
+export function fetchPointReports(purpose: WorkPurpose, drawingId: string, itemId: string, revision: string, signal?: AbortSignal) {
   return json<{reports: {case_id: string; case_title: string; error_description: string; vector_status: string; created_at: string}[]}>(
-    `${base(drawingId)}/items/${encodeURIComponent(itemId)}/error-cases?revision=${encodeURIComponent(revision)}`, {signal});
+    `${purposeBase(purpose, drawingId)}/items/${encodeURIComponent(itemId)}/error-cases?revision=${encodeURIComponent(revision)}`, {signal});
 }

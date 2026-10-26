@@ -16,11 +16,22 @@ export interface OcrItem {
   requires_review?: boolean;
   coordinate_requires_review?: boolean;
   review_reasons?: string[];
+  measurement_mode?: "numeric" | "gauge";
+  gauge_criteria?: string;
+  instrument?: string;
+  /** DRAWING(도면 공차) / GENERAL(일반공차 ISO 2768-m) / SPECIAL(관리자 특별 공차) */
+  tolerance_source?: "DRAWING" | "GENERAL" | "SPECIAL" | null;
+  /** 관리자가 검사 기준까지 확정한 항목 */
+  inspection_approved?: boolean;
 }
 export interface OcrDocument {
+  review_status?: string;
+  reviewer?: string;
+  review_history?: OcrReviewHistoryEntry[];
   drawing_id: string;
   source_drawing_id?: string;
   part_name?: string | null;
+  unit?: string | null;
   image: { width_px: number; height_px: number; coordinate_status?: string };
   review_reasons?: string[];
   items: OcrItem[];
@@ -53,9 +64,52 @@ export function toOcrPoints(document: OcrDocument): OcrPoint[] {
     source,
   }));
 }
+const SOURCE_LABEL: Record<string, string> = {
+  DRAWING: '도면 공차', GENERAL: '일반공차 ISO 2768-m', SPECIAL: '특별 공차',
+};
+const fmt = (value: number) => Number(value.toFixed(6)).toString();
 export function toleranceText(item: OcrItem): string {
   if (typeof item.lower_limit === 'number' && typeof item.upper_limit === 'number') {
-    return `${item.lower_limit} ~ ${item.upper_limit} ${item.unit || ''}`.trim();
+    const range = `${fmt(item.lower_limit)} ~ ${fmt(item.upper_limit)} ${item.unit || ''}`.trim();
+    let basis = '';
+    if (typeof item.nominal_value === 'number' && typeof item.upper_deviation === 'number' && typeof item.lower_deviation === 'number') {
+      const dev = item.upper_deviation === -item.lower_deviation
+        ? `±${fmt(item.upper_deviation)}`
+        : `${item.upper_deviation >= 0 ? '+' : ''}${fmt(item.upper_deviation)}/${fmt(item.lower_deviation)}`;
+      basis = `${fmt(item.nominal_value)} ${dev} → `;
+    }
+    const source = item.tolerance_source ? SOURCE_LABEL[item.tolerance_source] : '';
+    return `${basis}${range}${source ? ` (${source})` : ''}`;
   }
   return item.tol_type === 'UNKNOWN' ? '해석 확인 필요' : '기준 확인 필요';
+}
+
+export interface OcrReviewHistoryEntry {
+  previous_revision: string;
+  revision: string;
+  log: {
+    reviewer?: string;
+    reviewed_at?: string;
+    changes: Array<{
+      item_id: string;
+      type: string;
+      action: string;
+      before: string | null;
+      after: string;
+    }>;
+  };
+}
+/** 저장된 관리자 검토 정보 (검토자 · 시각). 검토 전이면 null. */
+export function reviewInfoOf(document: OcrDocument | null | undefined): { reviewer: string; at: string } | null {
+  if (!document || document.review_status !== 'reviewed') return null;
+  const last = document.review_history?.[document.review_history.length - 1];
+  let at = '';
+  if (last?.log.reviewed_at) {
+    const date = new Date(last.log.reviewed_at);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    at = Number.isNaN(date.getTime())
+      ? last.log.reviewed_at
+      : `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  return { reviewer: document.reviewer || last?.log.reviewer || '', at };
 }

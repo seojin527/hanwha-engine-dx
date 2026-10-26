@@ -4,6 +4,7 @@
  */
 
 import React from "react";
+import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MeasurementPanelProps {
   currentPoint: any;
@@ -53,100 +54,103 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-5 space-y-5 bg-white text-slate-800">
+    <div className="flex h-full flex-col space-y-3 overflow-y-auto bg-slate-50 p-3 text-slate-800">
       {/* Top Header & Navigation */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <span className="bg-slate-900 text-cyan-400 font-extrabold px-2.5 py-1 rounded text-xs">
+      <div className="-mx-3 -mt-3 flex items-start justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="mt-px shrink-0 rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[13px] font-semibold tabular-nums text-white">
             {displayNumber < 10 ? `0${displayNumber}` : displayNumber}
           </span>
-          <div>
-            <h2 className="text-base font-extrabold text-slate-900">{featureName}</h2>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold leading-snug text-slate-900">{featureName}</h2>
             <span className="text-[11px] text-slate-500">키콤부 몸체 - 조립 시 상대 부품과 끼워지는 주 외경부</span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => onNavigatePoint(-1)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-bold">◀</button>
-          <span className="text-xs font-mono text-slate-600 px-1">{displayNumber}/{totalPointsCount}</span>
-          <button onClick={() => onNavigatePoint(1)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-bold">▶</button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button type="button" aria-label="이전 항목" onClick={() => onNavigatePoint(-1)} className="btn btn-secondary btn-icon h-6 w-6"><ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" /></button>
+          <span className="min-w-[44px] text-center font-mono text-[11px] tabular-nums text-slate-500"><b className="font-semibold text-slate-900">{displayNumber}</b>/{totalPointsCount}</span>
+          <button type="button" aria-label="다음 항목" onClick={() => onNavigatePoint(1)} className="btn btn-secondary btn-icon h-6 w-6"><ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></button>
         </div>
       </div>
 
       {/* Measurement Result Input Card */}
-      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3 shadow-sm">
+      <div className="card space-y-3 p-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-700">측정 결과 및 판정</span>
+          <span className="text-xs font-semibold text-slate-900">측정 결과 및 판정</span>
           <span className="text-[11px] text-slate-500">계측기: {measuringTool}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200">
+        <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="text-[11px] text-slate-400">기준 치수 및 허용 범위</div>
           <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">
             {dimensionFormatted} mm
           </div>
-          <div className="text-xs font-mono text-cyan-700 mt-1">
+          <div className="mt-1 text-xs tabular-nums text-slate-700">
             허용 범위: {lowerLimit} ~ {upperLimit} mm
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">
-            실측값 입력 (Measured Value)
+          <label className="field-label mb-1">
+            실측값
           </label>
           <input
             type="text"
             value={currentRecord.measuredValue || ''}
             onChange={handleValueChange}
             placeholder="실측값을 입력하세요..."
-            className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-mono focus:outline-none focus:border-cyan-500 bg-white"
+            className="field h-9 font-mono text-sm"
           />
         </div>
 
         <div className="flex items-center justify-between text-xs pt-1">
           <span className="text-slate-500">판정 상태:</span>
-          <span className={`font-bold px-2.5 py-1 rounded ${currentRecord.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+          <span className={`tag ${currentRecord.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
             {currentRecord.status === 'completed' ? 'OK — 규격 적합' : '측정 대기중'}
           </span>
         </div>
       </div>
 
       {/* RAG: 측정 전 확인 사항 (AI 생성) */}
-      <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-200 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5">
-            ⚡ 측정 전 확인 사항 <span className="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.2 rounded font-normal">AI 생성·RAG</span>
+      <div className="card border-amber-300">
+        <div className="card-header border-amber-200 bg-amber-50">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+            <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
+            측정 전 확인 사항
           </span>
+          <span className="tag bg-amber-100 text-amber-900">AI 생성·RAG</span>
         </div>
-        <p className="text-xs text-amber-950 leading-relaxed font-medium">
-          • {ragGuide}
+        <p className="p-3 text-xs leading-relaxed text-slate-800">
+          {ragGuide}
         </p>
       </div>
 
       {/* 과거 오류 사례 패널 */}
-      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold text-slate-700">
-            ⚠️ 과거 오류 사례 | 유사 사례 Top {errorCases.length || 1}
-          </span>
+      <div className="card">
+        <div className="card-header">
+          <span className="text-xs font-semibold text-slate-900">과거 오류 사례</span>
+          <span className="text-[11px] text-slate-500">유사 사례 상위 {errorCases.length || 1}건</span>
         </div>
+        <div className="divide-y divide-slate-100">
         {errorCases.length > 0 ? (
           errorCases.map((err: any, idx: number) => (
-            <div key={idx} className="bg-white p-3 rounded-lg border border-rose-200 text-xs space-y-1.5">
-              <div className="font-bold text-rose-800">{err.title}</div>
-              <div className="text-slate-600 font-mono text-[11px]">발생일: {err.date} | 유사도: {err.similarity}</div>
-              <div className="text-slate-700 bg-slate-50 p-2 rounded">
-                <span className="font-bold text-slate-900">원인:</span> {err.cause}
+            <div key={idx} className="space-y-1.5 p-3 text-xs">
+              <div className="text-[13px] font-semibold text-slate-900">{err.title}</div>
+              <div className="text-[11px] text-slate-500">발생일: {err.date} | 유사도: {err.similarity}</div>
+              <div className="text-slate-800">
+                <span className="mr-1 text-slate-500">원인</span>{err.cause}
               </div>
-              <div className="text-emerald-800 bg-emerald-50 p-2 rounded">
-                <span className="font-bold">조치 및 재발 방지:</span> {err.solution}
+              <div className="note note-ok">
+                <b className="mr-1 font-semibold">조치 및 재발 방지</b>{err.solution}
               </div>
             </div>
           ))
         ) : (
-          <div className="text-xs text-slate-500 text-center py-2">
+          <div className="p-3 text-center text-xs text-slate-500">
             해당 포인트에 등록된 치명적 과거 오류 사례가 없습니다. (안전 구간)
           </div>
         )}
+        </div>
       </div>
     </div>
   );

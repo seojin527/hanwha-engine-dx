@@ -9,6 +9,7 @@
    - 고친 기하공차: 파란 "FIX OCR값 -> 고친값"
    - 그대로 확정한 기하공차: 초록 "OK"
    - 작업자가 추가한 치수: 빨간 박스 + "ADD 7"
+   - 잘못 읽어서 고친 치수: 파란 "FIX 5 -> 84"
 """
 from __future__ import annotations
 
@@ -71,6 +72,12 @@ def render_edits_log(result_jpg: str, reviewed_txt: str, log: dict, out_path: st
             _label(draw, (x, max(0, y - font.size * len(texts) - 12)), "  ".join(texts), BLUE, font)
         else:
             _label(draw, (x, max(0, y - font.size - 10)), "OK", GREEN, font)
+
+    for c in log.get("changes", []):          # 고친 치수: 파란 "FIX 5 -> 84"
+        if c["type"] != "DIMENSION" or c["action"] != "edited":
+            continue
+        x, y = c["position_frame"]["x"] + off[0], c["position_frame"]["y"] + off[1]
+        _label(draw, (x + 30, max(0, y - font.size - 30)), f"FIX {c['before']} -> {c['after']}", BLUE, font)
 
     for c in log.get("changes", []):
         if c["action"] != "added":
