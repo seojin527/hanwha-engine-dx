@@ -11,6 +11,7 @@ import {
 import InstrumentSelect from "./review/InstrumentSelect";
 import { recommendedInstruments } from "../lib/inspection/instruments";
 import { formatNumber } from "../lib/inspection/tolerance";
+import { useReportUnsaved } from "../lib/unsavedChanges";
 
 interface Props {
   drawingId: string;
@@ -35,6 +36,8 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
   const [note, setNote] = useState("");
   const [record, setRecord] = useState<MeasurementRecord | null>(null);
   const [dirty, setDirty] = useState(false);
+  // 입력만 하고 저장하지 않은 값이 있으면 페이지 전환 전에 확인하도록 알린다.
+  useReportUnsaved(dirty);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

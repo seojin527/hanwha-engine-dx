@@ -4,26 +4,24 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Crosshair, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
+import { Box, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
 import { Header } from "./components/Header";
 import { DrawingLibrary } from "./components/DrawingLibrary";
-import { DrawingViewer } from "./components/DrawingViewer";
-import { MeasurementTable } from "./components/MeasurementTable";
-import { MeasurementPanel } from "./components/MeasurementPanel";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 import { apiUrl, drawingFileUrl } from './lib/drawingAPI';
 import { LoginScreen } from './components/entry/LoginScreen';
 import { DrawingSelectScreen } from './components/entry/DrawingSelectScreen';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
-import { reviewInfoOf, toOcrPoints } from './lib/ocr';
-import { OcrMeasurementTable } from './components/OcrMeasurementTable';
-import { WorkerPurposePanel } from "./components/WorkerPurposePanel";
+import { toOcrPoints } from './lib/ocr';
+import { ManufacturingPage } from './pages/ManufacturingPage';
+import { AssemblyPage } from './pages/AssemblyPage';
+import { VerificationPage } from './pages/VerificationPage';
+import { WORK_PURPOSES, type WorkPurpose, type WorkspacePageProps } from './pages/workspaceTypes';
+import { UnsavedChangesProvider, type UnsavedRegistry } from './lib/unsavedChanges';
 import type { Drawing } from "./lib/drawingAPI";
 import DrawingReviewHistory from "./components/DrawingReviewHistory";
 import { EngineViewerModal } from "./components/EngineViewerModal";
-
-import { ResizablePanels } from "./components/ResizablePanels";
 
 import {
   fetchMeasurements,
@@ -55,6 +53,10 @@ export function App() {
   // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
   const [activePartId, setActivePartId] = useState("");
   const [libraryOpenOnEnter, setLibraryOpenOnEnter] = useState(false);
+  // 작업 페이지(부품제작·조립·검증). 선택 도면과 저장 데이터는 세 페이지가 함께 쓴다.
+  const [purpose, setPurpose] = useState<WorkPurpose>("manufacturing");
+  // 입력 컴포넌트가 '저장하지 않은 입력 있음'을 등록하는 곳
+  const unsavedRegistry = useRef<UnsavedRegistry>(new Set()).current;
   const [selectedDrawing, setSelectedDrawing] =
     useState<Drawing | null>(null);
   const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
@@ -375,16 +377,30 @@ export function App() {
     setStage("workspace");
   }
 
-  function backToList() {
-    if (
-      !demoMode &&
-      reviewOpen &&
-      !window.confirm("관리자 검토 중 저장하지 않은 내용은 사라집니다. 도면 목록으로 이동할까요?")
-    ) {
-      return;
+  /** 화면을 바꾸면 사라지는 입력이 있으면 사용자에게 확인한다. */
+  function confirmLeave(destination: string) {
+    if (!demoMode && reviewOpen) {
+      return window.confirm(`관리자 검토 중 저장하지 않은 내용은 사라집니다. ${destination}할까요?`);
     }
+    if (unsavedRegistry.size > 0) {
+      return window.confirm(`저장하지 않은 측정값 또는 오류사례 입력이 있습니다. ${destination}하면 입력한 내용이 사라집니다. 계속할까요?`);
+    }
+    return true;
+  }
+
+  function backToList() {
+    if (!confirmLeave("도면 목록으로 이동")) return;
     closeWorkspaceOverlays();
     setStage("select");
+  }
+
+  function switchPurpose(next: WorkPurpose) {
+    if (next === purpose) return;
+    const label = WORK_PURPOSES.find((entry) => entry.value === next)?.label ?? "";
+    if (!confirmLeave(`${label} 페이지로 이동`)) return;
+    // 위치 선택 중이었다면 취소한다 (관리자 검토 상태는 그대로 둔다).
+    if (positionResolver.current) finishPositionPick(null);
+    setPurpose(next);
   }
 
   async function runSelectedOcr() {
@@ -505,6 +521,22 @@ export function App() {
 
   const toolbarActions = (
     <>
+      <div role="group" aria-label="작업 페이지" className="seg-dark">
+        {WORK_PURPOSES.map((entry) => (
+          <button
+            key={entry.value}
+            type="button"
+            aria-pressed={purpose === entry.value}
+            onClick={() => switchPurpose(entry.value)}
+            className="seg-item"
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      {divider}
+
       {!demoMode && selectedDrawing && document && (
         <div role="group" aria-label="화면 모드" className="seg-dark">
           <button
@@ -624,6 +656,98 @@ export function App() {
     </>
   );
 
+  // 관리자 검토 패널: 세 페이지가 같은 흐름을 쓰도록 여기서 하나만 만든다.
+  const reviewPane = (
+    <div className="h-full overflow-y-auto bg-white">
+      {reviewLoading ? (
+        <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
+          <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+          검수 정보를 불러오는 중…
+        </p>
+      ) : reviewError ? (
+        <p
+          role="alert"
+          className="note note-error m-3 whitespace-pre-wrap"
+        >
+          {reviewError}
+        </p>
+      ) : activeReviewSource ? (
+        <DrawingReviewPanel
+          key={`${activeReviewSource.drawing_id}:${activeReviewSource.revision}`}
+          source={activeReviewSource}
+          selectedItemId={activeOcrPoint?.source.id ?? null}
+          imageUrl={resultUrl}
+          onPickPosition={requestPositionPick}
+          onPreviewChange={setReviewPreviewMarkers}
+          onSelectItem={(itemId) => {
+            const point = ocrPoints.find(
+              (entry) => entry.source.id === itemId,
+            );
+            if (point) {
+              setSearchQuery("");
+              setSelectedPointId(point.id);
+            }
+          }}
+          onSaved={() => {
+            setReviewOpen(false);
+            setReviewSource(null);
+            setReviewNotice(
+              "검수 결과를 서버에 저장했습니다. 최신 결과를 불러옵니다.",
+            );
+            ocr.refresh();
+          }}
+        />
+      ) : (
+        <p className="p-4 text-xs text-slate-600">
+          OCR 결과 조회가 끝나면 검수 정보를 표시합니다.
+        </p>
+      )}
+    </div>
+  );
+
+  const pageProps: WorkspacePageProps = {
+    demoMode,
+    selectedDrawing,
+    document,
+    ocrStatus: ocr.status,
+    ocrStage: ocr.stage,
+    revision: ocr.snapshot?.revision,
+    resultUrl,
+    ocrPoints,
+    filteredOcrPoints,
+    activeOcrPoint,
+    ocrInspectionRecords,
+    measurementRecords,
+    onSelectOcrPoint: setSelectedPointId,
+    onNavigateOcr: navigateOcr,
+    onMeasurementSaved: handleMeasurementSaved,
+    demo: {
+      points: filteredPoints,
+      selectedPointId,
+      onSelectPoint: selectPoint,
+      inspectionRecords,
+      selectedItemId,
+      onSelectItem: (pointId, itemId) => {
+        setSelectedPointId(pointId);
+        setSelectedItemId(itemId);
+      },
+      currentPoint,
+      total: MOCK_MEASUREMENT_POINTS.length,
+      onNavigatePoint: handleNavigatePoint,
+      onSaveRecord: handleSaveRecord,
+      onSelectItemId: setSelectedItemId,
+    },
+    reviewOpen,
+    pickingPosition,
+    onCancelPositionPick: () => finishPositionPick(null),
+    onPlaceAt: (position) => finishPositionPick(position),
+    reviewPreviewMarkers,
+    reviewPane,
+    workerBlocked,
+    canOpenReview: ocr.status === "ready",
+    onOpenReview: () => setReviewOpen(true),
+  };
+
   if (stage === "login") {
     return (
       <LoginScreen
@@ -665,6 +789,7 @@ export function App() {
   }
 
   return (
+    <UnsavedChangesProvider registry={unsavedRegistry}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
         displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
@@ -787,224 +912,15 @@ export function App() {
         </div>
       )}
 
-      {workerBlocked ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-6">
-          <section className="w-full max-w-md rounded border border-slate-700 border-t-amber-500 border-t-2 bg-slate-900 p-5">
-            <h2 className="text-[13px] font-semibold text-white">
-              관리자 검토가 끝나지 않은 도면입니다
-            </h2>
-
-            <p className="mt-2 text-xs leading-relaxed text-slate-300">
-              관리자가 OCR 추출 항목을 확인하고 「검토 완료 및 서버 저장」을 누른 뒤에
-              작업자 화면에서 사용할 수 있습니다.
-            </p>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                disabled={ocr.status !== "ready"}
-                onClick={() => setReviewOpen(true)}
-                className="btn btn-primary"
-              >
-                관리자 모드로 전환
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : (
-        <ResizablePanels left={<>
-          {!demoMode && reviewOpen && pickingPosition && (
-            <div
-              role="status"
-              className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 bg-cyan-700 px-3 py-2 text-white"
-            >
-              <Crosshair aria-hidden="true" className="h-4 w-4 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold">
-                  추가할 치수의 위치를 아래 도면에서 클릭하세요
-                </p>
-                <p className="text-[11px] text-cyan-100">
-                  클릭하면 임시 번호가 표시됩니다. 위치 확인 후 오른쪽에서 「위치 확정」을 눌러주세요.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => finishPositionPick(null)}
-                className="btn border-white/40 bg-transparent text-white hover:bg-white/10"
-              >
-                위치 선택 취소 · Esc
-              </button>
-            </div>
-          )}
-
-          <DrawingViewer
-            key={
-              demoMode
-                ? "demo"
-                : selectedDrawing?.drawing_id || "empty"
-            }
-            drawingUrl={
-              demoMode ? "/images/1_image.png" : resultUrl
-            }
-            mediaType={
-              demoMode ? "image/png" : document ? "image/jpeg" : selectedDrawing?.media_type
-            }
-            points={demoMode ? filteredPoints : filteredOcrPoints}
-            coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
-            selectedPointId={demoMode ? selectedPointId : activeOcrPoint?.id || 0}
-            onSelectPoint={demoMode ? selectPoint : setSelectedPointId}
-            inspectionRecords={demoMode ? inspectionRecords : ocrInspectionRecords}
-            isAnalyzing={!demoMode && ocr.status === "applying"}
-            analyzingStep={0}
-            analyzingStage={ocr.stage}
-            previewMarkers={
-              !demoMode && reviewOpen ? reviewPreviewMarkers : []
-            }
-            onPlaceAt={
-              !demoMode && reviewOpen && pickingPosition
-                ? (position) => finishPositionPick(position)
-                : undefined
-            }
-          />
-
-          {demoMode ? (
-            <MeasurementTable
-              points={filteredPoints}
-              selectedPointId={selectedPointId}
-              onSelectPoint={selectPoint}
-              inspectionRecords={inspectionRecords}
-              selectedItemId={selectedItemId}
-              onSelectItem={(pointId, itemId) => {
-                setSelectedPointId(pointId);
-                setSelectedItemId(itemId);
-              }}
-            />
-          ) : document ? (
-            <OcrMeasurementTable
-              points={filteredOcrPoints}
-              selectedId={activeOcrPoint?.id || 0}
-              onSelect={setSelectedPointId}
-              title={document.part_name || "도면"}
-              records={measurementRecords}
-              reviewed={document.review_status === "reviewed"}
-            />
-          ) : (
-            <section className="flex shrink-0 items-baseline gap-3 border-t border-slate-800 bg-slate-900 px-3 py-2">
-              <h2 className="text-xs font-semibold text-slate-200">
-                측정항목
-              </h2>
-              <p className="min-w-0 text-[11px] text-slate-400">
-                {selectedDrawing
-                  ? (ocr.status === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
-                  : "도면을 선택하거나 등록해주세요."}
-              </p>
-            </section>
-          )}
-        </>} right={<>
-          {!demoMode && reviewOpen ? (
-            <div className="h-full overflow-y-auto bg-white">
-              {reviewLoading ? (
-                <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
-                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                  검수 정보를 불러오는 중…
-                </p>
-              ) : reviewError ? (
-                <p
-                  role="alert"
-                  className="note note-error m-3 whitespace-pre-wrap"
-                >
-                  {reviewError}
-                </p>
-              ) : activeReviewSource ? (
-                <DrawingReviewPanel
-                  key={`${activeReviewSource.drawing_id}:${activeReviewSource.revision}`}
-                  source={activeReviewSource}
-                  selectedItemId={activeOcrPoint?.source.id ?? null}
-                  imageUrl={resultUrl}
-                  onPickPosition={requestPositionPick}
-                  onPreviewChange={setReviewPreviewMarkers}
-                  onSelectItem={(itemId) => {
-                    const point = ocrPoints.find(
-                      (entry) => entry.source.id === itemId,
-                    );
-                    if (point) {
-                      setSearchQuery("");
-                      setSelectedPointId(point.id);
-                    }
-                  }}
-                  onSaved={() => {
-                    setReviewOpen(false);
-                    setReviewSource(null);
-                    setReviewNotice(
-                      "검수 결과를 서버에 저장했습니다. 최신 결과를 불러옵니다.",
-                    );
-                    ocr.refresh();
-                  }}
-                />
-              ) : (
-                <p className="p-4 text-xs text-slate-600">
-                  OCR 결과 조회가 끝나면 검수 정보를 표시합니다.
-                </p>
-              )}
-            </div>
-          ) : demoMode ? (
-            <MeasurementPanel
-              currentPoint={currentPoint}
-              totalPointsCount={MOCK_MEASUREMENT_POINTS.length}
-              onNavigatePoint={handleNavigatePoint}
-              record={inspectionRecords[selectedPointId] || {}}
-              onSaveRecord={handleSaveRecord}
-              selectedItemId={selectedItemId}
-              onSelectItemId={setSelectedItemId}
-            />
-          ) : document && selectedDrawing && ocr.snapshot?.revision ? (
-            <WorkerPurposePanel
-              drawingId={selectedDrawing.drawing_id}
-              revision={ocr.snapshot.revision}
-              point={activeOcrPoint}
-              total={ocrPoints.length}
-              onNavigate={navigateOcr}
-              onMeasurementSaved={handleMeasurementSaved}
-              records={measurementRecords}
-              reviewInfo={reviewInfoOf(document)}
-            />
-          ) : (
-            <section className="space-y-3 p-4">
-              <h2 className="card-title">
-                도면 정보
-              </h2>
-
-              {selectedDrawing ? (
-                <>
-                  <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-xs">
-                    <dt className="text-slate-500">파일명</dt>
-                    <dd className="break-all text-slate-900">
-                      {selectedDrawing.original_filename}
-                    </dd>
-                    <dt className="text-slate-500">파일 크기</dt>
-                    <dd className="font-mono text-slate-900">
-                      {(
-                        selectedDrawing.size_bytes /
-                        1024 /
-                        1024
-                      ).toFixed(2)}{" "}
-                      MB
-                    </dd>
-                  </dl>
-
-                  <p className={`note ${ocr.status === "applying" ? "note-info" : "note-warn"}`}>
-                    {ocr.status === "applying" ? "CPU OCR 분석 중입니다. 완료 후 측정항목을 표시하고 관련 오류·주의사항을 검색합니다." : "OCR 실행 대기 중입니다. 새 업로드는 자동 분석되며 기존 도면은 상단의 OCR 실행을 눌러주세요."}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  상단에서 부품과 도면을 선택해주세요.
-                </p>
-              )}
-            </section>
-          )}
-        </>} />
-      )}
+      {(() => {
+        const Page =
+          purpose === "assembly"
+            ? AssemblyPage
+            : purpose === "verification"
+              ? VerificationPage
+              : ManufacturingPage;
+        return <Page {...pageProps} />;
+      })()}
 
             {previewFile && (
         <dialog
@@ -1085,6 +1001,7 @@ export function App() {
         </dialog>
       )}
     </div>
+    </UnsavedChangesProvider>
   );
 }
 

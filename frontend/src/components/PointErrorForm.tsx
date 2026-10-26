@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchPointReports, registerPointError, retryCaseIndex, type RegistrationResult } from '../lib/pointAPI';
 import type { OcrItem } from '../lib/ocr';
+import { useReportUnsaved } from '../lib/unsavedChanges';
 
 function newRequestId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -27,6 +28,8 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<RegistrationResult | null>(null);
+  // 작성 중인 오류사례가 있으면 페이지 전환 전에 확인하도록 알린다.
+  useReportUnsaved(open && !saved && Object.values(values).some((value) => value.trim() !== ''));
   const [history, setHistory] = useState<Awaited<ReturnType<typeof fetchPointReports>>['reports']>([]);
   const [historyError, setHistoryError] = useState('');
   const [version, setVersion] = useState(0);
