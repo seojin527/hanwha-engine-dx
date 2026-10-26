@@ -142,44 +142,46 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
   }
 
   const currentRecord = dirty ? null : record;
-  const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
-  const passClass =
-    "rounded-lg border px-3 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-35";
+  const inputClass = "field";
+  const passClass = "btn btn-lg w-full";
 
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5">
-      <h3 className="text-xs font-extrabold text-slate-800">측정 입력</h3>
+    <section aria-label="측정 입력" className="card">
+      <header className="card-header">
+        <h3 className="text-xs font-semibold text-slate-900">측정 입력</h3>
+        {loading && (
+          <p role="status" className="text-[11px] text-slate-500">
+            저장된 결과 불러오는 중…
+          </p>
+        )}
+      </header>
 
-      {loading && (
-        <p role="status" className="text-xs text-slate-500">
-          저장된 측정 결과를 불러오는 중…
-        </p>
-      )}
-
+      <div className="card-body">
       <fieldset disabled={loading || saving} className="space-y-3">
         {mode === "gauge" ? (
-          <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-            판정 기준: {item.gauge_criteria || "관리자 설정이 필요합니다."}
+          <p className="note note-info whitespace-pre-wrap">
+            <b className="mr-1 font-semibold">판정 기준</b>
+            {item.gauge_criteria || "관리자 설정이 필요합니다."}
           </p>
         ) : (
           <>
             {hasRange ? (
-              <div className="rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-300">
-                허용 범위{" "}
-                <b className="font-mono text-sm text-cyan-300">
+              <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                <span className="text-[11px] text-slate-500">허용 범위</span>
+                <b className="font-mono text-sm font-semibold text-slate-900">
                   {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
                 </b>
                 {typeof item.nominal_value === "number" && (
-                  <span className="ml-1.5 text-[11px] text-slate-400">(기준 {formatNumber(item.nominal_value)})</span>
+                  <span className="text-[11px] text-slate-500">기준 {formatNumber(item.nominal_value)}</span>
                 )}
               </div>
             ) : (
-              <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+              <p className="note note-warn">
                 허용 범위가 지정되지 않아 자동 판정 없이 기록만 합니다.
               </p>
             )}
-            <label className="block space-y-1 text-xs font-semibold">
-              <span>실측값 ({unit})</span>
+            <label className="block space-y-1">
+              <span className="field-label">실측값 ({unit})</span>
               <input
                 type="text"
                 inputMode="decimal"
@@ -189,26 +191,26 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
                   setValue(event.target.value);
                   markChanged();
                 }}
-                className={`${inputClass} font-mono ${
+                className={`${inputClass} h-9 font-mono text-sm ${
                   inRange === true
-                    ? "border-emerald-500 bg-emerald-50"
+                    ? "border-emerald-500 bg-emerald-50 focus:border-emerald-600 focus:ring-emerald-600"
                     : inRange === false
-                      ? "border-rose-500 bg-rose-50"
+                      ? "border-rose-500 bg-rose-50 focus:border-rose-600 focus:ring-rose-600"
                       : ""
                 }`}
               />
             </label>
             {trimmed && numeric === null && <p className="text-[11px] text-rose-700">숫자로 입력해주세요.</p>}
-            {inRange === true && <p className="text-[11px] font-semibold text-emerald-700">✓ 허용 범위 안입니다.</p>}
+            {inRange === true && <p className="text-[11px] font-medium text-emerald-700">허용 범위 안입니다.</p>}
             {inRange === false && (
-              <p className="text-[11px] font-semibold text-rose-700">✗ 허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
+              <p className="text-[11px] font-medium text-rose-700">허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
             )}
           </>
         )}
 
-        <label className="block space-y-1 text-xs">
-          <span>
-            사용 측정기 {item.instrument && <span className="text-slate-500">· 관리자 지정: {item.instrument}</span>}
+        <label className="block space-y-1">
+          <span className="field-label">
+            사용 측정기 {item.instrument && <span className="font-normal text-slate-500">· 관리자 지정: {item.instrument}</span>}
           </span>
           <InstrumentSelect
             className={inputClass}
@@ -230,8 +232,8 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
           />
         </label>
 
-        <label className="block space-y-1 text-xs">
-          <span>측정 메모</span>
+        <label className="block space-y-1">
+          <span className="field-label">측정 메모</span>
           <textarea
             className={inputClass}
             rows={2}
@@ -248,7 +250,7 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
             type="button"
             disabled={numeric === null}
             onClick={() => void save("record")}
-            className="w-full rounded-lg bg-slate-700 px-3 py-2.5 text-sm font-bold text-white disabled:opacity-35"
+            className="btn btn-primary btn-lg w-full"
           >
             {saving ? "저장 중…" : "측정값 기록"}
           </button>
@@ -258,7 +260,7 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
               type="button"
               disabled={mode === "numeric" && inRange !== true}
               onClick={() => void save("pass")}
-              className={`${passClass} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
+              className={`${passClass} border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800`}
             >
               {saving ? "저장 중…" : "합격"}
             </button>
@@ -277,8 +279,8 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
         )}
 
         {currentRecord ? (
-          <div role="status" className={`space-y-1 rounded-lg p-3 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
-            <p className="font-bold">
+          <div role="status" className={`space-y-1 rounded p-2.5 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
+            <p className="font-semibold">
               {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
               {" · "}
               {measurementStatusLabels[currentRecord.status]}
@@ -295,10 +297,11 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
       </fieldset>
 
       {error && (
-        <p role="alert" className="whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-xs text-red-700">
+        <p role="alert" className="note note-error whitespace-pre-wrap">
           {error}
         </p>
       )}
+      </div>
     </section>
   );
 }

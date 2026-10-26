@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { Box, Crosshair, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
 import { Header } from "./components/Header";
 import { DrawingLibrary } from "./components/DrawingLibrary";
 import { DrawingViewer } from "./components/DrawingViewer";
@@ -416,40 +417,187 @@ export function App() {
     }));
   }
 
+  const ocrBusy = ocr.status === "loading" || ocr.status === "applying";
+  const showFileBar =
+    !demoMode &&
+    !!document &&
+    (documentReviewed
+      ? loadingFiles || reviewFiles.length > 0 || !!fileError
+      : reviewOpen);
+
+  const toolbarStatus = demoMode ? (
+    <>
+      <span className="tag bg-slate-700 text-slate-200">데모</span>
+      <span className="truncate">샘플 도면 · 샘플 측정항목</span>
+    </>
+  ) : selectedDrawing ? (
+    <>
+      {document ? (
+        documentReviewed ? (
+          <span className="tag bg-emerald-900/70 text-emerald-200">검토 완료</span>
+        ) : (
+          <span className="tag bg-amber-900/70 text-amber-200">검토 전</span>
+        )
+      ) : null}
+      <span className="truncate">
+        {document
+          ? `OCR 추출 ${ocrPoints.length}건`
+          : ocr.status === "applying"
+            ? "OCR 분석 중…"
+            : "OCR 미실행"}
+      </span>
+    </>
+  ) : (
+    <span className="truncate">등록된 도면을 선택해주세요</span>
+  );
+
+  const divider = <span aria-hidden="true" className="hidden h-4 w-px bg-slate-700 sm:block" />;
+
+  const toolbarActions = (
+    <>
+      {!demoMode && selectedDrawing && document && (
+        <div role="group" aria-label="화면 모드" className="seg-dark">
+          <button
+            type="button"
+            aria-pressed={!reviewOpen}
+            onClick={() => setReviewOpen(false)}
+            className="seg-item"
+          >
+            작업자
+          </button>
+          <button
+            type="button"
+            aria-pressed={reviewOpen}
+            disabled={ocr.status !== "ready"}
+            onClick={() => {
+              setReviewNotice("");
+              setReviewOpen(true);
+            }}
+            className="seg-item"
+          >
+            관리자
+          </button>
+        </div>
+      )}
+
+      {!demoMode && selectedDrawing && (
+        <>
+          {document && divider}
+          <button
+            type="button"
+            disabled={ocrBusy}
+            onClick={() => void runSelectedOcr()}
+            className={`btn ${document ? "btn-dark" : "btn-primary"}`}
+          >
+            {ocr.status === "applying" ? (
+              <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ScanText aria-hidden="true" className="h-3.5 w-3.5" />
+            )}
+            <span className="max-w-[180px] truncate">
+              {ocr.status === "applying"
+                ? ocr.stage || "OCR 분석 중…"
+                : document
+                  ? "OCR 결과 다시 조회"
+                  : ocr.status === "error"
+                    ? "OCR 재시도"
+                    : "OCR 실행"}
+            </span>
+          </button>
+
+          {document && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="btn btn-dark"
+            >
+              <History aria-hidden="true" className="h-3.5 w-3.5" />
+              수정 이력
+            </button>
+          )}
+        </>
+      )}
+
+      {!demoMode && selectedDrawing && divider}
+
+      <button
+        type="button"
+        onClick={() => setEngineViewerOpen(true)}
+        className="btn btn-dark"
+      >
+        <Box aria-hidden="true" className="h-3.5 w-3.5" />
+        3D 뷰어
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setUploadRequest((value) => value + 1)}
+        className={`btn ${selectedDrawing && !demoMode ? "btn-dark" : "btn-primary"}`}
+      >
+        <Upload aria-hidden="true" className="h-3.5 w-3.5" />
+        도면 업로드
+      </button>
+
+      {(demoMode || selectedDrawing) && divider}
+
+      {!demoMode && (
+        <button
+          type="button"
+          onClick={() => setDemoMode(true)}
+          className="btn btn-dark-ghost"
+        >
+          데모 화면
+        </button>
+      )}
+
+      {demoMode && selectedDrawing && (
+        <button
+          type="button"
+          onClick={() => setDemoMode(false)}
+          className="btn btn-dark-ghost"
+        >
+          선택한 도면으로
+        </button>
+      )}
+
+      {demoMode && (
+        <button
+          type="button"
+          onClick={handleResetData}
+          title="데모 검사 기록 초기화"
+          className="btn btn-dark-ghost"
+        >
+          <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+          초기화
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
         displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
-        onUploadDrawing={() => setUploadRequest((value) => value + 1)}
-        onResetData={handleResetData}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
 
-      <div className="flex shrink-0 justify-end bg-slate-900 px-4 py-1">
-  <button
-    type="button"
-    onClick={() => setEngineViewerOpen(true)}
-    className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-200"
-  >
-    🧊 3D 뷰어
-  </button>
-</div>
-
-{engineViewerOpen && (
-  <EngineViewerModal
-    partName={
-      demoMode
-        ? "PISTON ROD"
-        : document?.part_name || selectedDrawing?.name
-    }
-    isMockName={demoMode}
-    onClose={() => setEngineViewerOpen(false)}
-  />
-)}
+      {engineViewerOpen && (
+        <EngineViewerModal
+          partName={
+            demoMode
+              ? "PISTON ROD"
+              : document?.part_name || selectedDrawing?.name
+          }
+          isMockName={demoMode}
+          onClose={() => setEngineViewerOpen(false)}
+        />
+      )}
 
       <DrawingLibrary
         uploadRequest={uploadRequest}
+        status={toolbarStatus}
+        actions={toolbarActions}
         onSelectDrawing={(drawing, url) => {
           setSelectedPointId(1);
           setSelectedDrawing(drawing);
@@ -463,111 +611,32 @@ export function App() {
         }}
       />
 
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-1.5 text-xs">
-        <span className="min-w-0 truncate text-slate-300">
-          {demoMode
-            ? "데모 도면 · 샘플 측정항목"
-            : selectedDrawing
-            ? `${selectedDrawing.original_filename} · ${document ? `OCR 추출 ${ocrPoints.length}건` : ocr.status === "applying" ? "OCR 분석 중…" : "OCR 미실행"}`
-            : "등록된 도면을 선택해주세요"}
-        </span>
-
-                  {!demoMode && selectedDrawing && document && (
-          <div className="flex shrink-0 overflow-hidden rounded border border-slate-600">
-            <button
-              type="button"
-              onClick={() => setReviewOpen(false)}
-              className={`px-3 py-1 ${
-                !reviewOpen
-                  ? "bg-cyan-600 font-bold text-white"
-                  : "bg-slate-800 text-slate-300"
-              }`}
-            >
-              작업자
-            </button>
-
-            <button
-              type="button"
-              disabled={ocr.status !== "ready"}
-              onClick={() => {
-                setReviewNotice("");
-                setReviewOpen(true);
-              }}
-              className={`px-3 py-1 disabled:opacity-40 ${
-                reviewOpen
-                  ? "bg-cyan-600 font-bold text-white"
-                  : "bg-slate-800 text-slate-300"
-              }`}
-            >
-              관리자
-            </button>
-          </div>
-        )}
-
-          {!demoMode && selectedDrawing && (
-          <button
-            type="button"
-            disabled={ocr.status === "loading" || ocr.status === "applying"}
-            onClick={() => void runSelectedOcr()}
-            className="shrink-0 rounded border border-cyan-700 bg-cyan-950 px-3 py-1 text-cyan-200 disabled:opacity-40"
-          >
-            {ocr.status === "applying"
-              ? ocr.stage || "OCR 분석 중…"
-              : document
-                ? "OCR 결과 다시 조회"
-                : ocr.status === "error"
-                  ? "OCR 재시도"
-                  : "OCR 실행"}
-          </button>
-        )}
-
-          {!demoMode && document && (
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(true)}
-            className="shrink-0 rounded border border-slate-500 px-3 py-1 text-slate-200"
-          >
-            수정 이력
-          </button>
-        )}
-
-        {!demoMode && (
-          <button
-            type="button"
-            onClick={() => setDemoMode(true)}
-            className="shrink-0 text-cyan-300 hover:text-cyan-200"
-          >
-            데모 화면 보기
-          </button>
-        )}
-
-        {demoMode && selectedDrawing && (
-          <button
-            type="button"
-            onClick={() => setDemoMode(false)}
-            className="shrink-0 text-cyan-300 hover:text-cyan-200"
-          >
-            선택한 등록 도면 보기
-          </button>
-        )}
-      </div>
-
-      {!demoMode && ocr.error && <p role="alert" className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200">{ocr.error}</p>}
-            {!demoMode && measurementError && (
-        <p
-          role="alert"
-          className="shrink-0 bg-rose-950 px-4 py-2 text-xs text-rose-200"
-        >
+      {!demoMode && ocr.error && (
+        <p role="alert" className="banner banner-error">
+          {ocr.error}
+        </p>
+      )}
+      {!demoMode && measurementError && (
+        <p role="alert" className="banner banner-error">
           측정 결과 조회 실패: {measurementError}
         </p>
       )}
-      {!demoMode && document?.image.coordinate_status === 'UNVERIFIED' && <p className="shrink-0 bg-amber-950 px-4 py-1 text-[11px] text-amber-200">좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.</p>}
+      {!demoMode && document?.image.coordinate_status === "UNVERIFIED" && (
+        <p className="banner banner-warn">
+          좌표 기준 확인 필요: Frame offset 정보가 없어 입력 좌표를 그대로 표시합니다.
+        </p>
+      )}
       {!demoMode && reviewNotice && (
-        <p
-          role="status"
-          className="shrink-0 bg-emerald-950 px-4 py-2 text-xs text-emerald-200"
-        >
-          {reviewNotice}
+        <p role="status" className="banner banner-ok">
+          <span className="min-w-0 flex-1">{reviewNotice}</span>
+          <button
+            type="button"
+            aria-label="알림 닫기"
+            onClick={() => setReviewNotice("")}
+            className="btn btn-dark-ghost btn-icon h-6"
+          >
+            <X aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
         </p>
       )}
 
@@ -580,33 +649,15 @@ export function App() {
         />
       )}
 
-      {!demoMode && reviewOpen && pickingPosition && (
-        <div
-          role="status"
-          className="flex shrink-0 items-center justify-between gap-3 bg-cyan-950 px-4 py-2 text-xs text-cyan-100"
-        >
-          <span>
-            추가할 치수의 위치를 도면에서 클릭해주세요. Esc로 취소할 수 있습니다.
-          </span>
-          <button
-            type="button"
-            onClick={() => finishPositionPick(null)}
-            className="shrink-0 rounded border border-cyan-500 px-2 py-1"
-          >
-            위치 선택 취소
-          </button>
-        </div>
-      )}
-
-            {!demoMode && document && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900 px-4 py-2 text-xs">
-          <span className="text-slate-400">
-            {document.review_status !== "reviewed"
+      {showFileBar && (
+        <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-800 bg-slate-900 px-3 py-1 text-xs">
+          <span className="text-[11px] text-slate-400">
+            {!documentReviewed
               ? "검수 결과 파일은 관리자 검토 완료 때 자동으로 만들어집니다."
               : loadingFiles
                 ? "검수 결과 파일 불러오는 중…"
                 : reviewFiles.length
-                  ? "검수 결과:"
+                  ? "검수 결과 파일"
                   : ""}
           </span>
 
@@ -615,70 +666,74 @@ export function App() {
               key={file.kind}
               href={apiUrl(file.url)}
               download
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white"
+              className="btn btn-dark h-6"
             >
-              {file.label} ⬇
+              <Download aria-hidden="true" className="h-3 w-3" />
+              {file.label}
             </a>
           ) : (
             <button
               key={file.kind}
               type="button"
               onClick={() => setPreviewFile(file)}
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white"
+              className="btn btn-dark h-6"
             >
               {file.label}
             </button>
           ))}
 
           {fileError && (
-            <p role="alert" className="w-full text-rose-300">
+            <p role="alert" className="w-full text-[11px] text-rose-300">
               {fileError}
             </p>
           )}
         </div>
       )}
 
-            {workerBlocked ? (
+      {workerBlocked ? (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-6">
-          <section className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 text-center">
-            <h2 className="text-sm font-bold text-white">
+          <section className="w-full max-w-md rounded border border-slate-700 border-t-amber-500 border-t-2 bg-slate-900 p-5">
+            <h2 className="text-[13px] font-semibold text-white">
               관리자 검토가 끝나지 않은 도면입니다
             </h2>
 
-            <p className="mt-3 text-xs leading-relaxed text-slate-300">
-              관리자가 OCR 추출 항목을 확인하고
-              「검토 완료 및 서버 저장」을 누른 뒤에
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              관리자가 OCR 추출 항목을 확인하고 「검토 완료 및 서버 저장」을 누른 뒤에
               작업자 화면에서 사용할 수 있습니다.
             </p>
 
-            <button
-              type="button"
-              disabled={ocr.status !== "ready"}
-              onClick={() => setReviewOpen(true)}
-              className="mt-4 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
-            >
-              관리자 모드로 전환
-            </button>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                disabled={ocr.status !== "ready"}
+                onClick={() => setReviewOpen(true)}
+                className="btn btn-primary"
+              >
+                관리자 모드로 전환
+              </button>
+            </div>
           </section>
         </div>
       ) : (
-                <ResizablePanels left={<>
+        <ResizablePanels left={<>
           {!demoMode && reviewOpen && pickingPosition && (
             <div
               role="status"
-              className="shrink-0 border-b-2 border-cyan-500 bg-cyan-50 px-4 py-4 text-center"
+              className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 bg-cyan-700 px-3 py-2 text-white"
             >
-              <p className="text-base font-bold text-cyan-900">
-                👇 추가할 치수의 위치를 아래 도면에서 클릭하세요!
-              </p>
-              <p className="mt-1 text-xs text-cyan-800">
-                클릭하면 임시 번호가 표시됩니다. 위치 확인 후
-                오른쪽에서 「측정 위치 확정」을 눌러주세요.
-              </p>
+              <Crosshair aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold">
+                  추가할 치수의 위치를 아래 도면에서 클릭하세요
+                </p>
+                <p className="text-[11px] text-cyan-100">
+                  클릭하면 임시 번호가 표시됩니다. 위치 확인 후 오른쪽에서 「위치 확정」을 눌러주세요.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => finishPositionPick(null)}
-                className="mt-2 rounded-lg border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100"
+                className="btn border-white/40 bg-transparent text-white hover:bg-white/10"
               >
                 위치 선택 취소 · Esc
               </button>
@@ -736,14 +791,12 @@ export function App() {
               records={measurementRecords}
               reviewed={document.review_status === "reviewed"}
             />
-            
-              
           ) : (
-            <section className="shrink-0 border-t border-slate-700 bg-slate-900 p-4">
-              <h2 className="text-sm font-semibold text-white">
+            <section className="flex shrink-0 items-baseline gap-3 border-t border-slate-800 bg-slate-900 px-3 py-2">
+              <h2 className="text-xs font-semibold text-slate-200">
                 측정항목
               </h2>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="min-w-0 text-[11px] text-slate-400">
                 {selectedDrawing
                   ? (ocr.status === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
                   : "도면을 선택하거나 등록해주세요."}
@@ -754,13 +807,14 @@ export function App() {
           {!demoMode && reviewOpen ? (
             <div className="h-full overflow-y-auto bg-white">
               {reviewLoading ? (
-                <p className="p-4 text-sm text-slate-600">
+                <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
+                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                   검수 정보를 불러오는 중…
                 </p>
               ) : reviewError ? (
                 <p
                   role="alert"
-                  className="whitespace-pre-wrap p-4 text-sm text-red-700"
+                  className="note note-error m-3 whitespace-pre-wrap"
                 >
                   {reviewError}
                 </p>
@@ -791,7 +845,7 @@ export function App() {
                   }}
                 />
               ) : (
-                <p className="p-4 text-sm text-slate-600">
+                <p className="p-4 text-xs text-slate-600">
                   OCR 결과 조회가 끝나면 검수 정보를 표시합니다.
                 </p>
               )}
@@ -818,39 +872,36 @@ export function App() {
               reviewInfo={reviewInfoOf(document)}
             />
           ) : (
-            <section className="space-y-4 p-5">
-              <h2 className="text-sm font-bold text-slate-900">
+            <section className="space-y-3 p-4">
+              <h2 className="card-title">
                 도면 정보
               </h2>
 
               {selectedDrawing ? (
                 <>
-                  <div className="text-xs">
-                    <p className="text-slate-500">파일명</p>
-                    <p className="mt-1 break-all text-slate-900">
+                  <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-xs">
+                    <dt className="text-slate-500">파일명</dt>
+                    <dd className="break-all text-slate-900">
                       {selectedDrawing.original_filename}
-                    </p>
-                  </div>
-
-                  <div className="text-xs">
-                    <p className="text-slate-500">파일 크기</p>
-                    <p className="mt-1 text-slate-900">
+                    </dd>
+                    <dt className="text-slate-500">파일 크기</dt>
+                    <dd className="font-mono text-slate-900">
                       {(
                         selectedDrawing.size_bytes /
                         1024 /
                         1024
                       ).toFixed(2)}{" "}
                       MB
-                    </p>
-                  </div>
+                    </dd>
+                  </dl>
 
-                  <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                    {ocr.status === "applying" ? "CPU OCR 분석 중입니다. 완료 후 측정항목을 표시하고 관련 오류·주의사항을 검색합니다." : "OCR 실행 대기 중입니다. 새 업로드는 자동 분석되며 기존 도면은 OCR 실행을 눌러주세요."}
-                  </div>
+                  <p className={`note ${ocr.status === "applying" ? "note-info" : "note-warn"}`}>
+                    {ocr.status === "applying" ? "CPU OCR 분석 중입니다. 완료 후 측정항목을 표시하고 관련 오류·주의사항을 검색합니다." : "OCR 실행 대기 중입니다. 새 업로드는 자동 분석되며 기존 도면은 상단의 OCR 실행을 눌러주세요."}
+                  </p>
                 </>
               ) : (
                 <p className="text-xs text-slate-500">
-                  부품에서 도면을 선택해주세요.
+                  상단에서 부품과 도면을 선택해주세요.
                 </p>
               )}
             </section>
@@ -879,40 +930,30 @@ export function App() {
               setPreviewFile(null);
             }
           }}
-          className="fixed inset-0 m-auto h-[min(760px,85dvh)] w-[min(960px,92vw)] max-w-none overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/60 backdrop:backdrop-blur-sm"
+          className="fixed inset-0 m-auto h-[min(760px,85dvh)] w-[min(960px,92vw)] max-w-none overflow-hidden rounded-md border border-slate-300 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/60"
         >
           <div className="flex h-full flex-col">
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setPreviewFile(null)}
-                  className="mb-1 rounded px-1 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 hover:text-cyan-900"
-                >
-                  ← 관리자 화면으로
-                </button>
-
-                <h2
-                  id="review-file-preview-title"
-                  className="truncate text-sm font-bold"
-                >
-                  {previewFile.label}
-                </h2>
-              </div>
+            <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4">
+              <h2
+                id="review-file-preview-title"
+                className="card-title min-w-0 truncate"
+              >
+                {previewFile.label}
+              </h2>
 
               <button
                 type="button"
                 aria-label="파일 미리보기 닫기"
                 onClick={() => setPreviewFile(null)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="btn btn-ghost btn-icon"
               >
-                ×
+                <X aria-hidden="true" className="h-4 w-4" />
               </button>
             </header>
 
             <div className="min-h-0 flex-1 bg-slate-100 p-3">
-                            {["reviewed_jpg", "edits_log_jpg"].includes(previewFile.kind) ? (
-                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-2">
+              {["reviewed_jpg", "edits_log_jpg"].includes(previewFile.kind) ? (
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded border border-slate-200 bg-white p-2">
                   <img
                     key={previewFile.url}
                     src={apiUrl(previewFile.url)}
@@ -925,20 +966,20 @@ export function App() {
                   key={previewFile.url}
                   title={`${previewFile.label} 미리보기`}
                   src={apiUrl(previewFile.url)}
-                  className="h-full w-full rounded-lg border border-slate-200 bg-white"
+                  className="h-full w-full rounded border border-slate-200 bg-white"
                 />
               )}
             </div>
 
-            <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
-              <span className="text-xs text-slate-500">
+            <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5">
+              <span className="text-[11px] text-slate-500">
                 Esc 또는 바깥 배경을 눌러 닫을 수 있습니다.
               </span>
 
               <button
                 type="button"
                 onClick={() => setPreviewFile(null)}
-                className="shrink-0 rounded-lg bg-cyan-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-cyan-800"
+                className="btn btn-primary"
               >
                 관리자 화면으로 돌아가기
               </button>

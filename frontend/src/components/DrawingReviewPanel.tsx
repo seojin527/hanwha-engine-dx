@@ -68,11 +68,10 @@ interface AddedDimension {
 
 type Filter = "all" | "DIMENSION" | "GDT" | "unconfirmed" | "invalid" | "edited";
 
-const inputClass =
-  "w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100";
-const editClass =
-  "w-full rounded-md border border-cyan-300 bg-cyan-50/50 px-2.5 py-1.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100";
-const cardClass = "space-y-3 rounded-xl border border-slate-200 bg-white p-3.5";
+const inputClass = "field text-[13px]";
+/** 관리자가 고칠 수 있는 값: 왼쪽 강조선으로 편집 대상임을 구분한다. */
+const editClass = "field text-[13px] border-l-2 border-l-cyan-600";
+const cardClass = "card space-y-3 p-3";
 
 function itemNumber(item: OcrItem) {
   return Number(item.id.match(/_(\d+)$/)?.[1]);
@@ -596,16 +595,16 @@ export default function DrawingReviewPanel({
           }
         />
         {reviewedInfo && (
-          <p className="border-b border-emerald-200 bg-emerald-50 px-4 py-1.5 text-[11px] text-emerald-800">
+          <p className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
             저장된 검토 · {reviewedInfo.reviewer || "검토자 미기록"}
             {reviewedInfo.at ? ` · ${reviewedInfo.at}` : ""} — 값이나 기준을 바꾸면 그 항목은 다시 확인해야 합니다.
           </p>
         )}
       </div>
 
-      <fieldset disabled={saving || picking} className="flex-1 space-y-3 p-3.5">
+      <fieldset disabled={saving || picking} className="flex-1 space-y-3 p-3">
         {source.review.warnings.map((warning, index) => (
-          <p key={index} className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p key={index} className="note note-warn">
             {warning}
           </p>
         ))}
@@ -639,9 +638,9 @@ export default function DrawingReviewPanel({
           />
         )}
 
-        <details className="rounded-xl border border-slate-200 bg-white">
-          <summary className="cursor-pointer px-3.5 py-2.5 text-xs font-bold text-slate-700">
-            ☰ 전체 항목 목록 ({points.length}) · 확인 {confirmedCount}
+        <details className="card">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
+            전체 항목 목록 ({points.length}) · 확인 {confirmedCount}
           </summary>
           <div className="space-y-2 border-t border-slate-100 p-3">
             <div role="group" aria-label="검토 항목 필터" className="flex flex-wrap gap-1.5">
@@ -658,17 +657,17 @@ export default function DrawingReviewPanel({
                   type="button"
                   aria-pressed={filter === value}
                   onClick={() => setFilter(value)}
-                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                  className={`h-6 rounded-sm border px-2 text-[11px] font-medium ${
                     filter === value
-                      ? "border-cyan-600 bg-cyan-600 text-white"
-                      : "border-slate-300 bg-white text-slate-600 hover:border-cyan-400"
+                      ? "border-slate-800 bg-slate-800 text-white"
+                      : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50"
                   }`}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <ul aria-label="검토 항목 목록" className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
+            <ul aria-label="검토 항목 목록" className="max-h-64 overflow-y-auto rounded border border-slate-200">
               {points.map((item, index) => {
                 const invalid = hasInvalidValue(item);
                 const edited = isEdited(item);
@@ -684,7 +683,7 @@ export default function DrawingReviewPanel({
                       type="button"
                       onClick={() => selectItem(item.id)}
                       className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs ${
-                        item.id === selectedId ? "bg-cyan-50" : "hover:bg-slate-50"
+                        item.id === selectedId ? "bg-cyan-50 shadow-[inset_3px_0_0_var(--color-cyan-700)]" : "hover:bg-slate-50"
                       }`}
                     >
                       <span
@@ -711,8 +710,8 @@ export default function DrawingReviewPanel({
           </div>
         </details>
 
-        <details className="rounded-xl border border-slate-200 bg-white">
-          <summary className="cursor-pointer px-3.5 py-2.5 text-xs font-bold text-slate-700">
+        <details className="card">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
             + 놓친 치수 추가{" "}
             <span className="font-normal text-slate-500">OCR이 아예 못 읽은 치수 {added.length ? `· ${added.length}개 추가 중` : ""}</span>
           </summary>
@@ -723,7 +722,7 @@ export default function DrawingReviewPanel({
             {added.map((item) => {
               const issue = addedIssue(item);
               return (
-                <div key={item.id} className="space-y-2 rounded-lg border border-slate-200 p-2.5">
+                <div key={item.id} className="space-y-2 rounded border border-slate-200 p-2.5">
                   <input
                     aria-label="추가 치수 표기"
                     className={editClass}
@@ -740,7 +739,7 @@ export default function DrawingReviewPanel({
                       <button
                         type="button"
                         onClick={() => void pickPosition(item.id)}
-                        className="rounded-lg border border-cyan-600 bg-cyan-50 px-3 py-1.5 text-xs font-bold text-cyan-800 hover:bg-cyan-100"
+                        className="btn btn-secondary"
                       >
                         ① 도면에서 위치 선택
                       </button>
@@ -749,8 +748,8 @@ export default function DrawingReviewPanel({
                       type="button"
                       disabled={!!issue}
                       onClick={() => updateAdded(item.id, { positionConfirmed: true })}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-40 ${
-                        item.positionConfirmed ? "bg-emerald-100 text-emerald-800" : "bg-cyan-700 text-white hover:bg-cyan-800"
+                      className={`btn ${
+                        item.positionConfirmed ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "btn-primary"
                       }`}
                     >
                       {item.positionConfirmed ? "✓ 위치 확정됨" : "② 위치 확정"}
@@ -758,7 +757,7 @@ export default function DrawingReviewPanel({
                     <button
                       type="button"
                       onClick={() => setAdded((previous) => previous.filter((entry) => entry.id !== item.id))}
-                      className="rounded-lg px-3 py-1.5 text-xs text-slate-500 hover:bg-rose-50 hover:text-rose-700"
+                      className="btn btn-ghost hover:bg-rose-50 hover:text-rose-700"
                     >
                       추가 취소
                     </button>
@@ -768,7 +767,7 @@ export default function DrawingReviewPanel({
             })}
             <button
               type="button"
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-50"
+              className="btn btn-secondary"
               onClick={() =>
                 setAdded((previous) => [...previous, { id: crypto.randomUUID(), text: "", x: "", y: "" }])
               }
@@ -779,9 +778,9 @@ export default function DrawingReviewPanel({
         </details>
       </fieldset>
 
-      <footer className="sticky bottom-0 z-10 space-y-2 border-t border-slate-200 bg-white px-3.5 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.05)]">
+      <footer className="sticky bottom-0 z-10 space-y-2 border-t border-slate-300 bg-white px-3 py-2.5">
         {error && (
-          <p role="alert" className="whitespace-pre-wrap rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs font-bold text-rose-700">
+          <p role="alert" className="note note-error whitespace-pre-wrap font-medium">
             {error}
           </p>
         )}
@@ -793,7 +792,7 @@ export default function DrawingReviewPanel({
         <div className="flex gap-2">
           <input
             aria-label="검토자"
-            className={`${inputClass} flex-1`}
+            className={`${inputClass} h-9 min-w-0 flex-1`}
             value={reviewer}
             disabled={saving}
             onChange={(event) => setReviewer(event.target.value)}
@@ -803,7 +802,7 @@ export default function DrawingReviewPanel({
             type="button"
             disabled={saving || picking}
             onClick={() => void save()}
-            className="shrink-0 rounded-lg bg-cyan-700 px-3.5 py-1.5 text-sm font-bold text-white hover:bg-cyan-800 disabled:opacity-40"
+            className="btn btn-primary btn-lg"
           >
             {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
           </button>
@@ -854,8 +853,8 @@ function SelectedItem({
       {/* ① OCR 값 확인 */}
       {isGdt ? (
         <div className={`${cardClass} ${rows.some((row) => !isValidGdtValue(gdtValue(row))) ? "border-rose-300 bg-rose-50/40" : ""}`}>
-          <h3 className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
-            기하공차 확인 <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] text-cyan-800">기호·공차값 수정</span>
+          <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+            기하공차 확인 <span className="tag bg-slate-100 font-normal text-slate-600">기호·공차값 수정</span>
           </h3>
           <OcrCrop
             imageUrl={imageUrl}
@@ -874,7 +873,7 @@ function SelectedItem({
               ? GDT_SYMBOLS
               : [{ symbol, name: gdtSymbolName(symbol) }, ...GDT_SYMBOLS];
             return (
-              <div key={row.item_id} className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5">
+              <div key={row.item_id} className="space-y-1.5 rounded border border-slate-200 bg-white p-2.5">
                 <div className="flex items-center justify-between text-[10px] text-slate-400">
                   <span>{row.item_id}</span>
                   {row.datums.length > 0 && (
@@ -956,8 +955,8 @@ function SelectedItem({
         </div>
       ) : (
         <div className={`${cardClass} ${parsed.valid ? "" : "border-rose-300 bg-rose-50/40"}`}>
-          <h3 className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
-            치수 확인 <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] text-cyan-800">잘못 읽었으면 수정</span>
+          <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+            치수 확인 <span className="tag bg-slate-100 font-normal text-slate-600">잘못 읽었으면 수정</span>
           </h3>
           <OcrCrop
             imageUrl={imageUrl}
@@ -1006,14 +1005,14 @@ function SelectedItem({
       {/* ② 작업자 검사 기준 (작업자 화면에 그대로 보임) */}
       {draft && (
         <div className={cardClass}>
-          <h3 className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
+          <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-800">
             작업자 검사 기준
-            <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] text-cyan-800">편집</span>
+            <span className="tag bg-slate-100 font-normal text-slate-600">편집</span>
             <span className="flex-1" />
             <span className="text-[10px] font-normal text-slate-500">작업자 화면에 그대로 보입니다</span>
           </h3>
 
-          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="측정 방식">
+          <div className="seg flex w-full" role="group" aria-label="측정 방식">
             {([
               ["numeric", "실측값 입력 · 자동 판정"],
               ["gauge", "합격 / 불합격 기록"],
@@ -1026,9 +1025,7 @@ function SelectedItem({
                   disabled={disabled}
                   aria-pressed={draft.mode === mode}
                   onClick={() => onDraft({ mode })}
-                  className={`rounded-lg border px-2 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-35 ${
-                    draft.mode === mode ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-300 bg-white text-slate-600"
-                  }`}
+                  className="seg-item h-auto min-h-6 whitespace-normal px-2 py-1 text-center leading-tight"
                 >
                   {label}
                 </button>
@@ -1085,9 +1082,9 @@ function SelectedItem({
               ] as Array<[ToleranceSource, string, string, boolean]>).map(([value, label, detail, available]) => (
                 <label
                   key={value}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
-                    draft.toleranceSource === value ? "border-cyan-500 bg-cyan-50" : "border-slate-200"
-                  } ${available ? "" : "opacity-40"}`}
+                  className={`flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs ${
+                    draft.toleranceSource === value ? "border-cyan-600 bg-cyan-50" : "border-slate-200 hover:bg-slate-50"
+                  } ${available ? "cursor-pointer" : "opacity-40"}`}
                 >
                   <input
                     type="radio"
@@ -1162,17 +1159,17 @@ function SelectedItem({
 
       {/* ③ 확인 */}
       {confirmed ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800">
-          <span className="font-bold">✓ 확인 완료</span>
+        <div className="flex flex-wrap items-center gap-2 rounded border border-emerald-200 border-l-[3px] border-l-emerald-500 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          <span className="font-semibold">확인 완료</span>
           <span className="flex-1">값이나 기준을 바꾸면 다시 확인해야 합니다.</span>
-          <button type="button" onClick={onUnconfirm} className="rounded border border-emerald-300 bg-white px-2 py-1 font-semibold hover:bg-emerald-100">
+          <button type="button" onClick={onUnconfirm} className="btn btn-secondary h-6">
             확인 취소
           </button>
         </div>
       ) : (
         <div className="space-y-2">
           {issues.length > 0 && (
-            <ul className="space-y-0.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+            <ul className="note note-warn space-y-0.5 text-[11px]">
               {issues.map((issue) => (
                 <li key={issue}>• {issue}</li>
               ))}
@@ -1182,9 +1179,9 @@ function SelectedItem({
             type="button"
             disabled={issues.length > 0}
             onClick={onConfirm}
-            className="w-full rounded-xl bg-cyan-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="btn btn-primary btn-lg w-full"
           >
-            ✓ 이 항목 확인하고 다음 미확인으로
+            이 항목 확인하고 다음 미확인으로
           </button>
         </div>
       )}
@@ -1207,9 +1204,9 @@ function RangePreview({ parsed, draft, unit }: { parsed: ParsedDimension; draft:
     }
   }
   return (
-    <p className="rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-200">
-      허용 범위{" "}
-      <b className="font-mono text-sm text-cyan-300">
+    <p className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+      <span className="text-[11px] text-slate-500">허용 범위</span>
+      <b className="font-mono text-sm font-semibold text-slate-900">
         {deviation ? formatRange(parsed.nominal, deviation.upper, deviation.lower, unit) : "—"}
       </b>
     </p>

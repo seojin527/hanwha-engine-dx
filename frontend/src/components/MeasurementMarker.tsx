@@ -29,7 +29,7 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
         ? "bg-emerald-600 text-white"
         : status === "review_required"
           ? "bg-amber-500 text-slate-950"
-          : "bg-cyan-600 text-white";
+          : "bg-cyan-700 text-white";
 
   const statusLabel =
     status === "remeasure"
@@ -47,9 +47,9 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
         event.stopPropagation();
         onClick();
       }}
-      className={`relative z-20 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold shadow transition-transform hover:scale-125 ${markerColor} ${
+      className={`relative z-20 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold shadow transition-transform hover:scale-125 ${markerColor} ${
         isSelected
-          ? "scale-110 ring-2 ring-amber-400 ring-offset-2"
+          ? "z-30 scale-125 ring-2 ring-slate-950 ring-offset-2 ring-offset-white"
           : "ring-1 ring-white/70"
       }`}
       title={`#${displayNumber}: ${

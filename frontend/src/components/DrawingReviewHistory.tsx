@@ -72,16 +72,16 @@ export default function DrawingReviewHistory({
       ref={dialogRef}
       onCancel={onClose}
       aria-labelledby="drawing-history-title"
-      className="m-auto max-h-[80vh] w-[min(720px,92vw)] overflow-y-auto rounded-xl bg-white p-5 text-slate-900 shadow-xl backdrop:bg-black/50"
+      className="m-auto max-h-[80vh] w-[min(720px,92vw)] overflow-y-auto rounded-md border border-slate-300 bg-white p-4 text-slate-900 shadow-2xl backdrop:bg-slate-950/60"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 id="drawing-history-title" className="font-bold">
+        <h2 id="drawing-history-title" className="card-title">
           수정 이력
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="rounded border px-3 py-1 text-xs"
+          className="btn btn-secondary"
           autoFocus
         >
           닫기
@@ -108,7 +108,7 @@ export default function DrawingReviewHistory({
       ) : (
         <div className="mt-4 space-y-4">
           {records.map((entry) => (
-            <section key={entry.revision} className="rounded border p-3">
+            <section key={entry.revision} className="card p-3">
               <p className="text-xs text-slate-600">
                 {formatTime(entry.log.reviewed_at)} · 검토자:{" "}
                 {entry.log.reviewer || "미기록"}
@@ -120,7 +120,7 @@ export default function DrawingReviewHistory({
                     key={`${change.item_id}-${index}`}
                     className="rounded bg-slate-50 p-2 text-xs"
                   >
-                    <p className="font-bold">
+                    <p className="font-semibold">
                       {change.item_id} ·{" "}
                       {change.action === "added" ? "추가" : "수정"}
                     </p>

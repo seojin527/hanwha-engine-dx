@@ -18,11 +18,12 @@ export function WorkerPurposePanel(props: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
-      <div className="shrink-0 border-b border-slate-200 bg-slate-50 p-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-1.5">
+        <span className="shrink-0 text-[11px] font-medium text-slate-500">작업 목적</span>
         <div
           role="group"
           aria-label="작업 목적 선택"
-          className="flex overflow-hidden rounded border border-slate-300"
+          className="seg min-w-0 flex-1"
         >
           {tabs.map((tab) => (
             <button
@@ -30,11 +31,7 @@ export function WorkerPurposePanel(props: Props) {
               type="button"
               aria-pressed={purpose === tab.value}
               onClick={() => setPurpose(tab.value)}
-              className={`flex-1 px-3 py-2 text-xs font-bold transition ${
-                purpose === tab.value
-                  ? "bg-cyan-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+              className="seg-item"
             >
               {tab.label}
             </button>

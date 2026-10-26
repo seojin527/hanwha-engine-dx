@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import { PointErrorForm } from './PointErrorForm';
 import { useEffect, useRef, useState } from 'react';
 import { fetchItemErrors, type ErrorCandidate } from '../lib/drawingAPI';
@@ -111,7 +112,7 @@ export function ManufacturingPanel({
         />
       </div>
 
-      <div className="flex-1 space-y-3 p-3.5">
+      <div className="flex-1 space-y-3 p-3">
         <CriteriaCard item={item} />
         <OcrMeasurementEntry
           key={`measurement-${key}`}
@@ -120,23 +121,35 @@ export function ManufacturingPanel({
           item={item}
           onSaved={onMeasurementSaved}
         />
-        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
-          <h3 className="text-xs font-extrabold text-amber-900">⚠ 측정 전 확인 · 관련 오류사례{!loading && !result.error ? ` ${result.errors.length}` : ''}</h3>
-          {loading ? <p role="status" className="text-xs text-amber-900">관련 오류·주의사항 검색 중…</p>
-            : result.error ? <div role="alert" className="text-xs text-rose-700">{result.error}<button onClick={() => setRetry((v) => v + 1)} className="ml-2 underline">다시 검색</button></div>
-            : !result.errors.length ? <p className="text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
-            : result.errors.map((error) => <article key={error.case_id} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-xs">
-              <h4 className="font-bold text-rose-800">{error.case_title || error.case_id}</h4>
-              <p className="text-[10px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
-              <p>{error.error_description}</p>
-              {error.cause && <p><b>원인:</b> {error.cause}</p>}
-              {error.precaution && <div className="rounded bg-emerald-50 p-2 text-emerald-900"><b>주의사항:</b> {error.precaution}</div>}
-              {error.recommended_instrument && <p><b>측정기 후보:</b> {error.recommended_instrument}</p>}
-              {error.applicable_condition && <p><b>적용 조건:</b> {error.applicable_condition}</p>}
-              {error.exclude_condition && <p><b>제외·확인 조건:</b> {error.exclude_condition}</p>}
-              <p className="text-[10px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
-            </article>)}
-        </div>
+        <section aria-label="측정 전 확인 · 관련 오류사례" className="card border-amber-300">
+          <header className="card-header border-amber-200 bg-amber-50">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+              <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
+              측정 전 확인 · 관련 오류사례
+            </h3>
+            {!loading && !result.error && <span className="tag bg-amber-100 text-amber-900">{result.errors.length}건</span>}
+          </header>
+          {loading ? <p role="status" className="p-3 text-xs text-slate-600">관련 오류·주의사항 검색 중…</p>
+            : result.error ? <div role="alert" className="flex flex-wrap items-center gap-2 p-3 text-xs text-rose-700"><span className="min-w-0 flex-1">{result.error}</span><button type="button" onClick={() => setRetry((v) => v + 1)} className="btn btn-secondary h-6">다시 검색</button></div>
+            : !result.errors.length ? <p className="p-3 text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
+            : <div className="divide-y divide-slate-200">{result.errors.map((error) => <article key={error.case_id} className="space-y-2 p-3 text-xs">
+              <div>
+                <h4 className="text-[13px] font-semibold leading-snug text-slate-900">{error.case_title || error.case_id}</h4>
+                <p className="mt-0.5 text-[11px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
+              </div>
+              <p className="leading-relaxed text-slate-800">{error.error_description}</p>
+              {error.precaution && <p className="note note-ok"><b className="mr-1 font-semibold">주의사항</b>{error.precaution}</p>}
+              {(error.cause || error.recommended_instrument || error.applicable_condition || error.exclude_condition) && (
+                <dl className="grid grid-cols-[84px_1fr] gap-x-2 gap-y-1 leading-relaxed">
+                  {error.cause && <><dt className="text-slate-500">원인</dt><dd className="text-slate-800">{error.cause}</dd></>}
+                  {error.recommended_instrument && <><dt className="text-slate-500">측정기 후보</dt><dd className="text-slate-800">{error.recommended_instrument}</dd></>}
+                  {error.applicable_condition && <><dt className="text-slate-500">적용 조건</dt><dd className="text-slate-800">{error.applicable_condition}</dd></>}
+                  {error.exclude_condition && <><dt className="text-slate-500">제외·확인 조건</dt><dd className="text-slate-800">{error.exclude_condition}</dd></>}
+                </dl>
+              )}
+              <p className="text-[11px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
+            </article>)}</div>}
+        </section>
         <PointErrorForm key={`error-form-${key}`} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
       </div>
     </section>
@@ -151,8 +164,8 @@ function CriteriaCard({ item }: { item: OcrItem }) {
 
   if (!approved) {
     return (
-      <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
-        <h3 className="font-extrabold">검사 기준 미지정</h3>
+      <div className="note note-warn space-y-1">
+        <h3 className="text-xs font-semibold">검사 기준 미지정</h3>
         <p>관리자가 이 항목의 검사 기준을 아직 지정하지 않았습니다. 측정값은 기록되지만 자동 판정하지 않습니다.</p>
         <p className="font-mono text-slate-700">도면 표기: {item.raw_text.replace(/\n/g, '  ')}</p>
       </div>
@@ -160,11 +173,12 @@ function CriteriaCard({ item }: { item: OcrItem }) {
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3.5 text-xs">
-      <h3 className="flex items-center gap-2 font-extrabold text-slate-800">
-        검사 기준 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">관리자 지정 · 읽기 전용</span>
-      </h3>
-      <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5">
+    <section aria-label="검사 기준" className="card text-xs">
+      <header className="card-header">
+        <h3 className="text-xs font-semibold text-slate-900">검사 기준</h3>
+        <span className="text-[11px] text-slate-500">관리자 지정 · 읽기 전용</span>
+      </header>
+      <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 p-3">
         <dt className="text-slate-500">측정 방식</dt>
         <dd>{numeric ? '실측값 입력 · 자동 판정' : '합격 / 불합격 기록'}</dd>
         <dt className="text-slate-500">측정 형상</dt>
@@ -192,7 +206,7 @@ function CriteriaCard({ item }: { item: OcrItem }) {
             <dd>
               {hasRange ? (
                 <>
-                  <b className="font-mono text-sm text-slate-900">
+                  <b className="font-mono text-[13px] font-semibold text-slate-900">
                     {formatNumber(item.lower_limit as number)} ~ {formatNumber(item.upper_limit as number)} {item.unit ?? ''}
                   </b>
                 </>
@@ -210,6 +224,6 @@ function CriteriaCard({ item }: { item: OcrItem }) {
         <dt className="text-slate-500">측정기</dt>
         <dd>{item.instrument || '-'}</dd>
       </dl>
-    </div>
+    </section>
   );
 }

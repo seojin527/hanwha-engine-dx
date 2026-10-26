@@ -66,31 +66,38 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
     } catch (e) {if (alive.current) setError(e instanceof Error ? e.message : '검색 반영 실패');}
     finally {lock.current = false; if (alive.current) setBusy(false);}
   }
-  return <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-    <div className="flex items-center justify-between gap-2"><h3 className="text-xs font-bold">이 포인트의 오류 기록</h3>
-      <button onClick={() => setOpen(v => !v)} className="rounded-lg border border-cyan-300 bg-white px-3 py-1.5 text-xs font-bold text-cyan-800">{open ? '닫기' : '+ 오류사례 등록'}</button></div>
-    {open && <div className="space-y-3 border-t pt-3">
-      <p className="rounded bg-cyan-50 p-2 text-xs text-cyan-900">{number}번 · {item.raw_text}<br/>도면·항목·OCR 버전과 인식 정보는 자동 연결됩니다.</p>
-      {saved ? <div role="status" className="space-y-2 text-xs"><p>{saved.vector_status === 'ready' ? '오류 기록 저장과 검색 반영이 완료됐습니다.' : '오류 기록은 저장됐지만 검색 반영에 실패했습니다.'}</p>
-        <p className="break-all text-slate-500">{saved.case_id}</p>
-        {saved.vector_status === 'failed' && <button disabled={busy} onClick={()=>void retry()} className="rounded bg-amber-100 px-3 py-2">{busy ? '반영 중…' : '검색 반영 재시도'}</button>}
-        <button disabled={busy} onClick={() => {setSaved(null); setValues({}); requestId.current = newRequestId();}} className="ml-2 underline">새 오류 작성</button>
-      </div> : <form onSubmit={e => {e.preventDefault(); void submit();}} className="space-y-3">
-        <label className="block text-xs font-semibold">오류 분류
-          <select disabled={busy} value={values.error_category || ''} onChange={e=>setValues(v=>({...v,error_category:e.target.value}))} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal"><option value="">선택 안 함</option>{['측정','가공','환경','기타'].map(label=><option key={label} value={label}>{label}</option>)}</select>
+  return <section aria-label="이 포인트의 오류 기록" className="card">
+    <header className="card-header">
+      <h3 className="text-xs font-semibold text-slate-900">이 포인트의 오류 기록{history.length ? <span className="ml-1.5 font-normal text-slate-500">{history.length}건</span> : null}</h3>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} className={`btn h-6 ${open ? 'btn-ghost' : 'btn-secondary'}`}>{open ? '작성 닫기' : '오류사례 등록'}</button>
+    </header>
+    {open && <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-3">
+      <p className="note note-info"><b className="font-mono font-semibold">{number}번 · {item.raw_text}</b><br/>도면·항목·OCR 버전과 인식 정보는 자동 연결됩니다.</p>
+      {saved ? <div role="status" className="space-y-2 text-xs"><p className={saved.vector_status === 'ready' ? 'note note-ok' : 'note note-warn'}>{saved.vector_status === 'ready' ? '오류 기록 저장과 검색 반영이 완료됐습니다.' : '오류 기록은 저장됐지만 검색 반영에 실패했습니다.'}</p>
+        <p className="break-all font-mono text-[11px] text-slate-500">{saved.case_id}</p>
+        <div className="flex flex-wrap gap-2">
+          {saved.vector_status === 'failed' && <button type="button" disabled={busy} onClick={()=>void retry()} className="btn btn-secondary">{busy ? '반영 중…' : '검색 반영 재시도'}</button>}
+          <button type="button" disabled={busy} onClick={() => {setSaved(null); setValues({}); requestId.current = newRequestId();}} className="btn btn-ghost">새 오류 작성</button>
+        </div>
+      </div> : <form onSubmit={e => {e.preventDefault(); void submit();}} className="space-y-2.5">
+        <label className="block space-y-1"><span className="field-label">오류 분류</span>
+          <select disabled={busy} value={values.error_category || ''} onChange={e=>setValues(v=>({...v,error_category:e.target.value}))} className="field"><option value="">선택 안 함</option>{['측정','가공','환경','기타'].map(label=><option key={label} value={label}>{label}</option>)}</select>
         </label>
-        {fields.map(([key, label, required]) => <label key={key} className="block text-xs font-semibold">{label}{required ? ' *' : ''}
+        {fields.map(([key, label, required]) => <label key={key} className="block space-y-1"><span className="field-label">{label}{required ? <span className="ml-0.5 text-rose-600" aria-hidden="true">*</span> : ''}</span>
           <textarea required={required} maxLength={10000} rows={key === 'case_title' ? 1 : 2} disabled={busy}
             value={values[key] || ''} onChange={e => setValues(v => ({...v, [key]: e.target.value}))}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal focus:border-cyan-500 focus:outline-none" /></label>)}
-        <button disabled={busy} className="w-full rounded-lg bg-cyan-600 py-2 text-xs font-bold text-white disabled:opacity-40">{busy ? '저장·검색 반영 중…' : '이 포인트에 오류 등록'}</button>
+            className="field resize-y" /></label>)}
+        <button disabled={busy} className="btn btn-primary btn-lg w-full">{busy ? '저장·검색 반영 중…' : '이 포인트에 오류 등록'}</button>
       </form>}
-      {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="note note-error">{error}</p>}
       <p className="text-[11px] text-slate-500">사용자 보고 사례로 저장됩니다. 미등록 작성 내용은 포인트 이동 시 사라집니다.</p>
     </div>}
-    {historyError ? <p className="text-xs text-rose-700">기록 조회 실패: {historyError}</p> : history.length ? history.map(r => <article key={r.case_id} className="space-y-1 rounded-lg border bg-white p-3 text-xs">
-      <h4 className="font-bold">{r.case_title}</h4><p>{r.error_description}</p><p className="text-[10px] text-slate-500">{r.created_at} · {r.vector_status === 'ready' ? '검색 반영 완료' : '검색 반영 필요'}</p>
-      {r.vector_status !== 'ready' && <button disabled={busy} onClick={()=>void retry(r.case_id)} className="mt-1 text-[11px] text-cyan-800 underline disabled:opacity-40">검색 반영 재시도</button>}
-    </article>) : <p className="text-xs text-slate-500">이 OCR 버전의 포인트에 직접 등록된 오류 기록이 없습니다.</p>}
+    <div className="divide-y divide-slate-100">
+    {historyError ? <p className="note note-error m-3">기록 조회 실패: {historyError}</p> : history.length ? history.map(r => <article key={r.case_id} className="space-y-1 p-3 text-xs">
+      <h4 className="font-semibold text-slate-900">{r.case_title}</h4><p className="leading-relaxed text-slate-800">{r.error_description}</p>
+      <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500"><span>{r.created_at}</span><span className={`tag ${r.vector_status === 'ready' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'}`}>{r.vector_status === 'ready' ? '검색 반영 완료' : '검색 반영 필요'}</span>
+      {r.vector_status !== 'ready' && <button type="button" disabled={busy} onClick={()=>void retry(r.case_id)} className="text-[11px] font-medium text-cyan-800 underline underline-offset-2 disabled:opacity-40">검색 반영 재시도</button>}</p>
+    </article>) : <p className="p-3 text-xs text-slate-500">이 OCR 버전의 포인트에 직접 등록된 오류 기록이 없습니다.</p>}
+    </div>
   </section>;
 }

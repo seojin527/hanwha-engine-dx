@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, FolderOpen } from "lucide-react";
 import {
   createPart,
   apiUrl,
@@ -14,12 +15,18 @@ interface DrawingLibraryProps {
   onSelectDrawing: (drawing: Drawing, fileUrl: string) => void;
   onClearDrawing: () => void;
   uploadRequest?: number;
+  /** 툴바 왼쪽, 선택 요약 옆에 붙는 상태 표시 */
+  status?: ReactNode;
+  /** 툴바 오른쪽 작업 버튼 묶음 */
+  actions?: ReactNode;
 }
 
 export function DrawingLibrary({
   onSelectDrawing,
   onClearDrawing,
   uploadRequest = 0,
+  status,
+  actions,
 }: DrawingLibraryProps) {
   const [parts, setParts] = useState<Part[]>([]);
   const [selectedPartId, setSelectedPartId] = useState("");
@@ -367,57 +374,72 @@ export function DrawingLibrary({
 
 
 
-    return (
-        <section className="shrink-0 border-b border-slate-700 bg-slate-900 text-white">
-      <button
-        type="button"
-        aria-expanded={libraryOpen}
-        aria-controls="drawing-library-controls"
-        onClick={() => setLibraryOpen((previous) => !previous)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-xs hover:bg-slate-800"
-      >
-        <span className="min-w-0 truncate">
-          <span className="font-bold text-cyan-300">
-            부품·도면 관리
-          </span>
-          <span className="ml-3 text-slate-300">
-            {parts.find((part) => part.part_id === selectedPartId)?.name ||
-              "부품 미선택"}
-            {" / "}
-            {drawings.find(
-              (drawing) => drawing.drawing_id === selectedDrawingId,
-            )?.original_filename || "도면 미선택"}
-          </span>
-        </span>
+  const selectedPartName = parts.find((part) => part.part_id === selectedPartId)?.name;
+  const selectedDrawingName = drawings.find(
+    (drawing) => drawing.drawing_id === selectedDrawingId,
+  )?.original_filename;
 
-        <span className="shrink-0 text-slate-400">
-          {libraryOpen ? "접기 ▴" : "변경·등록 ▾"}
-        </span>
-      </button>
+  return (
+    <section className="shrink-0 border-b border-slate-800 bg-slate-900 text-white">
+      <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5">
+        <button
+          type="button"
+          aria-expanded={libraryOpen}
+          aria-controls="drawing-library-controls"
+          onClick={() => setLibraryOpen((previous) => !previous)}
+          title="부품·도면 변경 및 등록"
+          className={`flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] ${
+            libraryOpen
+              ? "border-slate-500 bg-slate-800"
+              : "border-slate-700 hover:border-slate-500 hover:bg-slate-800"
+          }`}
+        >
+          <FolderOpen aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <span className="min-w-0 truncate">
+            <span className={selectedPartName ? "text-slate-100" : "text-slate-400"}>
+              {selectedPartName || "부품 미선택"}
+            </span>
+            <span className="px-1.5 text-slate-600">/</span>
+            <span className={selectedDrawingName ? "text-slate-100" : "text-slate-400"}>
+              {selectedDrawingName || "도면 미선택"}
+            </span>
+          </span>
+          <ChevronDown
+            aria-hidden="true"
+            className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${libraryOpen ? "rotate-180" : ""}`}
+          />
+        </button>
 
-      <div id="drawing-library-controls" hidden={!libraryOpen}>
-      <div className="grid gap-3 px-4 py-3 lg:grid-cols-2">
-        <div className="min-w-0 space-y-2">
+        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400">{status}</div>}
+
+        {actions && (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
+        )}
+      </div>
+
+      <div id="drawing-library-controls" hidden={!libraryOpen} className="border-t border-slate-800">
+      <div className="grid gap-x-6 gap-y-3 px-3 py-3 lg:grid-cols-2">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-part"
-              className="text-xs font-bold text-slate-300"
+              className="text-[11px] font-medium text-slate-400"
             >
-              부품 선택
+              부품
             </label>
 
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-slate-500">
               등록 {parts.length}개
             </span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <select
               id="library-part"
               value={selectedPartId}
               disabled={loadingParts || busy}
               onChange={(event) => selectPart(event.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs disabled:opacity-50"
+              className="field-dark h-7 min-w-[160px] flex-1 py-0"
             >
               <option value="">
                 {loadingParts ? "부품 불러오는 중…" : "부품을 선택하세요"}
@@ -433,17 +455,18 @@ export function DrawingLibrary({
             <button
               type="button"
               disabled={busy || loadingParts}
+              aria-expanded={showPartInput}
               onClick={() => setShowPartInput((previous) => !previous)}
-              className="shrink-0 rounded-lg border border-slate-600 px-3 py-2 text-xs hover:bg-slate-800 disabled:opacity-40"
+              className="btn btn-dark"
             >
-              + 부품
+              부품 추가
             </button>
 
             <button
               type="button"
               disabled={!selectedPartId || busy || loadingDrawings}
               onClick={() => void handleDeletePart()}
-              className="shrink-0 rounded-lg border border-rose-900 px-3 py-2 text-xs text-rose-300 hover:bg-rose-950 disabled:opacity-40"
+              className="btn btn-dark-danger"
             >
               부품 삭제
             </button>
@@ -451,7 +474,7 @@ export function DrawingLibrary({
 
           {showPartInput && (
             <form
-              className="flex gap-2"
+              className="flex gap-1.5"
               onSubmit={(event) => {
                 event.preventDefault();
                 void handleAddPart();
@@ -464,13 +487,13 @@ export function DrawingLibrary({
                 placeholder="새 부품명"
                 aria-label="새 부품명"
                 maxLength={100}
-                className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs"
+                className="field-dark h-7 min-w-0 flex-1 py-0"
               />
 
               <button
                 type="submit"
                 disabled={busy || !newPartName.trim()}
-                className="rounded-lg bg-cyan-700 px-3 py-2 text-xs disabled:opacity-40"
+                className="btn btn-primary"
               >
                 {addingPart ? "등록 중…" : "등록"}
               </button>
@@ -478,27 +501,27 @@ export function DrawingLibrary({
           )}
         </div>
 
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-drawing"
-              className="text-xs font-bold text-slate-300"
+              className="text-[11px] font-medium text-slate-400"
             >
-              등록 도면 선택
+              등록 도면
             </label>
 
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-slate-500">
               {loadingDrawings ? "조회 중…" : `등록 ${drawings.length}개`}
             </span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <select
               id="library-drawing"
               value={selectedDrawingId}
               disabled={!selectedPartId || loadingDrawings || busy}
               onChange={(event) => selectDrawing(event.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs disabled:opacity-50"
+              className="field-dark h-7 min-w-[160px] flex-1 py-0"
             >
               <option value="">
                 {!selectedPartId
@@ -526,16 +549,16 @@ export function DrawingLibrary({
               type="button"
               disabled={!selectedPartId || loadingDrawings || busy}
               onClick={() => inputRef.current?.click()}
-              className="shrink-0 rounded-lg bg-cyan-700 px-3 py-2 text-xs font-bold hover:bg-cyan-600 disabled:opacity-40"
+              className="btn btn-primary"
             >
-              {uploading ? "등록 중…" : "+ 도면"}
+              {uploading ? "등록 중…" : "도면 등록"}
             </button>
 
             <button
               type="button"
               disabled={!selectedDrawingId || loadingDrawings || busy}
               onClick={() => void handleDeleteDrawing()}
-              className="shrink-0 rounded-lg border border-rose-900 px-3 py-2 text-xs text-rose-300 hover:bg-rose-950 disabled:opacity-40"
+              className="btn btn-dark-danger"
             >
               도면 삭제
             </button>
@@ -543,23 +566,10 @@ export function DrawingLibrary({
         </div>
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".png,.jpg,.jpeg,.pdf"
-        disabled={!selectedPartId || loadingDrawings || busy}
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) void handleUpload(file);
-        }}
-      />
-
       {selectedPartId && (
-        <details className="mx-4 mb-3 rounded-lg border border-slate-700">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-300">
-            도면 등록 내역 펼치기 · {drawings.length}개
+        <details className="mx-3 mb-3 rounded border border-slate-700">
+          <summary className="cursor-pointer px-3 py-1.5 text-xs text-slate-300 hover:text-white">
+            도면 등록 내역 · {drawings.length}개
           </summary>
 
           <div className="max-h-44 overflow-y-auto border-t border-slate-700">
@@ -576,35 +586,35 @@ export function DrawingLibrary({
                 const metadata = drawing as Drawing & {
                   created_at?: string;
                 };
+                const isSelected = selectedDrawingId === drawing.drawing_id;
 
                 return (
                   <button
                     key={drawing.drawing_id}
                     type="button"
                     disabled={busy}
+                    aria-current={isSelected || undefined}
                     onClick={() => selectDrawing(drawing.drawing_id)}
-                    className={`flex w-full items-center justify-between gap-3 border-b border-slate-800 px-3 py-2 text-left last:border-0 disabled:opacity-40 ${
-                      selectedDrawingId === drawing.drawing_id
-                        ? "bg-cyan-950 text-cyan-200"
-                        : "hover:bg-slate-800"
+                    className={`flex w-full items-center justify-between gap-3 border-b border-l-2 border-b-slate-800 px-3 py-1.5 text-left last:border-b-0 disabled:opacity-40 ${
+                      isSelected
+                        ? "border-l-cyan-500 bg-slate-800 text-white"
+                        : "border-l-transparent text-slate-200 hover:bg-slate-800/60"
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold">
+                      <span className="block truncate text-xs font-medium">
                         {drawing.original_filename}
                       </span>
 
-                      <span className="mt-1 block text-[10px] text-slate-400">
-                        등록: {metadata.created_at || "일시 정보 없음"}
+                      <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                        등록 {metadata.created_at || "일시 정보 없음"}
                         {" · "}
-                        ID: {drawing.drawing_id.slice(0, 8)}
+                        ID {drawing.drawing_id.slice(0, 8)}
                       </span>
                     </span>
 
-                    <span className="shrink-0 text-[10px] text-slate-400">
-                      {selectedDrawingId === drawing.drawing_id
-                        ? "선택됨"
-                        : "열기"}
+                    <span className="shrink-0 text-[11px] text-slate-400">
+                      {isSelected ? "선택됨" : "열기"}
                     </span>
                   </button>
                 );
@@ -615,8 +625,21 @@ export function DrawingLibrary({
       )}
       </div>
 
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.pdf"
+        disabled={!selectedPartId || loadingDrawings || busy}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void handleUpload(file);
+        }}
+      />
+
       {deleting && (
-        <p role="status" className="px-4 pb-2 text-xs text-slate-300">
+        <p role="status" className="banner banner-info">
           삭제 처리 중…
         </p>
       )}
@@ -624,14 +647,14 @@ export function DrawingLibrary({
       {error && (
         <p
           role="alert"
-          className="whitespace-pre-wrap px-4 pb-2 text-xs text-rose-300"
+          className="banner banner-error whitespace-pre-wrap"
         >
           {error}
         </p>
       )}
 
       {notice && (
-        <p role="status" className="px-4 pb-2 text-xs text-cyan-300">
+        <p role="status" className="banner banner-info">
           {notice}
         </p>
       )}

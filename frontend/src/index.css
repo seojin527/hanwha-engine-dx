@@ -2,19 +2,93 @@
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'IBM Plex Sans KR', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
   }
-  
+
   code, kbd, samp, pre, .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-feature-settings: "tnum" 1;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cyan-600);
+    outline-offset: 1px;
+  }
+}
+
+/*
+ * 공통 UI 규칙 (Carbon · shadcn 계열의 절제된 업무 화면)
+ * - 강조색: cyan-700 하나. 성공 emerald · 경고 amber · 오류 rose 는 상태 표시에만 쓴다.
+ * - 버튼 높이: 기본 28px(h-7), 큰 버튼 36px(h-9). 모서리 4px(rounded).
+ * - 글자: 본문 12px, 보조 11px, 제목 13px / semibold.
+ */
+@layer components {
+  /* ---------- 버튼 ---------- */
+  .btn {
+    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-lg { @apply h-9 px-3.5 text-sm font-semibold; }
+  .btn-icon { @apply w-7 px-0; }
+
+  /* 밝은 배경용 */
+  .btn-primary { @apply border-cyan-700 bg-cyan-700 text-white hover:bg-cyan-800 hover:border-cyan-800; }
+  .btn-secondary { @apply border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400; }
+  .btn-ghost { @apply border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .btn-danger { @apply border-rose-300 bg-white text-rose-700 hover:bg-rose-50; }
+
+  /* 어두운 상단 영역용 */
+  .btn-dark { @apply border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:border-slate-500; }
+  .btn-dark-ghost { @apply border-transparent bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white; }
+  .btn-dark-danger { @apply border-rose-900 bg-transparent text-rose-300 hover:bg-rose-950; }
+
+  /* ---------- 세그먼트 전환 (작업자/관리자, 부품제작/조립/검증, 선택/이동) ---------- */
+  .seg { @apply inline-flex shrink-0 rounded border border-slate-300 bg-slate-100 p-0.5; }
+  .seg-item {
+    @apply inline-flex h-6 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-[3px] px-3 text-xs font-medium text-slate-600 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .seg-item[aria-pressed="true"] { @apply bg-white font-semibold text-slate-900 shadow-sm ring-1 ring-slate-300; }
+
+  .seg-dark { @apply inline-flex shrink-0 rounded border border-slate-700 bg-slate-950 p-0.5; }
+  .seg-dark .seg-item { @apply text-slate-400 hover:text-white; }
+  .seg-dark .seg-item[aria-pressed="true"] { @apply bg-slate-700 text-white shadow-none ring-0; }
+
+  /* ---------- 입력창 ---------- */
+  .field {
+    @apply w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+  }
+  .field-dark {
+    @apply rounded border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50;
+  }
+  .field-label { @apply block text-[11px] font-medium text-slate-600; }
+
+  /* ---------- 카드 · 섹션 ---------- */
+  .card { @apply rounded border border-slate-200 bg-white; }
+  .card-header { @apply flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2; }
+  .card-title { @apply text-[13px] font-semibold text-slate-900; }
+  .card-body { @apply space-y-3 p-3; }
+
+  /* ---------- 알림 줄 (왼쪽 색 띠 하나로 상태 구분) ---------- */
+  .banner { @apply flex shrink-0 items-center gap-3 border-l-4 px-4 py-1.5 text-xs; }
+  .banner-error { @apply border-rose-500 bg-rose-950/80 text-rose-100; }
+  .banner-warn { @apply border-amber-500 bg-amber-950/70 text-amber-100; }
+  .banner-ok { @apply border-emerald-500 bg-emerald-950/70 text-emerald-100; }
+  .banner-info { @apply border-cyan-500 bg-cyan-950/70 text-cyan-100; }
+
+  /* 밝은 패널 안 안내문 */
+  .note { @apply rounded border-l-[3px] px-3 py-2 text-xs leading-relaxed; }
+  .note-warn { @apply border-amber-500 bg-amber-50 text-amber-900; }
+  .note-error { @apply border-rose-500 bg-rose-50 text-rose-800; }
+  .note-ok { @apply border-emerald-500 bg-emerald-50 text-emerald-900; }
+  .note-info { @apply border-slate-400 bg-slate-50 text-slate-700; }
+
+  /* ---------- 상태 태그 ---------- */
+  .tag { @apply inline-flex items-center whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[11px] font-medium leading-none; }
 }
 
 /* Engineering CAD Grid pattern */
 .cad-grid-bg {
   background-color: #f8fafc;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(203, 213, 225, 0.45) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(203, 213, 225, 0.45) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -22,7 +96,7 @@
 
 .cad-grid-bg-dense {
   background-color: #ffffff;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(226, 232, 240, 0.6) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(226, 232, 240, 0.6) 1px, transparent 1px),
     linear-gradient(to right, rgba(203, 213, 225, 0.8) 1px, transparent 1px),
@@ -32,17 +106,19 @@
 
 /* Custom compact scrollbar for industrial UI */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 2px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+  background-clip: content-box;
 }
-

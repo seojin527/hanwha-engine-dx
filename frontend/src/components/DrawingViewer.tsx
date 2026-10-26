@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { OcrLoadingOverlay } from "./OcrLoadingOverlay";
 import { MeasurementMarker } from "./MeasurementMarker";
+import { Hand, Maximize, Minus, MousePointer2, Plus } from "lucide-react";
 import type { ReviewPreviewMarker } from "../lib/admin/drawingReviewAPI";
 
 interface DrawingViewerProps {
@@ -54,7 +55,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
 
   const isPdf = mediaType === "application/pdf";
   const fitScale = imageSize.width && imageSize.height && viewport.width && viewport.height
-    ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-82)/imageSize.height)) : 1;
+    ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-76)/imageSize.height)) : 1;
   const displayScale = fitMode ? fitScale : manualScale;
   useEffect(() => {
     if (!viewportRef.current) return;
@@ -92,64 +93,72 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
 
   return (
     <div ref={viewportRef} aria-busy={isAnalyzing} className="relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
-      <div className="z-20 flex shrink-0 items-center gap-2 border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">
-        <button
-          type="button"
-          disabled={!drawingUrl || isPdf}
-          onClick={() => setPanMode(false)}
-          className={`rounded px-2 py-1 disabled:opacity-40 ${
-            !panMode ? "bg-cyan-700" : "bg-slate-800"
-          }`}
-        >
-          선택
-        </button>
+      <div className="z-20 flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800 bg-slate-900 px-3 text-xs text-slate-200">
+        <div role="group" aria-label="도면 조작 모드" className="seg-dark">
+          <button
+            type="button"
+            aria-pressed={!panMode}
+            disabled={!drawingUrl || isPdf}
+            onClick={() => setPanMode(false)}
+            className="seg-item gap-1 px-2"
+          >
+            <MousePointer2 aria-hidden="true" className="h-3.5 w-3.5" />
+            선택
+          </button>
+          <button
+            type="button"
+            aria-pressed={panMode}
+            disabled={!drawingUrl || isPdf}
+            onClick={() => setPanMode(true)}
+            className="seg-item gap-1 px-2"
+          >
+            <Hand aria-hidden="true" className="h-3.5 w-3.5" />
+            이동
+          </button>
+        </div>
+
+        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-slate-700" />
+
+        <div role="group" aria-label="확대·축소" className="flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label="축소"
+            disabled={!drawingUrl || isPdf}
+            onClick={() => changeZoom(-0.1)}
+            className="btn btn-dark-ghost btn-icon h-6"
+          >
+            <Minus aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+
+          <span className="min-w-[68px] text-center font-mono text-[11px] tabular-nums text-slate-300">{isPdf ? "PDF" : `${fitMode ? "맞춤 " : ""}${Math.round(displayScale*100)}%`}</span>
+
+          <button
+            type="button"
+            aria-label="확대"
+            disabled={!drawingUrl || isPdf}
+            onClick={() => changeZoom(0.1)}
+            className="btn btn-dark-ghost btn-icon h-6"
+          >
+            <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         <button
           type="button"
-          disabled={!drawingUrl || isPdf}
-          onClick={() => setPanMode(true)}
-          className={`rounded px-2 py-1 disabled:opacity-40 ${
-            panMode ? "bg-cyan-700" : "bg-slate-800"
-          }`}
-        >
-          손바닥 이동
-        </button>
-
-        <button
-          type="button"
-          disabled={!drawingUrl || isPdf}
-          onClick={() => changeZoom(-0.1)}
-          className="px-2 disabled:opacity-40"
-        >
-          −
-        </button>
-
-        <span className="min-w-[76px] text-center tabular-nums">{isPdf ? "PDF" : `${fitMode ? "맞춤 · " : ""}${Math.round(displayScale*100)}%`}</span>
-
-        <button
-          type="button"
-          disabled={!drawingUrl || isPdf}
-          onClick={() => changeZoom(0.1)}
-          className="px-2 disabled:opacity-40"
-        >
-          +
-        </button>
-
-        <button
-          type="button"
-          disabled={!drawingUrl || isPdf}
+          disabled={!drawingUrl || isPdf || (fitMode && offset.x === 0 && offset.y === 0)}
           onClick={() => {
             setFitMode(true);
-    setManualScale(1);
+            setManualScale(1);
             setOffset({ x: 0, y: 0 });
           }}
-          className="rounded bg-slate-800 px-2 py-1 disabled:opacity-40"
+          className="btn btn-dark-ghost h-6"
         >
+          <Maximize aria-hidden="true" className="h-3.5 w-3.5" />
           화면에 맞춤
         </button>
 
         {isPdf && (
-          <span className="text-slate-400">
+          <span className="truncate text-[11px] text-slate-400">
             PDF는 뷰어의 페이지 맞춤·확대 도구를 사용하세요.
           </span>
         )}

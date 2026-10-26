@@ -40,7 +40,7 @@ export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNod
       aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(panelWidth)}
       aria-valuetext={`오른쪽 패널 ${Math.round(panelWidth)}픽셀`} tabIndex={0}
       title="좌우로 드래그 · 방향키로 조절 · 두 번 클릭하면 기본 너비"
-      className={`relative z-50 flex w-3 shrink-0 touch-none cursor-col-resize items-center justify-center border-x outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400 ${dragging ? 'border-cyan-600 bg-cyan-900' : 'border-slate-800 bg-slate-900 hover:bg-cyan-950'}`}
+      className={`group relative z-50 flex w-1.5 shrink-0 touch-none cursor-col-resize items-center justify-center outline-none transition-colors before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-[''] focus-visible:bg-cyan-600 ${dragging ? 'bg-cyan-600' : 'bg-slate-700 hover:bg-cyan-700'}`}
       onPointerDown={e => {if(e.button!==0)return; e.preventDefault();e.currentTarget.focus();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,x:e.clientX,width:panelWidth};setDragging(true);}}
       onPointerMove={e => {const d=drag.current;if(d?.id===e.pointerId)setRequested(clamp(d.width+d.x-e.clientX,bounds.min,bounds.max));}}
       onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={()=>{drag.current=null;setDragging(false);}}
@@ -48,8 +48,8 @@ export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNod
       onKeyDown={e=>{let next=panelWidth;const step=e.shiftKey?40:16;
         if(e.key==='ArrowLeft')next+=step;else if(e.key==='ArrowRight')next-=step;else if(e.key==='Home')next=bounds.min;else if(e.key==='End')next=bounds.max;else return;
         e.preventDefault();setRequested(clamp(next,bounds.min,bounds.max));}}>
-      <span aria-hidden="true" className="h-12 w-1 rounded-full bg-slate-500" />
+      <span aria-hidden="true" className={`h-8 w-0.5 rounded-full ${dragging ? 'bg-white' : 'bg-slate-400 group-hover:bg-white'}`} />
     </div>
-    <aside className="flex min-h-0 shrink-0 flex-col overflow-y-auto bg-white shadow-xl" style={{width:panelWidth}} aria-label="측정 상세 패널">{right}</aside>
+    <aside className="flex min-h-0 shrink-0 flex-col overflow-y-auto bg-white" style={{width:panelWidth}} aria-label="측정 상세 패널">{right}</aside>
   </div>;
 }

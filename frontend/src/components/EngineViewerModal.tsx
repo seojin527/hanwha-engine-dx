@@ -50,10 +50,10 @@ export const EngineViewerModal: React.FC<EngineViewerModalProps> = ({ partName, 
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="flex h-[92vh] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 px-4 py-2 text-xs">
+      <div className="flex h-[92vh] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-md border border-slate-700 bg-slate-900 shadow-2xl">
+        <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-slate-700 px-4 text-xs">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="font-bold text-slate-100">3D 뷰어</span>
+            <span className="shrink-0 text-[13px] font-semibold text-slate-100">3D 뷰어</span>
             {partKey ? (
               <span className="truncate rounded border border-red-800 bg-red-950 px-2 py-0.5 text-red-300">
                 현재 도면 부품: {ENGINE_PART_LABEL[partKey]} (빨간색으로 표시)
@@ -70,7 +70,7 @@ export const EngineViewerModal: React.FC<EngineViewerModalProps> = ({ partName, 
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded border border-slate-600 bg-slate-800 px-2.5 py-1 font-semibold text-slate-200 hover:bg-slate-700"
+            className="btn btn-dark"
           >
             닫기 (Esc)
           </button>
@@ -101,7 +101,7 @@ export const EngineViewerNotice: React.FC<{ message: string; onClose: () => void
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-[min(460px,92vw)] rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+      <div className="w-[min(460px,92vw)] rounded-md border border-slate-700 bg-slate-900 p-5 shadow-2xl">
         <div className="mb-2 text-sm font-bold text-slate-100">3D 뷰어를 열 수 없습니다</div>
         <p className="text-xs leading-relaxed text-slate-300">{message}</p>
         <div className="mt-4 flex justify-end">
@@ -109,7 +109,7 @@ export const EngineViewerNotice: React.FC<{ message: string; onClose: () => void
             type="button"
             autoFocus
             onClick={onClose}
-            className="rounded border border-slate-600 bg-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="btn btn-dark"
           >
             확인
           </button>
