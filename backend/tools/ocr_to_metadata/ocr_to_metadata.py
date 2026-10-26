@@ -1,7 +1,16 @@
-"""OCR 텍스트를 JSON으로 변환. 파이썬 표준 라이브러리만 사용. README 참조."""
+"""검수 완료 OCR TXT → 메타데이터 JSON 변환 도구 (팀 변환기, 명령줄 전용).
+
+서버는 이 파일을 쓰지 않는다. 서버의 자동 OCR·관리자 검토는 backend/ocr_metadata.py 를 쓴다.
+이 도구는 표제란(titleblock_metadata)·기하공차(gdt_metadata) 파서를 포함하며,
+data/reviewed/<이름>_reviewed.txt 를 data/normalized/<이름>_metadata.json 으로 만든다.
+
+실행 (backend 폴더에서):  python tools/ocr_to_metadata/ocr_to_metadata.py HDH_63_05
+파이썬 표준 라이브러리만 사용한다.
+"""
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 from gdt_metadata import parse_frame_line, parse_gdt_frame
@@ -158,15 +167,16 @@ def main():
 
     args = parser.parse_args()
 
-    # 프로젝트 data 폴더
-    data_dir = Path(__file__).resolve().parent
+    # data/reviewed → data/normalized (backend/paths.py)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from paths import NORMALIZED_DIR, REVIEWED_DIR
 
     input_path = (
-        data_dir / 'reviewed' /
+        REVIEWED_DIR /
         f'{args.drawing_id}_reviewed.txt'
     )
 
-    output_dir = data_dir / 'normalized'
+    output_dir = NORMALIZED_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = (

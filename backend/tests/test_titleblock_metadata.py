@@ -1,12 +1,12 @@
-"""표제란 파싱 테스트.  data 폴더에서:  python -m unittest discover -s tests -v"""
+"""표제란 파싱 테스트 (tools/ocr_to_metadata).  backend 폴더에서:  python -m unittest discover -s tests -v"""
 import os
 import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.dirname(HERE)
-sys.path.insert(0, DATA)
-FIXTURE = os.path.join(DATA, '..', 'backend', 'tests', 'fixtures', 'HDH_63_3_origin.txt')
+TOOL = os.path.join(os.path.dirname(HERE), 'tools', 'ocr_to_metadata')
+sys.path.insert(0, TOOL)
+FIXTURE = os.path.join(HERE, 'fixtures', 'HDH_63_3_origin.txt')
 
 from ocr_to_metadata import convert  # noqa: E402
 from titleblock_metadata import parse_title_block  # noqa: E402

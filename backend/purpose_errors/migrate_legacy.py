@@ -10,16 +10,14 @@
 """
 
 import argparse
-from pathlib import Path
 
 from drawing_library import database, init_library
+from paths import VECTOR_DB_DIR as VECTOR_DB_PATH
 
 from . import store as case_store
 from . import vectors
 from .purposes import STORES, Purpose, get_store
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-VECTOR_DB_PATH = BASE_DIR / "vector_db"
 LEGACY_TABLE = "error_cases"
 LEGACY_REPORT_TABLE = "point_error_reports"
 

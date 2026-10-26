@@ -1,17 +1,20 @@
 # backend — OCR 결과 검수 (Human-in-the-loop)
 
+> 이 문서는 `ocr_review`(관리자 검토) 설명이다. 백엔드 전체 구조·실행·적재는 루트 [README](../README.md) 와
+> [docs/PROJECT_STRUCTURE.md](../docs/PROJECT_STRUCTURE.md), 파일·DB 위치는 [paths.py](paths.py) 를 본다.
+
 ```
-도면.pdf ─▶ eDOCr2 (edocr2/test_drawing.py) ─▶ data/도면_origin.txt + data/도면_result.jpg
+도면.pdf ─▶ eDOCr2 (edocr2/test_drawing.py) ─▶ data/origin/도면_origin.txt + data/origin/도면_result.jpg
                                                    │  (TXT 그대로 입력)
                                                    ▼
                               [ocr_review]  작업자 검수 (기하공차 확정 + 빠진 치수 추가)
                                                    │
                                                    ▼
-                     data/도면_reviewed.txt  (TXT 그대로 출력, 바뀐 줄만 다름)
-                     data/도면_review_log.txt (이번 검수 기록) + logs/review_history.csv (누적 기록)
+                     data/reviewed/도면_reviewed.txt  (TXT 그대로 출력, 바뀐 줄만 다름)
+                     data/logs/도면_review_log.txt (이번 검수 기록) + data/logs/review_history.csv (누적 기록)
                                                    │
                                                    ▼
-                                        data/ocr_to_metadata.py
+                       backend/tools/ocr_to_metadata/ocr_to_metadata.py (→ data/normalized/)
 ```
 
 - 시스템은 정답을 모른다. 기하공차 값은 **전부 작업자가 확정**하고, 숫자 모양이 아닌 값(예: `,.01`)만 `format_error`로 표시한다.
@@ -163,8 +166,8 @@ python -m unittest discover -s tests -v
    ```python
    f.write(f"Frame offset : {frame.x}, {frame.y}\n")   # frame이 None이면 0, 0
    ```
-2. **원본 TXT에는 dpi가 없다.** `data/ocr_to_metadata.py`는 `Image size … PDF 200 dpi`가 없으면 바로 멈춘다.
+2. **원본 TXT에는 dpi가 없다.** `tools/ocr_to_metadata/ocr_to_metadata.py`는 `Image size … PDF 200 dpi`가 없으면 바로 멈춘다.
    → `reviewed.txt`에는 `(PDF 200 dpi)`를 붙여서 통과하게 했다 (pdf2image 기본값 200, `--dpi`로 변경 가능).
-3. **`data/ocr_to_metadata.py`가 GitHub에서 98줄에서 끊겨 있다.** 항목을 만드는 부분과 `main`이 없어서 실행해도 결과 파일이 안 나온다. 원본 파일을 다시 올려야 한다.
-   또 표제란을 `PART NAME … QTY … PROJECTION …` 순서의 평문으로 가정하는데, 지금 TXT는 단어 목록(`[{'text': 'PART', ...}]`)이고 HDH 도면에는 QTY/PROJECTION 칸이 없다.
+3. ~~`data/ocr_to_metadata.py`가 98줄에서 끊겨 있다.~~ → 해결됨. 지금은 `tools/ocr_to_metadata/` 로 옮겼고 `main` 까지 있어 실행된다.
+   (예전 메모) 표제란을 `PART NAME … QTY … PROJECTION …` 순서의 평문으로 가정하는데, 지금 TXT는 단어 목록(`[{'text': 'PART', ...}]`)이고 HDH 도면에는 QTY/PROJECTION 칸이 없다.
 4. GD&T 좌표는 틀의 **왼쪽 위**, 치수 좌표는 글자 **중심**이다.

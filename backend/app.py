@@ -1,6 +1,5 @@
 import json
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import chromadb
 from fastapi import FastAPI, HTTPException, Query
@@ -10,7 +9,7 @@ from sentence_transformers import SentenceTransformer
 from drawing_library import init_library
 from drawing_library import router as library_router
 from error_case_api import router as error_case_router
-from error_case_store import init_error_cases
+from error_case_store import init_error_cases, legacy_collection
 from ocr_api import router as ocr_router
 from ocr_results import init_ocr_results
 from ocr_review.api import router as review_router
@@ -19,8 +18,8 @@ from measurement_api import router as measurement_router
 from purpose_errors.api import router as purpose_error_router
 from purpose_errors.store import init_purpose_tables
 from purpose_errors.vectors import ensure_collections
+from paths import LEGACY_ERROR_COLLECTION, SAMPLE_METADATA, VECTOR_DB_DIR
 
-BASE_DIR = Path(__file__).resolve().parent
 
 
 @asynccontextmanager
@@ -33,9 +32,8 @@ async def lifespan(app: FastAPI):
     # 작업 목적(부품제작·조립·검증)별 오류사례 원문·연결 기록 테이블
     init_purpose_tables()
     # 이전 단일 도면 API에서 사용하는 JSON
-    json_path = BASE_DIR.parent / "data" / "1_metadata.json"
     app.state.drawing = json.loads(
-        json_path.read_text(encoding="utf-8-sig")
+        SAMPLE_METADATA.read_text(encoding="utf-8-sig")
     )
 
     # 검색과 신규 오류사례 임베딩에 사용할 모델
@@ -44,13 +42,16 @@ async def lifespan(app: FastAPI):
         device="cpu",
     )
 
-    # 기존 오류사례 벡터DB 연결
+    # 벡터DB 연결
     app.state.client = chromadb.PersistentClient(
-        path=str(BASE_DIR / "vector_db")
+        path=str(VECTOR_DB_DIR)
     )
-    app.state.collection = app.state.client.get_collection(
-        name="error_cases_e5_small_v1",
-        embedding_function=None,
+    # 기존 공통 컬렉션 (보존용·이전 API 전용). 없으면 만들지 않고 이전 API 만 503 을 돌려준다.
+    existing = {collection.name for collection in app.state.client.list_collections()}
+    app.state.collection = (
+        app.state.client.get_collection(name=LEGACY_ERROR_COLLECTION, embedding_function=None)
+        if LEGACY_ERROR_COLLECTION in existing
+        else None
     )
 
     # 목적별 오류사례 컬렉션. 비어 있어도 서버는 시작한다 (공통 컬렉션으로 대체하지 않음).
@@ -125,7 +126,7 @@ def get_related_errors(
     if item is None:
         raise HTTPException(404, "측정항목을 찾을 수 없습니다.")
 
-    collection = app.state.collection
+    collection = legacy_collection(app)
     feature = item.get("feature_type")
 
     # 현재 피스톤로드 테스트용 검색 범위

@@ -16,7 +16,7 @@ GET  /api/ocr-review/result/{name}/{kind}  → 파일 내용 (reviewed_txt / rev
 GET  /api/ocr-review/history  → 누적 기록 CSV
 
 save=true 이면 명령줄과 똑같이 data/reviewed/ (결과) 와 data/logs/ (기록) 에 저장한다.
-save=false 이면 저장 없이 결과만 돌려주고, 누적 기록만 OCR_REVIEW_LOG_DIR(기본 ./logs)에 쌓는다.
+save=false 이면 저장 없이 결과만 돌려주고, 누적 기록만 OCR_REVIEW_LOG_DIR(기본 backend/logs)에 쌓는다.
 """
 from __future__ import annotations
 
@@ -48,9 +48,11 @@ from ocr_results import (
 )
 
 
-LOG_DIR = os.environ.get("OCR_REVIEW_LOG_DIR", "logs")
-ORIGIN_DIR = os.path.join(REPO_DATA_DIR, "origin")
-FRONT_DRAWINGS_DIR = os.path.join(os.path.dirname(REPO_DATA_DIR), "frontend", "public", "drawings")
+from paths import ORIGIN_DIR as _ORIGIN_DIR, REVIEW_DRY_RUN_LOG_DIR
+
+# 저장 없이(save=false) 검수할 때만 쓰는 누적 기록 위치. 실행 폴더와 관계없이 backend/logs 를 쓴다.
+LOG_DIR = os.environ.get("OCR_REVIEW_LOG_DIR", str(REVIEW_DRY_RUN_LOG_DIR))
+ORIGIN_DIR = str(_ORIGIN_DIR)
 
 # 검수 결과 파일 (save 때 만들어짐). kind → (폴더, 파일 이름 뒤쪽, 화면 표시 이름, 형식)
 RESULT_FILES = {
@@ -102,8 +104,8 @@ def _origin_path(name: str) -> str:
 
 
 def _result_jpg(name: str) -> Optional[str]:
-    """eDOCr2 색칠 결과 이미지. data/origin 에 없으면 화면이 쓰는 도면 이미지(frontend/public/drawings)를 쓴다."""
-    for path in (os.path.join(ORIGIN_DIR, f"{name}_result.jpg"), os.path.join(FRONT_DRAWINGS_DIR, f"{name}.jpg")):
+    """eDOCr2 색칠 결과 이미지 (data/origin/<이름>_result.jpg)."""
+    for path in (os.path.join(ORIGIN_DIR, f"{name}_result.jpg"),):
         if os.path.isfile(path):
             return path
     return None

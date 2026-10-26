@@ -310,6 +310,38 @@ class ExcelIngestTests(PurposeIsolationBase):
         self.assertEqual(self.table_rows("assembly_error_cases"), [])
 
 
+    def test_bulk_ingest_checks_all_files_before_writing(self):
+        from purpose_errors.ingest import ingest_files
+        a = self.write_excel([{"case_id": "B-1", "case_title": "a", "search_text": "a"}])
+        b = self.write_excel([{"case_id": "B-2", "case_title": "b", "search_text": "b"}])
+        result = ingest_files("manufacturing", [a, b], model=self.model, client=self.chroma)
+        self.assertEqual(result["imported"], 2)
+        self.assertEqual([entry["imported"] for entry in result["files"]], [1, 1])
+        self.assertEqual(self.collection_ids("manufacturing"), ["B-1", "B-2"])
+        # 파일 사이에 같은 case_id 가 있으면 아무것도 저장하지 않는다.
+        c = self.write_excel([{"case_id": "C-1", "case_title": "c", "search_text": "c"}])
+        dup = self.write_excel([{"case_id": "C-1", "case_title": "d", "search_text": "d"}])
+        with self.assertRaises(ValueError):
+            ingest_files("assembly", [c, dup], model=self.model, client=self.chroma)
+        self.assertEqual(self.table_rows("assembly_error_cases"), [])
+
+    def test_all_reads_only_the_purpose_folder(self):
+        import purpose_errors.ingest as ingest
+        folder = Path(self.temp.name) / "assembly_excels"
+        folder.mkdir()
+        pd.DataFrame([{"case_id": "F-1", "case_title": "f", "search_text": "f"}]).to_excel(
+            folder / "f.xlsx", sheet_name="오류주의사항DB", index=False)
+        (folder / "~$f.xlsx").write_bytes(b"lock")  # 엑셀 임시 파일은 건너뛴다
+        old = ingest.ERROR_EXCEL_DIRS["assembly"]
+        ingest.ERROR_EXCEL_DIRS["assembly"] = folder
+        try:
+            self.assertEqual([p.name for p in ingest.excel_files_for("assembly")], ["f.xlsx"])
+        finally:
+            ingest.ERROR_EXCEL_DIRS["assembly"] = old
+        with self.assertRaises(SystemExit):
+            ingest.main(["--purpose", "assembly", "--file", "x.xlsx", "--all"])  # 둘 다 지정 불가
+
+
 class LegacyMigrationTests(PurposeIsolationBase):
     def setUp(self):
         super().setUp()
@@ -382,6 +414,18 @@ class LegacyMigrationTests(PurposeIsolationBase):
 
 
 class StartupTests(PurposeIsolationBase):
+    def test_missing_legacy_collection_only_blocks_legacy_api(self):
+        from types import SimpleNamespace
+        from fastapi import HTTPException
+        from error_case_store import legacy_collection
+        app = SimpleNamespace(state=SimpleNamespace(collection=None))
+        with self.assertRaises(HTTPException) as caught:
+            legacy_collection(app)
+        self.assertEqual(caught.exception.status_code, 503)
+        # 목적별 컬렉션은 기존 컬렉션 없이도 준비된다.
+        self.assertEqual(len(ensure_collections(self.chroma)), 3)
+        self.assertNotIn("error_cases_e5_small_v1", [c.name for c in self.chroma.list_collections()])
+
     def test_collections_created_empty(self):
         collections = ensure_collections(self.chroma)
         self.assertEqual(sorted(c.name for c in collections.values()),

@@ -1,12 +1,12 @@
-"""기하공차 구조화 테스트.  data 폴더에서:  python -m unittest discover -s tests -v"""
+"""기하공차 구조화 테스트 (tools/ocr_to_metadata).  backend 폴더에서:  python -m unittest discover -s tests -v"""
 import os
 import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.dirname(HERE)
-sys.path.insert(0, DATA)
-FIXTURE = os.path.join(DATA, '..', 'backend', 'tests', 'fixtures', 'HDH_63_3_origin.txt')
+TOOL = os.path.join(os.path.dirname(HERE), 'tools', 'ocr_to_metadata')
+sys.path.insert(0, TOOL)
+FIXTURE = os.path.join(HERE, 'fixtures', 'HDH_63_3_origin.txt')
 
 from gdt_metadata import parse_frame_line, parse_gdt_frame, parse_gdt_row  # noqa: E402
 from ocr_to_metadata import convert  # noqa: E402

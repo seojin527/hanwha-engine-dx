@@ -1,28 +1,38 @@
-# Python cache
+# ------------------------------------------------------------------ Python
 __pycache__/
 *.pyc
 *.pyo
 
-# Virtual environments
+# 가상환경
 .venv/
 venv/
 gpu_venv/
-backend/.venv/
-backend/vector_db/
-__pycache__/
-*.pyc
-
-/backend/storage/
-
-/.venv-ocr/
-
-
-.venv/
 .venv-ocr/
-backend/storage/
-backend/vector_db/
+
+# ------------------------------------------------------------------ 로컬 실행 데이터 (PC 마다 따로 생성 · Git 공유 안 함)
+# 공통 SQLite · 업로드 · OCR 작업/결과 이미지 (backend/paths.py 의 STORAGE_DIR)
+/backend/storage/
+# Chroma 벡터DB (backend/paths.py 의 VECTOR_DB_DIR)
+/backend/vector_db/
+# 저장 없이 검수할 때 쌓이는 기록 (REVIEW_DRY_RUN_LOG_DIR)
+/backend/logs/
+
+# 서버가 업로드 도면 ID(UUID) 이름으로 data/ 에 남기는 검토 산출물.
+# 같은 PC 의 DB 와 짝이 맞을 때만 의미가 있으므로 공유하지 않는다. (HDH_63_xx 같은 샘플은 공유)
+/data/origin/????????-????-????-????-????????????_*
+/data/reviewed/????????-????-????-????-????????????_*
+/data/logs/????????-????-????-????-????????????_*
+# 서버가 검토할 때마다 덧붙이는 누적 이력
+/data/logs/review_history.csv
+# CPU OCR 수동 실행 결과 폴더
+/data/origin/cpu-*/
+
+# 엑셀 임시 파일
+~$*.xlsx
+
+# ------------------------------------------------------------------ eDOCr2 모델 가중치 (용량이 커서 별도 배포)
 edocr2/edocr2/tools/models/*.keras
 edocr2/edocr2/tools/models/*.npz
-data/origin/cpu-*/
-__pycache__/
-*.pyc
+
+# 로컬 DB 백업 (backend/tools/backup_local_data.py)
+/backups/

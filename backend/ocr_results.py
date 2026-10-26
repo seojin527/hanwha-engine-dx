@@ -11,8 +11,7 @@ from PIL import Image
 from drawing_library import BASE_DIR, database
 
 
-DATA_DIR = BASE_DIR.parent / "data"
-RESULT_DIR = BASE_DIR / "storage" / "ocr_results"
+from paths import DATA_DIR, OCR_RESULT_DIR as RESULT_DIR
 
 
 def init_ocr_results():

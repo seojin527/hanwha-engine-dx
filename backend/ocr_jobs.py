@@ -14,7 +14,7 @@ from ocr_results import drawing_exists, read_ocr_result, save_ocr_result
 from ocr_metadata import convert
 
 ROOT = BASE_DIR.parent
-JOB_DIR = BASE_DIR / 'storage' / 'ocr_jobs'
+from paths import OCR_JOB_DIR as JOB_DIR, ORIGIN_DIR
 ACTIVE = ('queued','running')
 
 
@@ -176,7 +176,7 @@ class OcrWorker:
         (output/'metadata.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
         
         # 실제 OCR 원본을 도면 ID로 검수 API에 연결한다.
-        review_origin_dir = ROOT / "data" / "origin"
+        review_origin_dir = ORIGIN_DIR
         review_origin_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(txt, review_origin_dir / f"{drawing['drawing_id']}_origin.txt")
         shutil.copy2(jpg, review_origin_dir / f"{drawing['drawing_id']}_result.jpg")

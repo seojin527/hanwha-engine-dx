@@ -7,8 +7,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "storage" / "library.sqlite3"
+from paths import BACKEND_DIR as BASE_DIR, LIBRARY_DB, UPLOAD_DIR as _UPLOAD_DIR
+
+DB_PATH = LIBRARY_DB
 
 router = APIRouter(prefix="/api", tags=["부품·도면 관리"])
 
@@ -124,7 +125,7 @@ from fastapi import UploadFile, File
 from fastapi.responses import FileResponse
 
 
-UPLOAD_DIR = BASE_DIR / "storage" / "uploads"
+UPLOAD_DIR = _UPLOAD_DIR
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 파일당 20MB
 
 ALLOWED_TYPES = {

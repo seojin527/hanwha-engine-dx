@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from drawing_library import database
-from error_case_store import init_error_cases
+from error_case_store import init_error_cases, legacy_collection
 
 
 router = APIRouter(prefix="/api/error-cases", tags=["오류사례"])
@@ -153,7 +153,7 @@ def index_case(case_id, request):
         metadata["source_file"] = "user_form"
         metadata["embedding_model"] = MODEL_NAME
 
-        request.app.state.collection.upsert(
+        legacy_collection(request.app).upsert(
             ids=[case_id],
             documents=[row["search_text"]],
             embeddings=vector.tolist(),

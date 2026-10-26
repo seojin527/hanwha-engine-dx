@@ -28,7 +28,7 @@ class Flow(unittest.TestCase):
   app=FastAPI();app.include_router(lib.router);app.include_router(ocr_api.router)
   app.state.model=Model();app.state.collection=Collection();self.app=app;self.client=TestClient(app)
   self.png=(store.DATA_DIR/'1_image.png').read_bytes()
-  self.meta=json.loads((store.DATA_DIR/'normalized/1_metadata.json').read_text())
+  self.meta=json.loads((store.DATA_DIR/'normalized/1_metadata.json').read_text(encoding='utf-8'))
  def tearDown(self):
   lib.DB_PATH,lib.UPLOAD_DIR,store.RESULT_DIR=self.original
   self.temp.cleanup()

@@ -1,51 +1,62 @@
-# OCR 메타데이터 변환
+# data/ — 입력 원본 · 공유 샘플 · 검토 산출물
 
-## 프로젝트에 넣을 위치
-- `data/error_cases/RAGFlow_가상오류DB.xlsx`: 검색 대상 오류사례 원본
-- `data/drawings/PR-04/ocr_result.txt`: OCR 원문
-- `data/drawings/PR-04/drawing_metadata.json`: 변환 결과
-- `data/drawings/PR-04/annotated.png`: 같은 픽셀 크기의 색상박스 이미지(사용자가 추가)
-- `scripts/ocr_to_metadata.py`: 변환 코드
+이 폴더에는 **사람이 넣는 원본**(도면 PDF, 오류사례 엑셀), **함께 쓰는 샘플**(HDH_63_xx), 그리고
+**서버가 만드는 검토 산출물**이 함께 있다. 코드는 두지 않는다 (변환 도구는 `backend/tools/ocr_to_metadata/`).
 
-RAGFlow 소스 폴더 안에는 데이터를 넣을 필요가 없습니다. 엑셀을 프로젝트에 저장하는 것과 RAGFlow 지식베이스에 업로드하는 것은 별도 작업입니다.
+경로는 모두 `backend/paths.py` 에 정의돼 있다. 폴더 이름을 바꾸려면 그 파일을 고친다.
 
-## 실행 (프로젝트 루트, PowerShell)
+## 원본을 넣는 곳
+
+| 폴더 | 넣는 것 | 쓰는 곳 |
+| --- | --- | --- |
+| `manufacturing/` | 부품제작 오류사례 엑셀 (`*.xlsx`) | `python -m purpose_errors.ingest --purpose manufacturing --all` |
+| `assembly/` | 조립 오류사례 엑셀 (아직 없음) | `... --purpose assembly --all` |
+| `verification/` | 검증 오류사례 엑셀 | `... --purpose verification --all` |
+| `input/` | eDOCr2 로 직접 돌릴 도면 PDF (`HDH_63_01.pdf` …) | `edocr2/test_drawing_cpu.py` |
+
+오류사례 엑셀 형식: 시트 `오류주의사항DB`, 필수 컬럼 `case_id` · `case_title` · `search_text`.
+나머지 컬럼은 `backend/purpose_errors/schemas/<목적>.py` 의 `RECORD_FIELDS` 를 따른다 (없으면 빈 값).
+같은 목적 안에서 `case_id` 가 겹치면 적재를 멈춘다. 적재는 서버를 멈춘 상태에서 한다.
+
+화면에서 업로드하는 도면은 이 폴더가 아니라 `backend/storage/uploads/` 에 저장된다.
+
+## 보존용 원본
+
+| 폴더 | 내용 |
+| --- | --- |
+| `error_cases/` | 기존 공통 오류 DB(`error_cases` 테이블 · `error_cases_e5_small_v1` 컬렉션)의 원본 엑셀. 목적별 이관 확인 전까지 보존한다. 화면 검색에는 쓰지 않는다. |
+
+## 공유 샘플 (테스트·시연)
+
+| 파일 | 쓰는 곳 |
+| --- | --- |
+| `1_image.png`, `1_metadata.json`, `1_metadata_origin.json`, `1_origin.txt` | 이전 단일 도면 API(`/api/drawing`), OCR 결과 테스트 |
+| `normalized/<이름>_metadata.json` | 변환 결과 샘플 (`tools/ocr_to_metadata` 가 `reviewed/` 에서 만든다), 테스트 |
+| `origin/HDH_63_NN_origin.txt`, `_result.jpg` | eDOCr2 원문·색칠 결과 샘플 |
+| `reviewed/HDH_63_NN_reviewed.txt`, `.jpg` | 검토 완료 샘플 |
+| `logs/HDH_63_NN_*` | 검토 로그 샘플 |
+
+## 서버가 만드는 파일 (직접 수정하지 않음 · Git 공유 안 함)
+
+관리자 검토와 자동 OCR 은 업로드 도면 ID(UUID) 이름으로 아래 파일을 만든다.
+같은 PC 의 `backend/storage/library.sqlite3` 와 짝이 맞을 때만 의미가 있어서 `.gitignore` 로 제외한다.
+
+| 위치 | 파일 이름 규칙 | 만드는 곳 |
+| --- | --- | --- |
+| `origin/` | `<도면ID>_origin.txt`, `<도면ID>_result.jpg` | 자동 OCR (`backend/ocr_jobs.py`) |
+| `reviewed/` | `<도면ID>_<revision>_reviewed.txt/.jpg` | 관리자 검토 저장 (`backend/ocr_review`) |
+| `logs/` | `<도면ID>_<revision>_review_log.*`, `_edits_log.jpg` | 관리자 검토 저장 |
+| `logs/review_history.csv` | 누적 검토 이력 | 관리자 검토 저장 |
+| `origin/cpu-<시각>/` | 수동 CPU OCR 실행 결과 | `edocr2/test_drawing_cpu.py` |
+
+이 파일들은 `backend/tools/backup_local_data.py` 백업에 들어가지 않는다. PC 를 옮길 때는 함께 복사한다.
+
+## 변환 도구 (검토 TXT → 메타데이터 JSON)
 
 ```powershell
-python .\scripts\ocr_to_metadata.py .\data\drawings\PR-04\ocr_result.txt .\data\drawings\PR-04\drawing_metadata.json --drawing-id PR-04-DEMO-001 --image-file data/drawings/PR-04/annotated.png
+cd backend
+.venv\Scripts\python.exe tools\ocr_to_metadata\ocr_to_metadata.py HDH_63_05
+# data\reviewed\HDH_63_05_reviewed.txt → data\normalized\HDH_63_05_metadata.json
 ```
 
-Python 3.9 이상 권장. 별도 패키지를 설치하지 않습니다. 다운로드 파일을 같은 폴더에서 테스트할 때:
-
-```powershell
-python .\ocr_to_metadata.py .\ocr_result.txt .\drawing_metadata.json
-```
-
-## JSON 사용
-
-- `items`에는 치수 17개와 기하공차 2개, 총 19개가 저장됩니다.
-- `raw_text`는 OCR 원문을 보존합니다.
-- `position`은 이미지 왼쪽 위를 원점으로 하는 글자 중심 좌표입니다. `x_normalized`, `y_normalized`는 원본 가로/세로로 나눈 비율입니다.
-- 화면에 맞춰 크기를 바꾸면 `화면 x = x_normalized × 실제 표시 이미지 너비`, `화면 y = y_normalized × 실제 표시 이미지 높이`로 표시합니다. 이미지에 여백이 있다면 이미지 시작 위치를 더합니다. 확대·이동·회전 시에도 같은 변환을 적용합니다.
-- `bbox`는 현재 TXT에 박스 크기가 없어서 null입니다. 실제 색상박스를 클릭 영역으로 쓰려면 OCR 단계에서 left/top/width/height 또는 bbox를 추가로 받아야 합니다. 문자 중심 좌표는 실제 측정면 위치와 다를 수 있습니다.
-- `feature_type`과 `tol_type`는 엑셀 검색 조건과 연결합니다. UNKNOWN은 필터에서 제외하여 확실하지 않은 형상을 강제하지 않습니다.
-- `⌀16±0.01`은 지름이라는 사실만 확정할 수 있습니다. 구멍(HOLE)인지 축(SHAFT)인지는 문자만으로 확정하지 않습니다.
-- `M10`은 나사 유형으로 분류하되 피치·등급·내외나사 여부는 확인 대상으로 둡니다.
-- 단순 숫자는 LINEAR_DIMENSION으로 분류하되 형상과 일반공차는 추정하지 않습니다.
-- 첫 번째/16번째 지름 OCR과 두 기하공차는 표기가 불명확하여 값·공차를 확정하지 않습니다. GDT의 `symbol_candidates`는 후보일 뿐 판정 기준이 아닙니다.
-- 표제란의 `$US304`는 material_raw에 보존하며 SUS304로 자동 교정하지 않습니다.
-
-
-## 검색 및 화면 연결
-1. 엑셀을 RAGFlow 지식베이스에 업로드하고 파싱합니다.
-2. 사용자가 도면 항목을 선택하면 앱이 그 항목의 `item_id`를 기억합니다.
-3. `retrieval_query` 문자열로 RAGFlow 검색 API를 호출합니다.
-4. 검색된 오류사례의 `case_id`와 선택한 `item_id`를 앱에서 연결합니다.
-5. 적용/제외 조건을 확인한 뒤 해당 마커 옆에 결과를 표시합니다.
-
-
-이 JSON은 앱에서 사용할 데이터 구조이며 RAGFlow가 자동으로 인식하는 전용 업로드 형식이 아닙니다. `retrieval_metadata` 역시 앱이 보관할 정보입니다. JSON을 업로드하는 것만으로 자동 필터나 이미지 연결이 생성되지 않습니다. 개별 컬럼 필터를 쓰려면 설치 버전의 메타데이터/파싱 설정에 맞게 별도 등록해야 합니다.
-
-엑셀 priority는 가상 테스트용 중요도입니다. 검색 점수에 자동 반영되지 않습니다. 확실한 적용 조건을 우선 확인한 뒤 앱에서 정렬용으로 사용할 수 있습니다. 가상 사례와 현장 검증이 끝나지 않은 추출값으로 자동 품질 판정을 수행하지 않습니다.
-
-도면 ID는 샘플 식별자이며 실제 저장 시 도면과 개정별로 고유하게 부여합니다. 지정한 이미지 경로의 존재나 크기는 이 스크립트가 검사하지 않습니다. 제공된 결과 파일은 실제 이미지가 첨부되지 않아 image.file이 null입니다.
+서버의 자동 OCR·검토는 이 도구가 아니라 `backend/ocr_metadata.py` 를 쓴다.

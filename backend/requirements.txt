@@ -1,0 +1,28 @@
+# 백엔드 서버 의존성 (Python 3.12, 현재 backend/.venv 에서 확인한 버전)
+# 설치:  cd backend
+#        python -m venv .venv
+#        .venv\Scripts\python.exe -m pip install -r requirements.txt
+# eDOCr2 자동 OCR 은 별도 환경(.venv-ocr, Python 3.10)을 쓴다 → edocr2/requirements.txt
+
+fastapi==0.143.3
+starlette==1.8.0
+uvicorn==0.54.0
+pydantic==2.14.1
+python-multipart==0.0.32   # 도면 업로드 (multipart/form-data)
+
+# 오류사례 검색: Chroma + E5 임베딩 (sentence-transformers 가 torch·transformers 를 함께 설치)
+chromadb==1.5.9
+sentence-transformers==6.1.0
+torch==2.14.1
+transformers==5.20.1
+numpy==2.5.4
+
+# 엑셀 적재
+pandas==3.0.6
+openpyxl==3.1.5
+
+# 검토 결과 이미지·OCR 결과 이미지 처리
+pillow==13.0.0
+
+# 테스트 (fastapi TestClient)
+httpx==0.28.1

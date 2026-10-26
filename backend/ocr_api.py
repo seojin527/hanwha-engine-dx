@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from ocr_results import get_result_image, read_ocr_result
 from drawing_library import database
+from error_case_store import legacy_collection
 
 
 router = APIRouter(
@@ -88,7 +89,7 @@ def item_errors(
             "이 도면의 측정항목을 찾을 수 없습니다.",
         )
 
-    collection = request.app.state.collection
+    collection = legacy_collection(request.app)
     feature = item.get("feature_type")
 
     with database() as db:

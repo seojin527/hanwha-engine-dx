@@ -8,9 +8,10 @@ from typing import List, Optional
 from .logs import write_logs
 from .review import build_reviewed_json
 
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO_DATA_DIR = os.path.normpath(os.path.join(BACKEND_DIR, "..", "data"))  # 수정이 eDOCr2 결과 폴더
-ORIGIN_DIR = os.path.join(REPO_DATA_DIR, "origin")
+from paths import DATA_DIR as _DATA_DIR, ORIGIN_DIR as _ORIGIN_DIR
+
+REPO_DATA_DIR = str(_DATA_DIR)  # 수정이 eDOCr2 결과 폴더
+ORIGIN_DIR = str(_ORIGIN_DIR)
 
 def find_origin(arg: str, extra_folders: Optional[List[str]] = None) -> str:
     """'HDH_63_3' 처럼 도면 이름만 주면 HDH_63_3_origin.txt 를 찾는다.

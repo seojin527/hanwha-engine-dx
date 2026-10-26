@@ -195,7 +195,7 @@ def parse_title_block(table_raws):
 
 
 if __name__ == '__main__':
-    # 빠른 확인:  python titleblock_metadata.py reviewed/HDH_63_05_reviewed.txt
+    # 빠른 확인:  python tools/ocr_to_metadata/titleblock_metadata.py ../data/reviewed/HDH_63_05_reviewed.txt
     import json
     import sys
     from pathlib import Path

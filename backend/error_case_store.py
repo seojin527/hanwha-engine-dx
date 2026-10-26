@@ -1,4 +1,10 @@
-"""오류사례 원문 저장 테이블."""
+"""기존 공통 오류사례 원문 테이블 (error_cases).
+
+화면은 목적별 저장소(purpose_errors)를 쓴다. 이 테이블과 공통 컬렉션은
+목적별 이관이 확인될 때까지 보존하며, 이전 API 와 이관 명령만 사용한다.
+"""
+
+from fastapi import HTTPException
 
 from drawing_library import database, init_library
 
@@ -40,6 +46,14 @@ def init_error_cases():
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+
+def legacy_collection(app):
+    """기존 공통 컬렉션. 새 PC 처럼 없으면 이전 API 만 503 으로 거부한다."""
+    collection = getattr(app.state, "collection", None)
+    if collection is None:
+        raise HTTPException(503, "기존 공통 오류사례 저장소가 없습니다. 목적별 API(/api/purposes/...)를 사용하세요.")
+    return collection
 
 
 if __name__ == "__main__":
