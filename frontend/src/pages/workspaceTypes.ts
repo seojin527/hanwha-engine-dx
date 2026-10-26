@@ -4,13 +4,7 @@ import type { OcrDocument, OcrPoint } from "../lib/ocr";
 import type { MeasurementRecord, SavedMeasurement } from "../lib/measurementAPI";
 import type { ReviewPreviewMarker } from "../lib/admin/drawingReviewAPI";
 
-export type WorkPurpose = "manufacturing" | "assembly" | "verification";
-
-export const WORK_PURPOSES: { value: WorkPurpose; label: string }[] = [
-  { value: "manufacturing", label: "부품제작" },
-  { value: "assembly", label: "조립" },
-  { value: "verification", label: "검증" },
-];
+export { WORK_PURPOSES, type WorkPurpose } from "../lib/purpose";
 
 /**
  * 세 작업 페이지(부품제작·조립·검증)가 함께 받는 공통 상태와 동작.

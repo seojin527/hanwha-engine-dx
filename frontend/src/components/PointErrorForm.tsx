@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchPointReports, registerPointError, retryCaseIndex, type RegistrationResult } from '../lib/pointAPI';
 import type { OcrItem } from '../lib/ocr';
 import { useReportUnsaved } from '../lib/unsavedChanges';
+import type { WorkPurpose } from '../lib/purpose';
+import { ERROR_FORMS } from '../lib/errorForms';
 
 function newRequestId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -13,16 +15,12 @@ function newRequestId() {
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
-const fields = [
-  ['case_title', '오류 제목', true], ['error_description', '발생한 오류', true],
-  ['recommended_instrument', '측정기', false],
-  ['cause', '원인', false], ['corrective_action', '조치 내용', false],
-  ['precaution', '주의사항·재발 방지', true],
-  ['applicable_condition', '적용 조건', false], ['exclude_condition', '제외·확인 조건', false],
-] as const;
-export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
-  drawingId: string; revision: string; item: OcrItem; number: number; onIndexed: () => void;
+/** 목적별 등록 폼. 항목 정의는 lib/errorForms/{목적}.ts 에서 목적마다 따로 관리한다. */
+export function PointErrorForm({purpose, drawingId, revision, item, number, onIndexed}: {
+  purpose: WorkPurpose; drawingId: string; revision: string; item: OcrItem; number: number; onIndexed: () => void;
 }) {
+  const form = ERROR_FORMS[purpose];
+  const fields = form.fields.map((field) => [field.key, field.label, !!field.required, field.rows ?? 2] as const);
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -40,17 +38,17 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
   useEffect(() => {
     const controller = new AbortController();
     setHistoryError('');
-    fetchPointReports(drawingId, item.id, revision, controller.signal).then(r => {
+    fetchPointReports(purpose, drawingId, item.id, revision, controller.signal).then(r => {
       if (!controller.signal.aborted) setHistory(r.reports);
     }).catch(e => {if (!controller.signal.aborted) setHistoryError(e.message);});
     return () => controller.abort();
-  }, [drawingId, item.id, revision, version]);
+  }, [purpose, drawingId, item.id, revision, version]);
   async function submit() {
     if (lock.current) return;
     for (const [key, label, required] of fields) if (required && !values[key]?.trim()) {setError(`${label}을 입력해주세요.`); return;}
     lock.current = true; setBusy(true); setError('');
     try {
-      const response = await registerPointError(drawingId, item.id, {...values, revision, request_id: requestId.current});
+      const response = await registerPointError(purpose, drawingId, item.id, {...values, revision, request_id: requestId.current});
       if (!alive.current) return;
       setSaved(response); setVersion(v => v + 1);
       if (response.vector_status === 'ready') onIndexed();
@@ -61,7 +59,7 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
     if (!caseId || lock.current) return;
     lock.current = true; setBusy(true); setError('');
     try {
-      const result = await retryCaseIndex(caseId);
+      const result = await retryCaseIndex(purpose, caseId);
       if (!alive.current) return;
       setSaved(previous => previous?.case_id === caseId ? {...previous, ...result} : previous); setVersion(v => v + 1);
       if (result.vector_status !== 'ready') setError(result.message);
@@ -84,10 +82,10 @@ export function PointErrorForm({drawingId, revision, item, number, onIndexed}: {
         </div>
       </div> : <form onSubmit={e => {e.preventDefault(); void submit();}} className="space-y-2.5">
         <label className="block space-y-1"><span className="field-label">오류 분류</span>
-          <select disabled={busy} value={values.error_category || ''} onChange={e=>setValues(v=>({...v,error_category:e.target.value}))} className="field"><option value="">선택 안 함</option>{['측정','가공','환경','기타'].map(label=><option key={label} value={label}>{label}</option>)}</select>
+          <select disabled={busy} value={values.error_category || ''} onChange={e=>setValues(v=>({...v,error_category:e.target.value}))} className="field"><option value="">선택 안 함</option>{form.categories.map(label=><option key={label} value={label}>{label}</option>)}</select>
         </label>
-        {fields.map(([key, label, required]) => <label key={key} className="block space-y-1"><span className="field-label">{label}{required ? <span className="ml-0.5 text-rose-600" aria-hidden="true">*</span> : ''}</span>
-          <textarea required={required} maxLength={10000} rows={key === 'case_title' ? 1 : 2} disabled={busy}
+        {fields.map(([key, label, required, rows]) => <label key={key} className="block space-y-1"><span className="field-label">{label}{required ? <span className="ml-0.5 text-rose-600" aria-hidden="true">*</span> : ''}</span>
+          <textarea required={required} maxLength={10000} rows={rows} disabled={busy}
             value={values[key] || ''} onChange={e => setValues(v => ({...v, [key]: e.target.value}))}
             className="field resize-y" /></label>)}
         <button disabled={busy} className="btn btn-primary btn-lg w-full">{busy ? '저장·검색 반영 중…' : '이 포인트에 오류 등록'}</button>

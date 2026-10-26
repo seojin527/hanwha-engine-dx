@@ -2,6 +2,10 @@ import { AlertTriangle } from 'lucide-react';
 import { PointErrorForm } from './PointErrorForm';
 import { useEffect, useRef, useState } from 'react';
 import { fetchItemErrors, type ErrorCandidate } from '../lib/drawingAPI';
+import type { WorkPurpose } from '../lib/purpose';
+
+/** 이 패널의 오류사례 검색·등록은 assembly 저장소만 사용한다. */
+const PURPOSE: WorkPurpose = 'assembly';
 import { type OcrItem, type OcrPoint } from '../lib/ocr';
 import OcrMeasurementEntry from "./OcrMeasurementEntry";
 import {
@@ -55,7 +59,7 @@ export function AssemblyPanel({
     const controller = new AbortController();
     const token = ++sequence.current;
     setResult({ key, loading: true, errors: [], error: '' });
-    fetchItemErrors(drawingId, itemId, controller.signal).then((response) => {
+    fetchItemErrors(PURPOSE, drawingId, itemId, controller.signal).then((response) => {
       if (controller.signal.aborted || token !== sequence.current) return;
       if (response.drawing_id !== drawingId || response.item_id !== itemId || response.revision !== revision) {
         throw new Error('도면 결과가 변경됐습니다. 도면을 다시 선택해주세요.');
@@ -150,7 +154,7 @@ export function AssemblyPanel({
               <p className="text-[11px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
             </article>)}</div>}
         </section>
-        <PointErrorForm key={`error-form-${key}`} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
+        <PointErrorForm key={`error-form-${key}`} purpose={PURPOSE} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
       </div>
     </section>
   );
