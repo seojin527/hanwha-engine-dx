@@ -15,9 +15,10 @@ import { apiUrl } from './lib/drawingAPI';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
 import { reviewInfoOf, toOcrPoints } from './lib/ocr';
 import { OcrMeasurementTable } from './components/OcrMeasurementTable';
-import { OcrDetailPanel } from './components/OcrDetailPanel';
+import { WorkerPurposePanel } from "./components/WorkerPurposePanel";
 import type { Drawing } from "./lib/drawingAPI";
 import DrawingReviewHistory from "./components/DrawingReviewHistory";
+import { EngineViewerModal } from "./components/EngineViewerModal";
 
 import { ResizablePanels } from "./components/ResizablePanels";
 
@@ -41,6 +42,7 @@ export function App() {
   const [selectedPointId, setSelectedPointId] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
+  const [engineViewerOpen, setEngineViewerOpen] = useState(false);
 
   const [demoMode, setDemoMode] = useState(true);
   const [selectedDrawing, setSelectedDrawing] =
@@ -424,6 +426,28 @@ export function App() {
         onSearchChange={setSearchQuery}
       />
 
+      <div className="flex shrink-0 justify-end bg-slate-900 px-4 py-1">
+  <button
+    type="button"
+    onClick={() => setEngineViewerOpen(true)}
+    className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-200"
+  >
+    🧊 3D 뷰어
+  </button>
+</div>
+
+{engineViewerOpen && (
+  <EngineViewerModal
+    partName={
+      demoMode
+        ? "PISTON ROD"
+        : document?.part_name || selectedDrawing?.name
+    }
+    isMockName={demoMode}
+    onClose={() => setEngineViewerOpen(false)}
+  />
+)}
+
       <DrawingLibrary
         uploadRequest={uploadRequest}
         onSelectDrawing={(drawing, url) => {
@@ -783,7 +807,7 @@ export function App() {
               onSelectItemId={setSelectedItemId}
             />
           ) : document && selectedDrawing && ocr.snapshot?.revision ? (
-            <OcrDetailPanel
+            <WorkerPurposePanel
               drawingId={selectedDrawing.drawing_id}
               revision={ocr.snapshot.revision}
               point={activeOcrPoint}

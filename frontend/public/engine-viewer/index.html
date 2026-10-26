@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HDH 엔진 3D 뷰어</title>
+<style>
+/* 레이아웃: 위 제목줄 · 가운데 3D 화면(넓게) · 오른쪽 조작 패널 (좁은 화면에서는 아래로) */
+:root {
+  --bg: #e9edf1;
+  --panel: #ffffff;
+  --fg: #16202b;
+  --muted: #5b6875;
+  --line: #d3dae1;
+  --accent: #c8501c;
+  --accent-soft: #f6e1d6;
+  --stage-top: #f4f6f8;
+  --stage-bot: #d9dfe5;
+  --grid: #b7c1cb;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --panel: #161f28; --fg: #e4eaf0; --muted: #91a0ae; --line: #253140;
+    --accent: #ef7a41; --accent-soft: #3a2418; --stage-top: #1b2530; --stage-bot: #0c1218; --grid: #2c3a49;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --panel: #161f28; --fg: #e4eaf0; --muted: #91a0ae; --line: #253140;
+  --accent: #ef7a41; --accent-soft: #3a2418; --stage-top: #1b2530; --stage-bot: #0c1218; --grid: #2c3a49;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.top h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.top .pn { font-family: var(--font-num); font-size: 12px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.chip { font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); white-space: nowrap; }
+.chip b { color: var(--fg); font-weight: 600; font-family: var(--font-num); }
+.close { display: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+body.popup .close { display: inline-block; }
+
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+.stage { position: relative; min-width: 0; min-height: 0; background: linear-gradient(180deg, var(--stage-top), var(--stage-bot)); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hud { position: absolute; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.hud .tag { font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; color: var(--muted); }
+.hud .tag b { color: var(--fg); font-family: var(--font-num); font-weight: 500; }
+.stagehint { position: absolute; right: 12px; bottom: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+.toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--fg); color: var(--panel); font-size: 13px; padding: 6px 12px; border-radius: 4px; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+.toast.on { opacity: 0.92; }
+
+.side { border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 18px; }
+.sec h2 { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.btn { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:focus-visible, input:focus-visible, .part:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+.readout { font-family: var(--font-num); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.readout small { font-size: 12px; color: var(--muted); margin-left: 2px; }
+label.sl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+label.sl span b { color: var(--fg); font-family: var(--font-num); font-weight: 500; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+
+.cyl { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; align-items: end; height: 74px; margin-top: 10px; }
+.cyl div { position: relative; height: 100%; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
+.cyl div i { position: absolute; left: 2px; right: 2px; height: 10px; background: var(--accent); border-radius: 2px; }
+.cyl-lbl { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; font-family: var(--font-num); font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; }
+.note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 6px 0 0; }
+
+.parts { display: flex; flex-direction: column; gap: 4px; }
+.part { display: grid; grid-template-columns: 12px 1fr auto 18px; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
+.part:hover, .part.sel { background: var(--accent-soft); }
+.part.sel { border-color: var(--accent); }
+.sw { width: 12px; height: 12px; border-radius: 2px; }
+.part .nm { min-width: 0; }
+.part .nm div { font-weight: 600; font-size: 13px; }
+.part .nm span { font-family: var(--font-num); font-size: 11px; color: var(--muted); }
+.part .q { font-family: var(--font-num); font-size: 12px; color: var(--muted); }
+.part input { margin: 0; accent-color: var(--accent); }
+.info { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; }
+.info h3 { margin: 0 0 6px; font-size: 14px; }
+.info dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+.info dt { color: var(--muted); font-size: 12px; }
+.info dd { margin: 0; font-family: var(--font-num); font-size: 12px; }
+.src { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.src b { color: var(--fg); font-weight: 600; }
+
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .main { grid-template-columns: 1fr; grid-template-rows: 58vh auto; }
+  .side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .chips { margin-left: 0; }
+}
+</style>
+
+<style>body{margin:0} [hidden]{display:none!important}</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>6기통 선박엔진 조립품</h1>
+    <div class="pn">HDH_ENGINE_6001 · 2행정 크로스헤드형</div>
+  </div>
+  <div class="chips">
+    <span class="chip">보어 <b>Ø900</b></span>
+    <span class="chip">행정 <b>2000</b></span>
+    <span class="chip">실린더 간격 <b>1700</b></span>
+    <span class="chip">착화 순서 <b>1-5-3-4-2-6</b></span>
+  </div>
+  <button class="close" id="closeBtn" type="button">닫기 ✕</button>
+</header>
+
+<div class="main">
+  <div class="stage" id="stage">
+    <div class="hud">
+      <div class="tag">크랭크각 <b id="hudAng">0°</b></div>
+      <div class="tag" id="hudMode">조립 상태</div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="stagehint">드래그 회전 · 휠 확대 · 우클릭 이동 · 부품 클릭 정보</div>
+  </div>
+
+  <aside class="side">
+    <section class="sec">
+      <h2>작동</h2>
+      <div class="row">
+        <button class="btn primary" id="runBtn" type="button">일시정지</button>
+        <div class="readout" id="angOut">0<small>°</small></div>
+      </div>
+      <label class="sl" for="rpm"><span>회전 속도 <b id="rpmOut">30</b> rpm</span>
+        <input type="range" id="rpm" min="5" max="120" step="5" value="30">
+      </label>
+      <div class="cyl" id="cylBars"></div>
+      <div class="cyl-lbl"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+      <p class="note">실린더별 피스톤 위치: 위 = 상사점(TDC), 아래 = 하사점(BDC)</p>
+    </section>
+
+    <section class="sec">
+      <h2>분해</h2>
+      <div class="row">
+        <button class="btn" id="expBtn" type="button">분해</button>
+        <button class="btn" id="asmBtn" type="button">조립</button>
+      </div>
+      <label class="sl" for="exp"><span>분해 정도 <b id="expOut">0</b>%</span>
+        <input type="range" id="exp" min="0" max="100" step="1" value="0">
+      </label>
+      <p class="note">피스톤 헤드 → 피스톤 로드 → 크로스헤드 순으로 위로, 커넥팅 로드는 옆으로 빠집니다. 크랭크 축은 제자리.</p>
+    </section>
+
+    <section class="sec" id="dimSec" style="display:none">
+      <h2>강조 표시</h2>
+      <label class="sl" for="dim"><span>다른 부품 불투명도 <b id="dimOut">20</b>%</span>
+        <input type="range" id="dim" min="5" max="100" step="5" value="20">
+      </label>
+      <p class="note">낮을수록 강조한 부품(빨강) 외의 부품이 흐려집니다. 설정한 값은 이 브라우저에 기억됩니다.</p>
+    </section>
+
+    <section class="sec">
+      <h2>부품 (25개)</h2>
+      <div class="parts" id="partList"></div>
+      <div class="info" id="info"></div>
+    </section>
+
+    <section class="sec">
+      <div class="src" id="srcNote">모델: 불러오는 중…</div>
+    </section>
+  </aside>
+</div>
+
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script src="./vendor/GLTFLoader.js"></script>
+<script>
+/* ================================================================
+   설정 — 팀원이 바꿀 곳
+   MODEL_DIR : Inventor 에서 내보낸 GLB 파일이 있는 폴더 (이 html 기준 상대 경로)
+   GLB 가 없으면 설계 치수로 같은 형상을 그려서 보여줌
+   ================================================================ */
+const MODEL_DIR = './models/';
+const PARTS = [
+  { key: 'CS', file: 'HDH_CS_6001.glb', name: '크랭크 축',   pn: 'HDH_CS_6001', qty: 1, color: 0x8c99a6, size: 11830,
+    spec: [['행정', '2000 (크랭크 반경 1000)'], ['크랭크 핀', 'Ø680 × 560, 6개'], ['메인 저널', 'Ø700'], ['전체 길이', '11,830'], ['크랭크 각', '0/240/120/180/60/300°']] },
+  { key: 'CR', file: 'HDH_CR_6001.glb', name: '커넥팅 로드', pn: 'HDH_CR_6001', qty: 6, color: 0xb08a5a, size: 5350,
+    spec: [['중심 거리', '4300'], ['대단부 보어', 'Ø680 (크랭크 핀)'], ['소단부 보어', 'Ø560 (크로스헤드 핀)'], ['두께', '540'], ['캡 볼트', '4× Ø100']] },
+  { key: 'CH', file: 'HDH_CH_6003.glb', name: '크로스헤드',  pn: 'HDH_CH_6003', qty: 6, color: 0x5f7487, size: 1480,
+    spec: [['형식', '브리지형'], ['크로스헤드 핀', 'Ø560 × 1360'], ['가이드 슈', '1300 × 1100'], ['전체 길이', '1480'], ['로드 취부면', '핀 중심 + 760']] },
+  { key: 'PR', file: 'HDH_PR_6002.glb', name: '피스톤 로드', pn: 'HDH_PR_6002', qty: 6, color: 0xc3cbd3, size: 3488,
+    spec: [['로드 지름', 'Ø400 f7'], ['취부면 사이', '3420 ±0.2'], ['아래 플랜지', 'Ø600, 8× Ø45'], ['위 플랜지', 'Ø600, 12× M36'], ['냉각유 구멍', 'Ø60']] },
+  { key: 'PH', file: 'HDH_PH_6001.glb', name: '피스톤 헤드', pn: 'HDH_PH_6001', qty: 6, color: 0xd28b52, size: 898,
+    spec: [['바깥지름', 'Ø898 h7 (보어 Ø900)'], ['링 홈', '4개, 폭 22, 깊이 28'], ['연소실', 'SR1250, 깊이 50'], ['높이', '520'], ['체결', '12× M36 PCD Ø500']] },
+];
+
+/* ---------- 엔진 치수 (mm) ---------- */
+const L = 4300, CR_R = 1000, PITCH = 1700, FIRST = 1180;
+const THROW = [0, 240, 120, 180, 60, 300];
+const CH_TOP = 760, PR_SEAT = 3420;
+const EXP = { PH: 3000, PR: 2100, CH: 1200, CR: 2200 };
+const STAGES = ['PH', 'PR', 'CH', 'CR'];
+const STAGE_NAME = { PH: '피스톤 헤드 분리', PR: '피스톤 로드 분리', CH: '크로스헤드 분리', CR: '커넥팅 로드 분리' };
+
+/* ---------- 장면 ---------- */
+const stageEl = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+stageEl.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 200);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6a7480, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(8, 14, 10); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.35); fill.position.set(-10, 4, -6); scene.add(fill);
+
+const root = new THREE.Group(); root.scale.setScalar(0.001); scene.add(root);   // mm → m
+let grid = null;
+function makeGrid() {
+  if (grid) scene.remove(grid);
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#b7c1cb';
+  grid = new THREE.GridHelper(24, 24, c, c);
+  grid.position.set(5.9, -1.75, 0);
+  grid.material.transparent = true; grid.material.opacity = 0.55;
+  scene.add(grid);
+}
+makeGrid();
+
+/* ---------- 재질 (부품 종류마다 하나, 강조할 때 emissive) ---------- */
+const MAT = {};
+PARTS.forEach(p => {
+  MAT[p.key] = new THREE.MeshStandardMaterial({ color: p.color, metalness: 0.55, roughness: 0.42, side: THREE.DoubleSide });
+});
+
+/* ================================================================
+   설계 치수로 형상 만들기 (Inventor iLogic 규칙과 같은 값)
+   ================================================================ */
+function lathe(pts, seg = 64) {
+  return new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg);
+}
+function extrudeSym(shape, depth) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 40 });
+  g.translate(0, 0, -depth / 2);
+  return g;
+}
+function polyShape(pts) {
+  const s = new THREE.Shape();
+  s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  s.closePath();
+  return s;
+}
+function meshOf(geo, key) {
+  const m = new THREE.Mesh(geo, MAT[key]);
+  m.userData.key = key;
+  return m;
+}
+
+// 크랭크 축: 축 = X, 웨브·핀은 Y-Z 평면 (스케치 x → Y, y → Z)
+function buildCS() {
+  const g = new THREE.Group();
+  const core = [[0, 0], [0, 700], [220, 700], [220, 350], [480, 350], [480, 750], [740, 750], [740, 350],
+                [11380, 350], [11380, 250], [11680, 250], [11680, 450], [11830, 450], [11830, 0]];
+  const cg = lathe(core.map(p => [p[1], p[0]]), 72);
+  cg.rotateZ(-Math.PI / 2);
+  g.add(meshOf(cg, 'CS'));
+  const R1 = 620, R2 = 500, WT = 350, PIN_R = 340, PIN_L = 560;
+  const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0));
+  THROW.forEach((deg, c) => {
+    const s = FIRST + c * PITCH, a = deg * Math.PI / 180;
+    const aU = a, phi = Math.acos((R1 - R2) / CR_R);
+    const cx = CR_R * Math.cos(a), cy = CR_R * Math.sin(a);
+    const web = new THREE.Shape();
+    web.moveTo(R1 * Math.cos(aU + phi), R1 * Math.sin(aU + phi));
+    web.lineTo(cx + R2 * Math.cos(aU + phi), cy + R2 * Math.sin(aU + phi));
+    web.absarc(cx, cy, R2, aU + phi, aU - phi, true);
+    web.lineTo(R1 * Math.cos(aU - phi), R1 * Math.sin(aU - phi));
+    web.absarc(0, 0, R1, aU - phi, aU + phi - 2 * Math.PI, true);
+    [s, s + WT + PIN_L].forEach(x0 => {
+      const wg = new THREE.ExtrudeGeometry(web, { depth: WT, bevelEnabled: false, curveSegments: 36 });
+      wg.applyMatrix4(basis);
+      wg.translate(x0, 0, 0);
+      g.add(meshOf(wg, 'CS'));
+    });
+    const pg = new THREE.CylinderGeometry(PIN_R, PIN_R, PIN_L, 48);
+    pg.rotateZ(-Math.PI / 2);
+    pg.translate(s + WT + PIN_L / 2, cx, cy);
+    g.add(meshOf(pg, 'CS'));
+  });
+  return g;
+}
+
+// 커넥팅 로드: 로드 축 = Y, 대단부 중심 = 원점, 두께 = Z
+function buildCR() {
+  const g = new THREE.Group();
+  const T = 540, BR = 340, BW = 600;
+  const up = new THREE.Shape();
+  up.moveTo(BR, 0); up.lineTo(BW, 0); up.lineTo(BW, 450); up.lineTo(-BW, 450); up.lineTo(-BW, 0); up.lineTo(-BR, 0);
+  up.absarc(0, 0, BR, Math.PI, 0, true);
+  g.add(meshOf(extrudeSym(up, T), 'CR'));
+  const cap = new THREE.Shape();
+  cap.moveTo(BR, 0); cap.lineTo(BW, 0); cap.lineTo(BW, -420); cap.lineTo(BW - 130, -550); cap.lineTo(-(BW - 130), -550);
+  cap.lineTo(-BW, -420); cap.lineTo(-BW, 0); cap.lineTo(-BR, 0);
+  cap.absarc(0, 0, BR, Math.PI, 2 * Math.PI, false);
+  g.add(meshOf(extrudeSym(cap, T), 'CR'));
+  const yb = 420, yt = 3900;
+  g.add(meshOf(lathe([[0, yb], [260, yb], [180, yb + 300], [150, yt - 220], [230, yt], [0, yt]], 48), 'CR'));
+  const sm = new THREE.Shape();
+  sm.moveTo(500, L); sm.absarc(0, L, 500, 0, Math.PI, false); sm.lineTo(-500, L - 420); sm.lineTo(500, L - 420); sm.lineTo(500, L);
+  const hole = new THREE.Path(); hole.absarc(0, L, 280, 0, Math.PI * 2, true);
+  sm.holes.push(hole);
+  g.add(meshOf(extrudeSym(sm, T), 'CR'));
+  return g;
+}
+
+// 크로스헤드 (브리지형): 핀 축 = Z, 핀 중심 = 원점, 로드 방향 = +Y, 가이드 슈 X = ±650
+function buildCH() {
+  const g = new THREE.Group();
+  const c = 60, W = 650, H = 550;
+  const shoe = polyShape([[-W + c, -H], [W - c, -H], [W, -H + c], [W, H - c], [W - c, H], [-W + c, H], [-W, H - c], [-W, -H + c]]);
+  [[560, 740], [-740, -560]].forEach(([z0, z1]) => {
+    const sg = new THREE.ExtrudeGeometry(shoe, { depth: z1 - z0, bevelEnabled: false });
+    sg.translate(0, 0, z0);
+    g.add(meshOf(sg, 'CH'));
+  });
+  const ck = new THREE.Shape();
+  ck.moveTo(420, 0); ck.absarc(0, 0, 420, 0, -Math.PI, true); ck.lineTo(-420, 760); ck.lineTo(420, 760); ck.lineTo(420, 0);
+  [[300, 460], [-460, -300]].forEach(([z0, z1]) => {
+    const kg = new THREE.ExtrudeGeometry(ck, { depth: z1 - z0, bevelEnabled: false, curveSegments: 36 });
+    kg.translate(0, 0, z0);
+    g.add(meshOf(kg, 'CH'));
+  });
+  const br = new THREE.BoxGeometry(840, 200, 600); br.translate(0, 660, 0);
+  g.add(meshOf(br, 'CH'));
+  const pin = new THREE.CylinderGeometry(280, 280, 1360, 48); pin.rotateX(Math.PI / 2);
+  g.add(meshOf(pin, 'CH'));
+  return g;
+}
+
+// 피스톤 로드 (BRIDGE 방식): 축 = Y, Y = 0 은 아래 플랜지 바닥
+function buildPR() {
+  const pts = [[30, -38], [150, -38], [150, 0], [300, 0], [300, 120], [160, 120], [160, 270], [200, 370], [200, 3200],
+               [240, 3300], [300, 3300], [300, 3420], [150, 3420], [150, 3450], [30, 3450], [30, -38]];
+  const g = new THREE.Group();
+  g.add(meshOf(lathe(pts, 64), 'PR'));
+  return g;
+}
+
+// 피스톤 헤드: 축 = Y, Y = 0 은 로드에 닿는 아랫면
+function buildPH() {
+  const pts = [[350, 460], [447, 460], [447, 400]];
+  [400, 350, 300, 250].forEach((top, i) => {
+    if (i > 0) pts.push([449, top]);
+    pts.push([421, top], [421, top - 22], [449, top - 22]);
+  });
+  pts.push([449, -60], [395, -60], [395, 410], [330, 410], [330, 320], [215, 320], [215, 80], [300, 80], [300, 0],
+           [150, 0], [150, 32], [110, 32], [110, 320], [0, 320], [0, 410]);
+  const R = 1250, yc = 410 + R;
+  for (let i = 1; i <= 24; i++) { const r = 350 * i / 24; pts.push([r, yc - Math.sqrt(R * R - r * r)]); }
+  const g = new THREE.Group();
+  g.add(meshOf(lathe(pts, 72), 'PH'));
+  return g;
+}
+
+const BUILD = { CS: buildCS, CR: buildCR, CH: buildCH, PR: buildPR, PH: buildPH };
+
+/* ---------- GLB 불러오기 (있으면 사용, 단위는 크기로 자동 판단) ---------- */
+function loadGLB(p) {
+  return new Promise(resolve => {
+    if (/[?&]procedural\b/.test(location.search) || !THREE.GLTFLoader) return resolve(null);
+    new THREE.GLTFLoader().load(MODEL_DIR + p.file, gltf => {
+      const obj = gltf.scene;
+      const box = new THREE.Box3().setFromObject(obj);
+      const sz = box.getSize(new THREE.Vector3());
+      const m = Math.max(sz.x, sz.y, sz.z) || 1;
+      const k = Math.pow(10, Math.round(Math.log10(p.size / m)));   // m→mm 이면 1000, cm→mm 이면 10
+      obj.scale.setScalar(k);
+      obj.traverse(o => { if (o.isMesh) { o.material = MAT[p.key]; o.userData.key = p.key; } });
+      const g = new THREE.Group(); g.add(obj);
+      resolve(g);
+    }, undefined, () => resolve(null));
+  });
+}
+
+/* ---------- 조립 ---------- */
+const inst = { CS: [], CR: [], CH: [], PR: [], PH: [] };
+const pickables = [];
+let crank = null;
+const xc = THROW.map((_, c) => FIRST + c * PITCH + 350 + 280);
+
+async function assemble() {
+  const proto = {};
+  let glbCount = 0;
+  for (const p of PARTS) {
+    const loaded = await loadGLB(p);
+    if (loaded) glbCount++;
+    proto[p.key] = loaded || BUILD[p.key]();
+  }
+  crank = proto.CS; root.add(crank); inst.CS.push(crank);
+  for (let c = 0; c < 6; c++) {
+    ['CR', 'CH', 'PR', 'PH'].forEach(k => {
+      const o = proto[k].clone();
+      o.matrixAutoUpdate = false;
+      o.userData.cyl = c;
+      root.add(o); inst[k].push(o);
+    });
+  }
+  root.traverse(o => { if (o.isMesh) pickables.push(o); });
+  const note = document.getElementById('srcNote');
+  note.innerHTML = glbCount === PARTS.length
+    ? '모델: <b>Inventor GLB 5종</b> (models 폴더)'
+    : glbCount > 0
+      ? `모델: <b>Inventor GLB ${glbCount}종</b> + 설계 치수 재구성 ${PARTS.length - glbCount}종`
+      : '모델: <b>설계 치수 재구성</b> (iLogic 규칙과 같은 치수). models 폴더에 Inventor에서 내보낸 GLB를 넣으면 실제 모델로 바뀝니다.';
+}
+
+/* ---------- 운동 (크랭크 회전 → 커넥팅 로드 → 크로스헤드) ---------- */
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const tmpM = new THREE.Matrix4();
+let theta = 0;         // rad
+let expT = 0;          // 0..1
+const ease = t => t <= 0 ? 0 : t >= 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * t);
+function stageOffset(key) {
+  const i = STAGES.indexOf(key);
+  return ease(expT * STAGES.length - i);
+}
+const cylBars = document.getElementById('cylBars');
+for (let i = 0; i < 6; i++) { const d = document.createElement('div'); d.appendChild(document.createElement('i')); cylBars.appendChild(d); }
+
+function pose() {
+  if (!crank) return;
+  crank.rotation.x = theta;
+  const oPH = stageOffset('PH') * EXP.PH, oPR = stageOffset('PR') * EXP.PR;
+  const oCH = stageOffset('CH') * EXP.CH, oCR = stageOffset('CR') * EXP.CR;
+  for (let c = 0; c < 6; c++) {
+    const a = THROW[c] * Math.PI / 180;
+    const y0 = CR_R * Math.cos(a), z0 = CR_R * Math.sin(a);
+    const py = y0 * Math.cos(theta) - z0 * Math.sin(theta);
+    const pz = y0 * Math.sin(theta) + z0 * Math.cos(theta);
+    const ys = py + Math.sqrt(L * L - pz * pz);
+    const ay = (ys - py) / L, az = -pz / L;
+    tmpM.makeBasis(V(0, az, -ay), V(0, ay, az), V(1, 0, 0)).setPosition(xc[c], py, pz + oCR);
+    inst.CR[c].matrix.copy(tmpM);
+    const chB = new THREE.Matrix4().makeBasis(V(0, 0, -1), V(0, 1, 0), V(1, 0, 0));
+    inst.CH[c].matrix.copy(chB).setPosition(xc[c], ys + oCH, 0);
+    inst.PR[c].matrix.copy(chB).setPosition(xc[c], ys + CH_TOP + oPR, 0);
+    inst.PH[c].matrix.copy(chB).setPosition(xc[c], ys + CH_TOP + PR_SEAT + oPH, 0);
+    const pct = (ys - (L - CR_R)) / (2 * CR_R);   // 0 = 하사점, 1 = 상사점
+    cylBars.children[c].firstChild.style.bottom = `calc(${(pct * 100).toFixed(1)}% - ${(pct * 10).toFixed(1)}px)`;
+  }
+  ['CR', 'CH', 'PR', 'PH'].forEach(k => inst[k].forEach(o => o.matrixWorldNeedsUpdate = true));
+  const deg = ((theta * 180 / Math.PI) % 360 + 360) % 360;
+  document.getElementById('angOut').innerHTML = `${deg.toFixed(0)}<small>°</small>`;
+  document.getElementById('hudAng').textContent = `${deg.toFixed(0)}°`;
+}
+
+/* ---------- 조작 ---------- */
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let running = !reduce;
+let rpm = 30;
+let expTarget = null;
+const runBtn = document.getElementById('runBtn');
+const expIn = document.getElementById('exp');
+const hudMode = document.getElementById('hudMode');
+function setRun(v) {
+  running = v;
+  runBtn.textContent = v ? '일시정지' : '작동';
+}
+setRun(running);
+runBtn.addEventListener('click', () => {
+  if (!running && expT > 0) { expTarget = 0; toast('조립한 뒤 작동합니다'); }
+  setRun(!running);
+});
+document.getElementById('rpm').addEventListener('input', e => {
+  rpm = +e.target.value; document.getElementById('rpmOut').textContent = rpm;
+});
+expIn.addEventListener('input', e => { expTarget = null; expT = +e.target.value / 100; if (expT > 0) setRun(false); refreshExp(); });
+document.getElementById('expBtn').addEventListener('click', () => { setRun(false); expTarget = 1; });
+document.getElementById('asmBtn').addEventListener('click', () => { expTarget = 0; });
+function refreshExp() {
+  expIn.value = Math.round(expT * 100);
+  document.getElementById('expOut').textContent = Math.round(expT * 100);
+  if (expT <= 0) hudMode.textContent = '조립 상태';
+  else if (expT >= 1) hudMode.textContent = '분해 완료';
+  else hudMode.textContent = STAGE_NAME[STAGES[Math.min(3, Math.floor(expT * 4))]];
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1600);
+}
+
+/* ---------- 부품 목록 · 강조 · 정보 ---------- */
+const listEl = document.getElementById('partList');
+const infoEl = document.getElementById('info');
+let selKey = null;
+PARTS.forEach(p => {
+  const row = document.createElement('div');
+  row.className = 'part'; row.tabIndex = 0; row.dataset.key = p.key;
+  row.innerHTML = `<span class="sw" style="background:#${p.color.toString(16).padStart(6, '0')}"></span>
+    <span class="nm"><div>${p.name}</div><span>${p.pn}</span></span><span class="q">×${p.qty}</span>
+    <input type="checkbox" id="vis-${p.key}" checked aria-label="${p.name} 보이기">`;
+  row.addEventListener('mouseenter', () => glow(p.key, true));
+  row.addEventListener('mouseleave', () => glow(p.key, false));
+  row.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') select(p.key); });
+  row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(p.key); } });
+  row.querySelector('input').addEventListener('change', e => inst[p.key].forEach(o => o.visible = e.target.checked));
+  listEl.appendChild(row);
+});
+function glow(key, on) {
+  PARTS.forEach(p => MAT[p.key].emissive.setHex(0x000000));
+  const k = on ? key : selKey;
+  if (k) MAT[k].emissive.setHex(0x5a2a10);
+}
+function select(key) {
+  selKey = (selKey === key) ? null : key;
+  document.querySelectorAll('.part').forEach(r => r.classList.toggle('sel', r.dataset.key === selKey));
+  glow(selKey, !!selKey);
+  const p = PARTS.find(q => q.key === selKey);
+  infoEl.innerHTML = p ? `<h3>${p.name} <span class="pn">${p.pn}</span></h3><dl>${p.spec.map(s => `<dt>${s[0]}</dt><dd>${s[1]}</dd>`).join('')}</dl>` : '';
+}
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => downAt = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(pickables.filter(m => isShown(m)), false)[0];
+  if (hit) select(hit.object.userData.key);
+});
+function isShown(o) { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; }
+
+/* ---------- 현재 도면 부품 강조 (목업에서 ?highlight=CS 처럼 전달) ----------
+   해당 종류 부품 전체(×6 등)의 색을 빨간색으로 바꾼다. 모르는 값이면 아무것도 하지 않는다. */
+const HILITE_RED = 0xe5232b;
+const hiliteKey = (location.search.match(/[?&]highlight=([A-Z]{2})\b/) || [])[1];
+const hilitePart = PARTS.find(p => p.key === hiliteKey);
+if (hilitePart) {
+  // 강조 부품은 불투명한 빨강, 나머지 부품은 연한 회색 + 슬라이더로 정한 불투명도(기본 20%)로 흐리게 한다.
+  const DIM_COLOR = 0x9aa5b1, DIM_KEY = 'engineViewer.dimOpacity.v1';
+  const dimSec = document.getElementById('dimSec'), dimRange = document.getElementById('dim'), dimOut = document.getElementById('dimOut');
+  const applyDim = pct => {
+    const o = pct / 100, translucent = o < 1;
+    PARTS.forEach(p => {
+      if (p.key === hilitePart.key) return;
+      const m = MAT[p.key];
+      if (m.transparent !== translucent) { m.transparent = translucent; m.depthWrite = !translucent; m.needsUpdate = true; }
+      m.opacity = o;   // 반투명일 때는 depthWrite 를 꺼서 뒤의 부품을 가리지 않게 한다
+      const sw = document.querySelector('.part[data-key="' + p.key + '"] .sw');
+      if (sw) sw.style.opacity = String(Math.max(0.3, o));
+    });
+    dimOut.textContent = pct;
+  };
+  PARTS.forEach(p => {
+    const sw = document.querySelector('.part[data-key="' + p.key + '"] .sw');
+    if (p.key === hilitePart.key) {
+      MAT[p.key].color.setHex(HILITE_RED);
+      if (sw) sw.style.background = '#' + HILITE_RED.toString(16);
+    } else {
+      MAT[p.key].color.setHex(DIM_COLOR);
+      if (sw) sw.style.background = '#' + DIM_COLOR.toString(16);
+    }
+  });
+  let dimPct = 20;
+  try { const v = parseInt(localStorage.getItem(DIM_KEY), 10); if (v >= 5 && v <= 100) dimPct = v; } catch (e) {}
+  dimRange.value = dimPct;
+  applyDim(dimPct);
+  dimSec.style.display = '';
+  dimRange.addEventListener('input', () => {
+    dimPct = Number(dimRange.value);
+    applyDim(dimPct);
+    try { localStorage.setItem(DIM_KEY, String(dimPct)); } catch (e) {}
+  });
+}
+
+/* ---------- 팝업 닫기 (목업에서 iframe 으로 열 때 ?popup=1) ---------- */
+if (/[?&]popup=1\b/.test(location.search)) document.body.classList.add('popup');
+document.getElementById('closeBtn').addEventListener('click', () => {
+  try { window.parent.postMessage({ type: 'engine-viewer:close' }, location.origin); } catch (e) {}
+});
+
+/* ---------- 테마 ---------- */
+const themeWatch = () => makeGrid();
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeWatch); } catch (e) {}
+new MutationObserver(themeWatch).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- 화면 크기 · 카메라 ---------- */
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+  if (!userMoved) fitCamera();
+}
+// 엔진 전체(분해 높이 포함)가 들어오도록 카메라 거리 맞춤
+let userMoved = false;
+const VIEW_DIR = new THREE.Vector3(0.62, 0.42, 0.66).normalize();
+function fitCamera() {
+  const target = new THREE.Vector3(5.9, 5.3, 0.6), radius = 8.9;
+  const vf = THREE.MathUtils.degToRad(camera.fov);
+  const hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  const dist = radius / Math.sin(Math.min(vf, hf) / 2);
+  controls.target.copy(target);
+  camera.position.copy(target).addScaledVector(VIEW_DIR, dist);
+  controls.update();
+}
+controls.addEventListener('start', () => { userMoved = true; });
+window.addEventListener('resize', resize);
+
+/* ---------- 반복 ---------- */
+let last = performance.now();
+function frame(now) {
+  const raw = Math.min(0.2, (now - last) / 1000); last = now;
+  const dt = Math.min(0.05, raw);
+  if (running && expT === 0) theta += dt * rpm / 60 * 2 * Math.PI;
+  if (expTarget !== null) {
+    const step = raw / 6;           // 분해 전체 6초
+    expT = expTarget > expT ? Math.min(expTarget, expT + step) : Math.max(expTarget, expT - step);
+    if (expT === expTarget) { expTarget = null; if (expT === 0) toast('조립 완료'); else toast('분해 완료'); }
+    refreshExp();
+  }
+  pose();
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+resize();
+assemble().then(() => {
+  if (hilitePart) document.getElementById('srcNote').insertAdjacentHTML('beforeend',
+    '<br><b style="color:#' + HILITE_RED.toString(16) + '">빨간색</b>: 현재 도면의 부품 (<b>' + hilitePart.name + '</b>) · 나머지 부품은 흐리게 표시 (슬라이더로 조절)');
+  pose(); requestAnimationFrame(frame);
+});
+</script>
+
+</body>
+</html>
