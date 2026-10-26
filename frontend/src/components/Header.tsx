@@ -4,13 +4,16 @@
  */
 
 import React from "react";
-import { Search } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
   displayInfo?: { partName: string; drawingName: string };
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  /** 시연용 계정 이름 (인증된 사용자가 아님) */
+  userLabel: string;
+  onBackToList: () => void;
 }
 
 /** 상단 제품 헤더: 제품명 · 현재 부품/도면 정보 · 검색 · 사용자. 작업 버튼은 아래 작업 툴바에 둔다. */
@@ -18,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   displayInfo,
   searchQuery,
   onSearchChange,
+  userLabel,
+  onBackToList,
 }) => {
   const meta = [
     { label: "부품", value: displayInfo?.partName || MOCK_PART_INFO?.name },
@@ -29,6 +34,17 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 text-white">
+      <button
+        type="button"
+        onClick={onBackToList}
+        className="btn btn-dark-ghost -ml-2 shrink-0"
+      >
+        <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
+        도면 목록으로
+      </button>
+
+      <span aria-hidden="true" className="-ml-2 h-4 w-px shrink-0 bg-slate-800" />
+
       <div className="flex min-w-0 shrink-0 items-baseline gap-2">
         <h1 className="whitespace-nowrap text-[13px] font-semibold tracking-tight text-white">
           도면 측정 가이드
@@ -63,14 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </label>
 
-        <div className="flex items-center gap-2 border-l border-slate-800 pl-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-700 text-[11px] font-semibold text-white">
-            김
-          </div>
-          <div className="hidden text-left leading-tight sm:block">
-            <div className="text-xs font-medium text-slate-200">김태호</div>
-            <div className="text-[10px] text-slate-500">QA Lead</div>
-          </div>
+        <div className="flex items-center gap-2 border-l border-slate-800 pl-3" title="시연용 진입 · 인증되지 않은 사용자">
+          <span className="hidden max-w-[120px] truncate text-xs text-slate-200 sm:inline">{userLabel}</span>
+          <span className="tag bg-slate-800 text-slate-300">시연</span>
         </div>
       </div>
     </header>

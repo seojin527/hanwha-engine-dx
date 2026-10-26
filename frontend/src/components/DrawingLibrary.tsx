@@ -19,35 +19,48 @@ interface DrawingLibraryProps {
   status?: ReactNode;
   /** 툴바 오른쪽 작업 버튼 묶음 */
   actions?: ReactNode;
+  /** 처음 표시할 부품·도면 (도면 선택 화면에서 고른 값). 마운트할 때만 읽는다. */
+  initialPartId?: string;
+  initialDrawingId?: string;
+  /** 처음에 부품·도면 관리 영역을 펼칠지 */
+  initialOpen?: boolean;
+  /** 선택한 부품이 바뀌면 알린다 (선택 해제는 빈 문자열). */
+  onSelectPart?: (partId: string) => void;
 }
 
 export function DrawingLibrary({
   onSelectDrawing,
   onClearDrawing,
   uploadRequest = 0,
+  initialPartId = "",
+  initialDrawingId = "",
+  initialOpen = false,
+  onSelectPart,
   status,
   actions,
 }: DrawingLibraryProps) {
   const [parts, setParts] = useState<Part[]>([]);
-  const [selectedPartId, setSelectedPartId] = useState("");
+  const [selectedPartId, setSelectedPartId] = useState(initialPartId);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
-  const [selectedDrawingId, setSelectedDrawingId] = useState("");
+  const [selectedDrawingId, setSelectedDrawingId] = useState(
+    initialPartId ? initialDrawingId : "",
+  );
   const [newPartName, setNewPartName] = useState("");
   const [showPartInput, setShowPartInput] = useState(false);
   const [loadingParts, setLoadingParts] = useState(true);
-  const [loadingDrawings, setLoadingDrawings] = useState(false);
+  const [loadingDrawings, setLoadingDrawings] = useState(Boolean(initialPartId));
   const [addingPart, setAddingPart] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(initialOpen);
   const [deleting, setDeleting] = useState(false);
   const deletingRef = useRef(false);
 
   const busy = addingPart || uploading || deleting;
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const selectedPartRef = useRef("");
+  const selectedPartRef = useRef(initialPartId);
   const listVersionRef = useRef(0);
   const mountedRef = useRef(false);
 
@@ -142,6 +155,7 @@ export function DrawingLibrary({
     setError("");
     setNotice("");
     onClearDrawing();
+    onSelectPart?.(partId);
   }
 
   async function handleAddPart() {
@@ -359,6 +373,7 @@ export function DrawingLibrary({
       setLoadingDrawings(false);
 
       onClearDrawing();
+      onSelectPart?.("");
       setNotice("부품과 해당 부품의 도면을 등록 목록에서 삭제했습니다.");
     } catch (cause: unknown) {
       if (mountedRef.current) {

@@ -12,7 +12,9 @@ import { MeasurementTable } from "./components/MeasurementTable";
 import { MeasurementPanel } from "./components/MeasurementPanel";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
-import { apiUrl } from './lib/drawingAPI';
+import { apiUrl, drawingFileUrl } from './lib/drawingAPI';
+import { LoginScreen } from './components/entry/LoginScreen';
+import { DrawingSelectScreen } from './components/entry/DrawingSelectScreen';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
 import { reviewInfoOf, toOcrPoints } from './lib/ocr';
 import { OcrMeasurementTable } from './components/OcrMeasurementTable';
@@ -46,6 +48,13 @@ export function App() {
   const [engineViewerOpen, setEngineViewerOpen] = useState(false);
 
   const [demoMode, setDemoMode] = useState(true);
+  // 진입 흐름: 시연용 로그인 → 부품·도면 선택 → 작업 화면
+  const [stage, setStage] = useState<"login" | "select" | "workspace">("login");
+  // 시연용 계정 이름. 화면 표시용으로 메모리에만 둔다 (인증 아님).
+  const [userLabel, setUserLabel] = useState("");
+  // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
+  const [activePartId, setActivePartId] = useState("");
+  const [libraryOpenOnEnter, setLibraryOpenOnEnter] = useState(false);
   const [selectedDrawing, setSelectedDrawing] =
     useState<Drawing | null>(null);
   const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
@@ -337,6 +346,47 @@ export function App() {
     setSelectedPointId(ocrPoints[(index + delta + ocrPoints.length) % ocrPoints.length].id);
   }
 
+  function closeWorkspaceOverlays() {
+    if (positionResolver.current) finishPositionPick(null);
+    setReviewOpen(false);
+    setHistoryOpen(false);
+    setEngineViewerOpen(false);
+    setPreviewFile(null);
+  }
+
+  function startWorkspace(drawing: Drawing) {
+    closeWorkspaceOverlays();
+    setSearchQuery("");
+    setSelectedPointId(1);
+    setSelectedDrawing(drawing);
+    setDrawingUrl(drawingFileUrl(drawing));
+    setActivePartId(drawing.part_id);
+    setDemoMode(false);
+    setLibraryOpenOnEnter(false);
+    setStage("workspace");
+  }
+
+  function enterDemo() {
+    closeWorkspaceOverlays();
+    setSearchQuery("");
+    selectPoint(1);
+    setDemoMode(true);
+    setLibraryOpenOnEnter(false);
+    setStage("workspace");
+  }
+
+  function backToList() {
+    if (
+      !demoMode &&
+      reviewOpen &&
+      !window.confirm("관리자 검토 중 저장하지 않은 내용은 사라집니다. 도면 목록으로 이동할까요?")
+    ) {
+      return;
+    }
+    closeWorkspaceOverlays();
+    setStage("select");
+  }
+
   async function runSelectedOcr() {
     setSelectedPointId(1);
     await ocr.run();
@@ -574,12 +624,54 @@ export function App() {
     </>
   );
 
+  if (stage === "login") {
+    return (
+      <LoginScreen
+        onLogin={(account) => {
+          setUserLabel(account);
+          setStage("select");
+        }}
+        onDemo={() => {
+          setUserLabel("데모 체험");
+          enterDemo();
+        }}
+      />
+    );
+  }
+
+  if (stage === "select") {
+    return (
+      <DrawingSelectScreen
+        userLabel={userLabel}
+        initialPartId={activePartId}
+        initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
+        onStart={startWorkspace}
+        onRegister={(partId) => {
+          // 도면 없이 작업 화면을 열고 부품·도면 관리 영역을 펼친다.
+          setActivePartId(partId);
+          setSelectedDrawing(null);
+          setDrawingUrl(null);
+          setDemoMode(false);
+          setLibraryOpenOnEnter(true);
+          setStage("workspace");
+        }}
+        onDemo={enterDemo}
+        onExit={() => {
+          setUserLabel("");
+          setStage("login");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
         displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        userLabel={userLabel}
+        onBackToList={backToList}
       />
 
       {engineViewerOpen && (
@@ -598,10 +690,15 @@ export function App() {
         uploadRequest={uploadRequest}
         status={toolbarStatus}
         actions={toolbarActions}
+        initialPartId={activePartId}
+        initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
+        initialOpen={libraryOpenOnEnter}
+        onSelectPart={setActivePartId}
         onSelectDrawing={(drawing, url) => {
           setSelectedPointId(1);
           setSelectedDrawing(drawing);
           setDrawingUrl(url);
+          setActivePartId(drawing.part_id);
           setDemoMode(false);
         }}
         onClearDrawing={() => {

@@ -122,3 +122,22 @@
   background: #94a3b8;
   background-clip: content-box;
 }
+
+/*
+ * 진입 화면(로그인 · 부품·도면 선택) 전용 회색 테마.
+ * .entry-gray 안에서만 공통 버튼·입력창 색을 바꾸므로 작업 화면에는 영향이 없다.
+ * 바탕 #262626 · 레이어 #303030 · 경계선 #404040 (Carbon Gray 90 계열), 강조색은 작업 화면과 같은 cyan.
+ */
+@layer components {
+  .entry-gray { @apply bg-neutral-800 text-neutral-100; }
+  .entry-gray .btn-secondary { @apply border-neutral-600 bg-neutral-700/50 text-neutral-100 hover:border-neutral-500 hover:bg-neutral-700; }
+  .entry-gray .btn-ghost { @apply text-neutral-300 hover:bg-white/5 hover:text-white; }
+  .entry-gray .field {
+    @apply border-neutral-600 bg-neutral-900/50 text-neutral-100 placeholder:text-neutral-500 hover:border-neutral-500 focus:border-cyan-500 focus:ring-cyan-500 disabled:bg-neutral-800 disabled:text-neutral-500;
+  }
+  .entry-gray .field-label { @apply text-neutral-300; }
+  .entry-gray .card { @apply border-neutral-700 bg-[#2e2e2e]; }
+  .entry-gray .card-header { @apply border-neutral-700; }
+  .entry-gray .note-warn { @apply border-amber-400 bg-amber-400/10 text-amber-100; }
+  .entry-gray .note-error { @apply border-rose-400 bg-rose-400/10 text-rose-100; }
+}
