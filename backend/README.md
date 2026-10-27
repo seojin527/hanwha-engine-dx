@@ -171,3 +171,22 @@ python -m unittest discover -s tests -v
 3. ~~`data/ocr_to_metadata.py`가 98줄에서 끊겨 있다.~~ → 해결됨. 지금은 `tools/ocr_to_metadata/` 로 옮겼고 `main` 까지 있어 실행된다.
    (예전 메모) 표제란을 `PART NAME … QTY … PROJECTION …` 순서의 평문으로 가정하는데, 지금 TXT는 단어 목록(`[{'text': 'PART', ...}]`)이고 HDH 도면에는 QTY/PROJECTION 칸이 없다.
 4. GD&T 좌표는 틀의 **왼쪽 위**, 치수 좌표는 글자 **중심**이다.
+
+## 부품제작(가공 중 측정) 황삭·중삭·정삭
+
+작업자 **부품제작** 화면(`frontend/src/pages/ManufacturingPage.tsx`, `components/ManufacturingPanel.tsx`)에서만 쓴다. 조립·검증 화면과 기존 측정 기록은 그대로다.
+
+- **기준 템플릿** `machining_templates.py`: 부품별로 라벨(도면 위 위치 + 표기 종류)마다 어느 단계에서 재는지 고정한다.
+  - `R` 황삭에서 마무리 · `RF` 황삭 여유 → 중삭 여유(0.5mm) → 정삭 마무리 · `F` 정삭 후에만(기하공차·구멍·나사) · `none` 측정 안 함
+  - 여유값은 라벨마다 고정(축 +, 구멍·홈 −)이고 목표 = 도면 치수 + 여유라서 치수가 바뀌어도 목표가 따라간다. 포트폴리오용 가정값.
+- **흐름**: 제품 번호(시리얼) 입력 → 황삭 라벨 전부 합격 → 중삭 열림 → 중삭 전부 합격 → 정삭 열림 (서버도 막는다).
+  측정 전 측정기 0점 확인을 체크해야 저장된다. 실측값을 넣으면 목표 대비 공구 보정량(직경·반경)을 보여준다.
+- **API** (`machining_api.py`)
+  - `GET /api/machining/{drawing_id}/plan?revision=&serial=` : 항목별 단계 기준, 해당 제품 번호 기록, 단계 상태(`unlocked`)
+  - `POST /api/machining/{drawing_id}/items/{item_id}/record` : `{revision, serial, stage: "1"|"2"|"3", measured_value | gauge_result, confirmed, zero_checked, instrument, note}`
+  - `GET /api/machining/{drawing_id}/items/{item_id}/errors?stage=` : `manufacturing_errors_v1` 에서 그 단계(황삭 후·중삭 후·정삭 후) + 가공 공통 오류사례 (공정을 비운 사용자 등록 사례도 포함)
+  - `GET /api/machining/{drawing_id}/report.xlsx?revision=` : 자주검사 성적서 (제품 번호별 실측·편차·판정, 측정 이력)
+  - 기록: `machining_stage_records`(최신값), `machining_stage_attempts`(전체 이력)
+- **오류DB**: `data/manufacturing/RAGFlow_*_가공_오류DB.xlsx` (process_stage = 황삭 후 / 중삭 후 / 정삭 후 / 가공 공통)
+  적재: `python -m purpose_errors.ingest --purpose manufacturing --all` (서버를 끄고 실행)
+- 테스트: `python -m unittest tests.test_machining -v`

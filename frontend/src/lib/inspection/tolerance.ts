@@ -99,8 +99,10 @@ export function parseDimension(text: string): ParsedDimension {
 export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, R5, C0.5, M16";
 
 /** 기하공차 공차값: 숫자만 (0.01, 1). 쉼표·글자가 섞이면 무효. */
+/** 기하공차 값: 숫자, 또는 지름 공차역 표시가 붙은 숫자 (⌀0.2 — 위치도 등) */
 export function isValidGdtValue(value: string): boolean {
-  return /^\d+(\.\d+)?$/.test(value.trim());
+  // '005'처럼 소수점이 빠진 값(0으로 시작하는 정수)은 유효하지 않다.
+  return /^[Ø⌀∅]?(0|[1-9]\d*)(\.\d+)?$/.test(value.trim());
 }
 
 /**
@@ -108,9 +110,9 @@ export function isValidGdtValue(value: string): boolean {
  * 후보로만 보여주고 자동으로 바꾸지 않는다.
  */
 export function droppedZeroCandidate(value: string): string | null {
-  const text = value.trim();
-  if (!/^0\.\d+$/.test(text)) return null;
-  return `0.0${text.slice(2)}`;
+  const match = value.trim().match(/^([Ø⌀∅]?)0\.(\d+)$/);
+  if (!match) return null;
+  return `${match[1]}0.0${match[2]}`;
 }
 
 export function formatNumber(value: number): string {
