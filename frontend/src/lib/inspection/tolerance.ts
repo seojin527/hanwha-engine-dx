@@ -128,3 +128,68 @@ export function formatDeviationPair(upper: number, lower: number): string {
   const sign = (value: number) => (value >= 0 ? `+${formatNumber(value)}` : formatNumber(value));
   return `${sign(upper)} / ${sign(lower)}`;
 }
+
+// ---------------------------------------------------------------- 끼워맞춤 (ISO 286)
+/**
+ * 끼워맞춤 코드(H7, g6 …)로 특별 공차의 상·하한 편차를 채우는 보조 계산.
+ * 표에 있는 구간·코드만 계산하고, 그 밖은 null 을 돌려 관리자가 편차를 직접 입력하게 한다.
+ * 값은 µm 단위 [상한, 하한]. 30~50mm 구간만 두 곳의 공개 표(30~40mm 열)와 대조해 확인했다.
+ * 다른 구간은 ISO 286-2 (KS B 0401) 원문과 대조한 뒤에만 추가한다. 임의로 계산식으로 채우지 않는다.
+ */
+interface FitRange {
+  over: number;
+  upTo: number;
+  deviations: Record<string, [number, number]>;
+}
+
+const FIT_TABLE: FitRange[] = [
+  {
+    over: 30,
+    upTo: 50,
+    deviations: {
+      H6: [16, 0],
+      H7: [25, 0],
+      H8: [39, 0],
+      f7: [-25, -50],
+      g6: [-9, -25],
+      h6: [0, -16],
+      k6: [18, 2],
+      p6: [42, 26],
+    },
+  },
+];
+
+export type FitStatus =
+  | { state: "empty" }
+  | { state: "invalid"; message: string }
+  | { state: "unsupported"; message: string }
+  | { state: "ok"; upper: number; lower: number };
+
+/** 입력한 코드(대소문자 구분: H=구멍, h=축)와 기준치수로 편차(mm)를 계산한다. */
+export function fitStatus(code: string, nominal: number | null): FitStatus {
+  const text = code.trim();
+  if (!text) return { state: "empty" };
+  if (!/^[A-Za-z]{1,2}\d{1,2}$/.test(text)) {
+    return { state: "invalid", message: "코드 형식이 아닙니다. 예: H7, g6" };
+  }
+  if (nominal === null || !Number.isFinite(nominal)) {
+    return { state: "unsupported", message: "기준치수를 읽을 수 없어 계산하지 못했습니다. 편차를 직접 입력해주세요." };
+  }
+  const range = FIT_TABLE.find((entry) => nominal > entry.over && nominal <= entry.upTo);
+  const found = range?.deviations[text];
+  if (!range || !found) {
+    const supported = FIT_TABLE.flatMap((entry) => Object.keys(entry.deviations)).join(", ");
+    return {
+      state: "unsupported",
+      message: `표에 없는 코드이거나 치수 범위입니다 (지원: ${supported}, 30 초과 ~ 50 이하). 편차를 직접 입력해주세요.`,
+    };
+  }
+  const toMm = (micro: number) => Number((micro / 1000).toFixed(6));
+  return { state: "ok", upper: toMm(found[0]), lower: toMm(found[1]) };
+}
+
+/** 입력칸에 채울 부호 포함 문자열 (+0.025 / 0 / -0.009) */
+export function signedDeviationText(value: number): string {
+  if (value === 0) return "0";
+  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value);
+}

@@ -13,11 +13,13 @@ import {
   DIMENSION_EXAMPLES,
   GENERAL_LABEL,
   droppedZeroCandidate,
+  fitStatus,
   formatDeviationPair,
   formatNumber,
   formatRange,
   isValidGdtValue,
   parseDimension,
+  signedDeviationText,
   type ParsedDimension,
   type ToleranceSource,
 } from "../lib/inspection/tolerance";
@@ -51,6 +53,8 @@ interface Draft {
   toleranceSource: ToleranceSource;
   upper: string;
   lower: string;
+  /** 특별 공차 편차를 채우는 보조 입력 (저장하지 않음, 편차 값만 저장된다) */
+  fitCode: string;
   unit: string;
   instrument: string;
   criteria: string;
@@ -198,6 +202,7 @@ export default function DrawingReviewPanel({
           approved && item.tolerance_source === "SPECIAL" && typeof item.lower_deviation === "number"
             ? String(item.lower_deviation)
             : "",
+        fitCode: "",
         unit: item.unit || source.result.unit || "mm",
         instrument: item.instrument ?? "",
         criteria: item.gauge_criteria ?? "",
@@ -1078,7 +1083,7 @@ function SelectedItem({
                   parsed.general !== null ? `±${formatNumber(parsed.general)}` : "적용 범위 밖",
                   parsed.general !== null,
                 ],
-                ["special", "특별 공차", "직접 입력", true],
+                ["special", "특별 공차", "직접 입력 · 끼워맞춤 코드", true],
               ] as Array<[ToleranceSource, string, string, boolean]>).map(([value, label, detail, available]) => (
                 <label
                   key={value}
@@ -1097,6 +1102,19 @@ function SelectedItem({
                   <span className="flex-1 text-right font-mono text-slate-600">{detail}</span>
                 </label>
               ))}
+              {draft.toleranceSource === "special" && (
+                <FitCodeInput
+                  nominal={parsed.valid ? parsed.nominal : null}
+                  value={draft.fitCode}
+                  onChange={(fitCode, deviation) =>
+                    onDraft(
+                      deviation
+                        ? { fitCode, upper: signedDeviationText(deviation.upper), lower: signedDeviationText(deviation.lower) }
+                        : { fitCode },
+                    )
+                  }
+                />
+              )}
               {draft.toleranceSource === "special" && (
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <label className="space-y-1 text-xs">
@@ -1184,6 +1202,44 @@ function SelectedItem({
             이 항목 확인하고 다음 미확인으로
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** 끼워맞춤 코드(H7, g6 …)를 입력하면 아래 상·하한 편차를 채워주는 보조 입력. 채워진 값은 직접 고칠 수 있다. */
+function FitCodeInput({
+  nominal,
+  value,
+  onChange,
+}: {
+  nominal: number | null;
+  value: string;
+  onChange: (code: string, deviation: { upper: number; lower: number } | null) => void;
+}) {
+  const status = fitStatus(value, nominal);
+  return (
+    <div className="space-y-1 pt-1 text-xs">
+      <label className="block space-y-1">
+        <span className="text-slate-600">끼워맞춤 코드 (선택) · 입력하면 편차를 자동으로 채웁니다</span>
+        <input
+          className={`${editClass} font-mono`}
+          placeholder="예: H7 (구멍), g6 (축)"
+          value={value}
+          onChange={(event) => {
+            const next = event.target.value;
+            const result = fitStatus(next, nominal);
+            onChange(next, result.state === "ok" ? { upper: result.upper, lower: result.lower } : null);
+          }}
+        />
+      </label>
+      {status.state === "ok" && (
+        <p className="text-[11px] text-cyan-700">
+          {value.trim()} → 상한 {signedDeviationText(status.upper)} / 하한 {signedDeviationText(status.lower)} mm 를 채웠습니다. 도면과 대조해 확인해주세요.
+        </p>
+      )}
+      {(status.state === "invalid" || status.state === "unsupported") && (
+        <p className="text-[11px] text-amber-700">{status.message}</p>
       )}
     </div>
   );
