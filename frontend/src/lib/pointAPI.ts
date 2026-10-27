@@ -1,15 +1,6 @@
 import { apiUrl } from './drawingAPI';
 import type { WorkPurpose } from './purpose';
 
-export interface MeasurementRecord {
-  item_id: string;
-  measured_value: string;
-  instrument: string;
-  note: string;
-  judgement: 'pass' | 'fail' | 'review';
-  judgement_reason: string;
-  updated_at?: string;
-}
 export interface RegistrationResult {
   case_id: string;
   saved: boolean;
@@ -30,18 +21,7 @@ async function json<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return body;
 }
-const base = (drawingId: string) => `/api/drawings/${encodeURIComponent(drawingId)}`;
 const post = (body: unknown): RequestInit => ({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-export function fetchMeasurements(drawingId: string, revision: string, signal?: AbortSignal) {
-  return json<{drawing_id: string; revision: string; records: MeasurementRecord[]}>(
-    `${base(drawingId)}/measurements?revision=${encodeURIComponent(revision)}`, {signal});
-}
-export function saveMeasurement(drawingId: string, itemId: string, body: {
-  revision: string; measured_value: string; instrument: string; note: string;
-}) {
-  return json<MeasurementRecord & {drawing_id: string; revision: string}>(
-    `${base(drawingId)}/items/${encodeURIComponent(itemId)}/measurement`, post(body));
-}
 // 오류사례 등록·이력·재시도는 작업 목적의 저장소만 사용한다.
 const purposeBase = (purpose: WorkPurpose, drawingId: string) =>
   `/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}`;

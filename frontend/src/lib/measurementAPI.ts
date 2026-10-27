@@ -1,4 +1,5 @@
 import { apiUrl } from "./drawingAPI";
+import type { WorkPurpose } from "./purpose";
 
 export type MeasurementMode = "numeric" | "gauge";
 
@@ -12,6 +13,8 @@ export type MeasurementStatus =
 
 export interface MeasurementRecord {
   item_id: string;
+  /** 이 기록을 저장한 작업 목적 */
+  work_purpose: WorkPurpose;
   measurement_mode: MeasurementMode;
   measured_value: string;
   gauge_result: "pass" | "fail" | null;
@@ -37,6 +40,7 @@ export interface MeasurementRequest {
 interface MeasurementList {
   drawing_id: string;
   revision: string;
+  work_purpose: WorkPurpose;
   records: MeasurementRecord[];
 }
 
@@ -81,14 +85,16 @@ async function readResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/** 이 작업 목적에서 저장한 측정 기록만 조회한다. */
 export async function fetchMeasurements(
+  purpose: WorkPurpose,
   drawingId: string,
   revision: string,
   signal?: AbortSignal,
 ): Promise<MeasurementList> {
   const response = await fetch(
     apiUrl(
-      `/api/drawings/${encodeURIComponent(drawingId)}/measurements?revision=${encodeURIComponent(revision)}`,
+      `/api/drawings/${encodeURIComponent(drawingId)}/measurements?revision=${encodeURIComponent(revision)}&purpose=${purpose}`,
     ),
     { signal },
   );
@@ -96,7 +102,9 @@ export async function fetchMeasurements(
   return readResponse<MeasurementList>(response);
 }
 
+/** 이 작업 목적의 측정 기록으로 저장한다 (다른 목적의 기록은 바뀌지 않는다). */
 export async function saveMeasurement(
+  purpose: WorkPurpose,
   drawingId: string,
   itemId: string,
   request: MeasurementRequest,
@@ -108,7 +116,7 @@ export async function saveMeasurement(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
+      body: JSON.stringify({ ...request, work_purpose: purpose }),
     },
   );
 

@@ -1,6 +1,7 @@
 import type { WorkPurpose } from "./purpose";
 
-const API_BASE = "http://127.0.0.1:8000";
+// 백엔드 주소. 기본은 로컬 서버이며, 검증용으로 다른 서버를 쓸 때만 VITE_API_BASE 로 바꾼다.
+const API_BASE: string = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
 export interface Part {
   part_id: string;

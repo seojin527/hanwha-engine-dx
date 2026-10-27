@@ -12,8 +12,11 @@ import InstrumentSelect from "./review/InstrumentSelect";
 import { recommendedInstruments } from "../lib/inspection/instruments";
 import { formatNumber } from "../lib/inspection/tolerance";
 import { useReportUnsaved } from "../lib/unsavedChanges";
+import type { WorkPurpose } from "../lib/purpose";
 
 interface Props {
+  /** 이 화면의 작업 목적. 조회·저장 모두 이 목적의 기록만 쓴다. */
+  purpose: WorkPurpose;
   drawingId: string;
   revision: string;
   item: OcrItem;
@@ -28,7 +31,7 @@ const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
  * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
  * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
  */
-export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved }: Props) {
+export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
@@ -61,10 +64,10 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
     setNote("");
     setDirty(false);
 
-    fetchMeasurements(drawingId, revision, controller.signal)
+    fetchMeasurements(purpose, drawingId, revision, controller.signal)
       .then((response) => {
         if (controller.signal.aborted) return;
-        if (response.drawing_id !== drawingId || response.revision !== revision) {
+        if (response.drawing_id !== drawingId || response.revision !== revision || response.work_purpose !== purpose) {
           throw new Error("측정 결과의 버전이 일치하지 않습니다.");
         }
         const saved = response.records.find((entry) => entry.item_id === item.id) ?? null;
@@ -85,7 +88,7 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
       });
 
     return () => controller.abort();
-  }, [drawingId, revision, item.id, item.instrument]);
+  }, [purpose, drawingId, revision, item.id, item.instrument]);
 
   function markChanged() {
     setDirty(true);
@@ -119,7 +122,7 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
     setSaving(true);
     setError("");
     try {
-      const saved = await saveMeasurement(drawingId, item.id, {
+      const saved = await saveMeasurement(purpose, drawingId, item.id, {
         revision,
         measurement_mode: mode,
         measured_value: mode === "numeric" ? trimmed : "",
@@ -130,7 +133,7 @@ export default function OcrMeasurementEntry({ drawingId, revision, item, onSaved
         note: note.trim(),
       });
       if (!mounted.current) return;
-      if (saved.drawing_id !== drawingId || saved.revision !== revision || saved.item_id !== item.id) {
+      if (saved.drawing_id !== drawingId || saved.revision !== revision || saved.item_id !== item.id || saved.work_purpose !== purpose) {
         throw new Error("다른 항목의 측정 결과가 반환됐습니다.");
       }
       setRecord(saved);

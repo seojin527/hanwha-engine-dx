@@ -114,7 +114,7 @@ backend/
 | 공통 | `parts`, `drawings` | 부품·도면 (파일은 storage/uploads) |
 | 공통 | `ocr_results`, `ocr_jobs` | OCR 결과 JSON · revision · 작업 상태 |
 | (미사용) | `drawing_workflow`, `drawing_workflow_history` | 현재 코드가 읽거나 쓰지 않는 이전 테이블 (0건). 삭제하지 않고 둠 |
-| 공통 | `measurement_records`, `measurement_attempts` | 측정값 · 측정 이력 |
+| 목적별 | `measurement_records`, `measurement_attempts` | 측정값 · 측정 이력. `work_purpose`(manufacturing·assembly·verification)로 구분하며 기본키는 (도면, OCR revision, 목적, 항목). 목적 구분 전 기록은 `unclassified` 로 보존 |
 | 목적별 | `manufacturing_error_cases`, `manufacturing_point_error_reports` | 부품제작 오류 원문 · 도면 포인트 연결 기록 |
 | 목적별 | `assembly_error_cases`, `assembly_point_error_reports` | 조립 |
 | 목적별 | `verification_error_cases`, `verification_point_error_reports` | 검증 |
@@ -210,7 +210,10 @@ API 주소는 `frontend/src/lib/drawingAPI.ts` 의 `API_BASE` (`http://127.0.0.1
        ├─ data/logs/<도면ID>_<revision>_review_log.* , _edits_log.jpg , review_history.csv
        └─ ocr_results 갱신 (save_reviewed_items: 새 revision, 검토자·review_history 를 JSON 에 기록)
 [화면] 결과 파일 목록·다운로드  GET /api/ocr-review/drawing/{도면ID}/files
-[화면·작업자] 측정 저장  POST /api/drawings/{도면ID}/items/{항목}/measurement → measurement_records/_attempts
+[화면·작업자] 측정 저장  POST /api/drawings/{도면ID}/items/{항목}/measurement (본문 work_purpose 필수)
+                          → measurement_records/_attempts (그 목적의 행만 저장·갱신)
+[화면] 측정 조회        GET /api/drawings/{도면ID}/measurements?revision=&purpose=<목적>
+[화면] 측정 이력        GET /api/drawings/{도면ID}/items/{항목}/measurement-attempts?revision=&purpose=<목적>
 ```
 
 ### 2. 목적별 오류 엑셀 → SQLite → 임베딩 → Chroma → 화면 검색

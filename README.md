@@ -124,6 +124,19 @@ cd backend
   백업 폴더의 `storage`·`vector_db` 를 `backend\` 로 복사한다. `--verify` 로 확인한 다음 서버를 실행한다.
 - 검토 산출물(`data/origin`, `data/reviewed`, `data/logs` 의 도면 ID 이름 파일과 `review_history.csv`)은 이 백업에 들어가지 않으므로 필요하면 함께 복사한다.
 
+## 측정 기록의 작업 목적
+
+측정값·판정·완료 수·이력은 작업 페이지(부품제작·조립·검증)마다 따로 저장된다.
+목적 구분 전에 저장된 기록은 서버를 새 코드로 처음 실행할 때 `unclassified`(미분류)로 보존되며 화면에는 나오지 않는다.
+어느 목적의 기록인지 확인한 뒤 아래 명령으로 옮긴다 (기본은 미리보기, 이미 그 목적에 기록이 있으면 덮어쓰지 않고 중단).
+
+```powershell
+cd backend
+.venv\Scripts\python.exe tools\assign_measurement_purpose.py --list
+.venv\Scripts\python.exe tools\assign_measurement_purpose.py --purpose verification --drawing <도면ID> --item DIMENSION_001
+.venv\Scripts\python.exe tools\assign_measurement_purpose.py --purpose verification --drawing <도면ID> --all-items --apply
+```
+
 ## 테스트
 
 ```powershell

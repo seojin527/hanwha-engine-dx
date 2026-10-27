@@ -119,6 +119,7 @@ export function ManufacturingPanel({
       <div className="flex-1 space-y-3 p-3">
         <CriteriaCard item={item} />
         <OcrMeasurementEntry
+          purpose={PURPOSE}
           key={`measurement-${key}`}
           drawingId={drawingId}
           revision={revision}

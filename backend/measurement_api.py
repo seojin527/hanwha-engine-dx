@@ -1,10 +1,10 @@
-"""실측값 저장. 도면·OCR 버전·항목별로 분리하며 판정은 서버에서 계산한다."""
+"""실측값 저장. 도면·OCR 버전·작업 목적·항목별로 분리하며 판정은 서버에서 계산한다."""
 import json
 import math
 import re
 from decimal import Decimal, InvalidOperation
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from drawing_library import database
@@ -15,11 +15,17 @@ from typing import Literal
 router = APIRouter(prefix='/api/drawings', tags=['실측값'])
 
 
-def init_measurements():
-    with database() as db:
-        db.execute('''CREATE TABLE IF NOT EXISTS measurement_records (
+# 작업 목적. 측정 기록·이력은 목적마다 따로 저장·조회한다.
+WORK_PURPOSES = ('manufacturing', 'assembly', 'verification')
+WorkPurpose = Literal['manufacturing', 'assembly', 'verification']
+# 목적 구분 전에 저장된 기존 기록. 화면 조회에는 나오지 않으며 tools/assign_measurement_purpose.py 로 옮긴다.
+UNCLASSIFIED = 'unclassified'
+_PURPOSE_CHECK = "work_purpose IN ('manufacturing','assembly','verification','unclassified')"
+
+RECORD_TABLE_SQL = f'''CREATE TABLE IF NOT EXISTS {{name}} (
             drawing_id TEXT NOT NULL REFERENCES drawings(drawing_id),
             ocr_revision TEXT NOT NULL,
+            work_purpose TEXT NOT NULL CHECK({_PURPOSE_CHECK}),
             item_id TEXT NOT NULL,
             measured_value TEXT NOT NULL,
             instrument TEXT NOT NULL DEFAULT '',
@@ -28,27 +34,27 @@ def init_measurements():
             judgement_reason TEXT NOT NULL,
             item_snapshot_json TEXT NOT NULL,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (drawing_id, ocr_revision, item_id)
-        )''')
+            measurement_mode TEXT NOT NULL DEFAULT 'numeric',
+            gauge_result TEXT,
+            confirmed INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (drawing_id, ocr_revision, work_purpose, item_id)
+        )'''
 
-        columns = {
-            row['name']
-            for row in db.execute(
-                'PRAGMA table_info(measurement_records)'
-            ).fetchall()
-        }
 
-        additions = {
-            'measurement_mode': "TEXT NOT NULL DEFAULT 'numeric'",
-            'gauge_result': 'TEXT',
-            'confirmed': 'INTEGER NOT NULL DEFAULT 0',
-        }
+def _columns(db, table):
+    return {row['name'] for row in db.execute(f'PRAGMA table_info({table})').fetchall()}
 
-        for name, definition in additions.items():
-            if name not in columns:
-                db.execute(
-                    f'ALTER TABLE measurement_records ADD COLUMN {name} {definition}'
-                )
+
+def init_measurements():
+    with database() as db:
+        exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='measurement_records'"
+        ).fetchone()
+
+        if not exists:
+            db.execute(RECORD_TABLE_SQL.format(name='measurement_records'))
+        elif 'work_purpose' not in _columns(db, 'measurement_records'):
+            _migrate_records_to_purpose(db)
 
         db.execute('''CREATE TABLE IF NOT EXISTS measurement_attempts (
             attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,14 +62,62 @@ def init_measurements():
             ocr_revision TEXT NOT NULL,
             item_id TEXT NOT NULL,
             record_json TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            work_purpose TEXT NOT NULL DEFAULT 'unclassified' CHECK(''' + _PURPOSE_CHECK + ''')
         )''')
+        if 'work_purpose' not in _columns(db, 'measurement_attempts'):
+            # 기존 이력은 목적을 알 수 없으므로 미분류로 남긴다.
+            db.execute(
+                "ALTER TABLE measurement_attempts ADD COLUMN work_purpose TEXT NOT NULL "
+                f"DEFAULT '{UNCLASSIFIED}' CHECK({_PURPOSE_CHECK})"
+            )
+        db.execute('''CREATE INDEX IF NOT EXISTS measurement_attempts_lookup
+            ON measurement_attempts (drawing_id, ocr_revision, work_purpose, item_id)''')
+
+
+def _migrate_records_to_purpose(db):
+    """목적 열이 없는 이전 measurement_records 를 새 구조로 옮긴다.
+
+    기본키에 목적을 넣어야 해서 표를 새로 만들어 복사한다. 기존 행은 삭제·복제하지 않고
+    work_purpose='unclassified' 로 한 번만 옮긴다. 하나의 트랜잭션에서 건수를 확인한 뒤 바꾼다.
+    """
+    old_columns = _columns(db, 'measurement_records')
+    for name, definition in {
+        'measurement_mode': "TEXT NOT NULL DEFAULT 'numeric'",
+        'gauge_result': 'TEXT',
+        'confirmed': 'INTEGER NOT NULL DEFAULT 0',
+    }.items():
+        if name not in old_columns:
+            db.execute(f'ALTER TABLE measurement_records ADD COLUMN {name} {definition}')
+
+    copied = ('drawing_id', 'ocr_revision', 'item_id', 'measured_value', 'instrument', 'note',
+              'judgement', 'judgement_reason', 'item_snapshot_json', 'updated_at',
+              'measurement_mode', 'gauge_result', 'confirmed')
+    columns = ', '.join(copied)
+
+    db.execute('BEGIN IMMEDIATE')
+    before = db.execute('SELECT COUNT(*) FROM measurement_records').fetchone()[0]
+    db.execute('DROP TABLE IF EXISTS measurement_records_purpose_new')
+    db.execute(RECORD_TABLE_SQL.format(name='measurement_records_purpose_new'))
+    db.execute(
+        f'INSERT INTO measurement_records_purpose_new ({columns}, work_purpose) '
+        f"SELECT {columns}, '{UNCLASSIFIED}' FROM measurement_records"
+    )
+    after = db.execute('SELECT COUNT(*) FROM measurement_records_purpose_new').fetchone()[0]
+    if after != before:
+        db.execute('ROLLBACK')
+        raise RuntimeError(f'측정 기록 이전 중 건수가 달라 중단했습니다 ({before} → {after}).')
+    db.execute('DROP TABLE measurement_records')
+    db.execute('ALTER TABLE measurement_records_purpose_new RENAME TO measurement_records')
+    db.execute('COMMIT')
 
 
 class MeasurementInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     revision: str = Field(min_length=1, max_length=100)
+    # 필수. 다른 목적의 기록을 덮어쓰지 않도록 목적별로 저장한다.
+    work_purpose: WorkPurpose
     measurement_mode: Literal['numeric', 'gauge'] = 'numeric'
     measured_value: str = Field(default='', max_length=100)
     gauge_result: Literal['pass', 'fail'] | None = None
@@ -117,22 +171,46 @@ def measurement_response(row):
     return record
 
 @router.get('/{drawing_id}/measurements')
-def list_measurements(drawing_id: str, revision: str):
+def list_measurements(drawing_id: str, revision: str, purpose: WorkPurpose = Query(...)):
     current_snapshot(drawing_id, revision)
 
     with database() as db:
         rows = db.execute('''
-            SELECT item_id, measured_value, instrument, note,
+            SELECT item_id, work_purpose, measured_value, instrument, note,
                    judgement, judgement_reason, updated_at,
                    measurement_mode, gauge_result, confirmed
             FROM measurement_records
-            WHERE drawing_id=? AND ocr_revision=?
-        ''', (drawing_id, revision)).fetchall()
+            WHERE drawing_id=? AND ocr_revision=? AND work_purpose=?
+        ''', (drawing_id, revision, purpose)).fetchall()
 
     return {
         'drawing_id': drawing_id,
         'revision': revision,
+        'work_purpose': purpose,
         'records': [measurement_response(row) for row in rows],
+    }
+
+
+@router.get('/{drawing_id}/items/{item_id}/measurement-attempts')
+def list_measurement_attempts(drawing_id: str, item_id: str, revision: str, purpose: WorkPurpose = Query(...)):
+    """이 목적에서 저장한 측정 이력 (최근 순)."""
+    current_snapshot(drawing_id, revision)
+    with database() as db:
+        rows = db.execute('''
+            SELECT attempt_id, record_json, created_at
+            FROM measurement_attempts
+            WHERE drawing_id=? AND ocr_revision=? AND work_purpose=? AND item_id=?
+            ORDER BY attempt_id DESC
+        ''', (drawing_id, revision, purpose, item_id)).fetchall()
+    return {
+        'drawing_id': drawing_id,
+        'revision': revision,
+        'work_purpose': purpose,
+        'item_id': item_id,
+        'attempts': [
+            {'attempt_id': row['attempt_id'], 'created_at': row['created_at'], **json.loads(row['record_json'])}
+            for row in rows
+        ],
     }
 
 @router.post('/{drawing_id}/items/{item_id}/measurement')
@@ -240,6 +318,7 @@ def save_measurement(
         'drawing_id': drawing_id,
         'revision': payload.revision,
         'item_id': item_id,
+        'work_purpose': payload.work_purpose,
         'measurement_mode': expected_mode,
         'measured_value': measured_value,
         'gauge_result': payload.gauge_result,
@@ -267,12 +346,12 @@ def save_measurement(
 
         db.execute('''
             INSERT INTO measurement_records (
-                drawing_id, ocr_revision, item_id,
+                drawing_id, ocr_revision, work_purpose, item_id,
                 measured_value, instrument, note,
                 judgement, judgement_reason, item_snapshot_json,
                 measurement_mode, gauge_result, confirmed
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(drawing_id, ocr_revision, item_id)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(drawing_id, ocr_revision, work_purpose, item_id)
             DO UPDATE SET
                 measured_value=excluded.measured_value,
                 instrument=excluded.instrument,
@@ -287,6 +366,7 @@ def save_measurement(
         ''', (
             drawing_id,
             payload.revision,
+            payload.work_purpose,
             item_id,
             measured_value,
             record['instrument'],
@@ -302,11 +382,12 @@ def save_measurement(
         # 재측정하더라도 이전에 저장한 결과는 이력에 남긴다.
         db.execute('''
             INSERT INTO measurement_attempts (
-                drawing_id, ocr_revision, item_id, record_json
-            ) VALUES (?,?,?,?)
+                drawing_id, ocr_revision, work_purpose, item_id, record_json
+            ) VALUES (?,?,?,?,?)
         ''', (
             drawing_id,
             payload.revision,
+            payload.work_purpose,
             item_id,
             json.dumps(record, ensure_ascii=False),
         ))

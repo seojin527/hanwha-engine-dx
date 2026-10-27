@@ -124,7 +124,9 @@ export function App() {
     : selectedDrawing?.drawing_id || null;
   const reviewRevision = ocr.snapshot?.revision;
   
-  const measurementTarget = `${reviewDrawingId}:${reviewRevision}`;
+  // 측정 기록은 도면·OCR 버전·작업 목적마다 따로 보관한다. 페이지를 바꾸면 대상이 바뀌어
+  // 이전 목적의 값은 보이지 않고, 늦게 도착한 이전 목적의 응답도 버린다.
+  const measurementTarget = `${reviewDrawingId}:${reviewRevision}:${purpose}`;
   const activeMeasurementTarget = useRef(measurementTarget);
   activeMeasurementTarget.current = measurementTarget;
 
@@ -139,9 +141,10 @@ export function App() {
 
     if (!reviewDrawingId || !reviewRevision) return;
 
-    const target = `${reviewDrawingId}:${reviewRevision}`;
+    const target = `${reviewDrawingId}:${reviewRevision}:${purpose}`;
 
     fetchMeasurements(
+      purpose,
       reviewDrawingId,
       reviewRevision,
       controller.signal,
@@ -156,7 +159,8 @@ export function App() {
 
         if (
           response.drawing_id !== reviewDrawingId ||
-          response.revision !== reviewRevision
+          response.revision !== reviewRevision ||
+          response.work_purpose !== purpose
         ) {
           throw new Error("측정 결과의 버전이 일치하지 않습니다.");
         }
@@ -185,10 +189,10 @@ export function App() {
       });
 
     return () => controller.abort();
-  }, [reviewDrawingId, reviewRevision]);
+  }, [reviewDrawingId, reviewRevision, purpose]);
 
   function handleMeasurementSaved(record: SavedMeasurement) {
-    const target = `${record.drawing_id}:${record.revision}`;
+    const target = `${record.drawing_id}:${record.revision}:${record.work_purpose}`;
 
     if (activeMeasurementTarget.current !== target) return;
 

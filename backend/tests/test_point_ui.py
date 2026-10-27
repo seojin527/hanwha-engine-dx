@@ -46,7 +46,7 @@ class PointUITests(unittest.TestCase):
                 db.execute('''INSERT INTO drawings (drawing_id,part_id,name,original_filename,
                     stored_filename,media_type,size_bytes) VALUES (?, 'part-piston-rod', ?, ?, ?, 'application/pdf', 1)''',
                     (drawing, drawing, drawing+'.pdf', drawing+'.pdf'))
-                doc = {'drawing_id': drawing, 'items': self.items}
+                doc = {'drawing_id': drawing, 'items': self.items, 'review_status': 'reviewed'}
                 db.execute('INSERT INTO ocr_results (drawing_id,metadata_json,image_filename,revision) VALUES (?,?,?,?)',
                     (drawing, json.dumps(doc), 'test.jpg', 'rev-1'))
         app = FastAPI(); app.include_router(measurement_router); app.include_router(point_router)
@@ -59,17 +59,17 @@ class PointUITests(unittest.TestCase):
 
     def save(self, value='26', item='D1', revision='rev-1'):
         return self.client.post(f'/api/drawings/drawing-a/items/{item}/measurement', json={
-            'revision': revision, 'measured_value': value, 'instrument':'마이크로미터', 'note':'테스트'})
+            'revision': revision, 'work_purpose': 'verification', 'measured_value': value, 'instrument':'마이크로미터', 'note':'테스트'})
 
     def test_measurement_persistence_isolation_and_judgement(self):
         self.assertEqual(self.save().json()['judgement'], 'pass')
         self.assertEqual(self.save('40.004').json()['judgement'], 'fail')
         self.assertEqual(self.save('25.95').json()['judgement'], 'pass')
-        rows=self.client.get('/api/drawings/drawing-a/measurements?revision=rev-1').json()['records']
+        rows=self.client.get('/api/drawings/drawing-a/measurements?revision=rev-1&purpose=verification').json()['records']
         self.assertEqual(len(rows), 1); self.assertEqual(rows[0]['measured_value'], '25.95')
-        self.assertEqual(self.client.get('/api/drawings/drawing-b/measurements?revision=rev-1').json()['records'], [])
+        self.assertEqual(self.client.get('/api/drawings/drawing-b/measurements?revision=rev-1&purpose=verification').json()['records'], [])
         init_measurements()
-        self.assertEqual(self.client.get('/api/drawings/drawing-a/measurements?revision=rev-1').json()['records'][0]['note'], '테스트')
+        self.assertEqual(self.client.get('/api/drawings/drawing-a/measurements?revision=rev-1&purpose=verification').json()['records'][0]['note'], '테스트')
 
     def test_invalid_and_unknown_criteria(self):
         for value in ('NaN', 'Infinity', 'abc', ' '): self.assertEqual(self.save(value).status_code, 422)
@@ -79,13 +79,13 @@ class PointUITests(unittest.TestCase):
         self.items[0]['requires_review']=True
         with library.database() as db:
             db.execute('UPDATE ocr_results SET metadata_json=? WHERE drawing_id=?',
-                (json.dumps({'items':self.items}), 'drawing-a'))
+                (json.dumps({'items':self.items, 'review_status':'reviewed'}), 'drawing-a'))
         self.assertEqual(self.save().json()['judgement'], 'review')
 
     def test_revision_isolation(self):
         self.save()
         with library.database() as db: db.execute("UPDATE ocr_results SET revision='rev-2' WHERE drawing_id='drawing-a'")
-        self.assertEqual(self.client.get('/api/drawings/drawing-a/measurements?revision=rev-2').json()['records'], [])
+        self.assertEqual(self.client.get('/api/drawings/drawing-a/measurements?revision=rev-2&purpose=verification').json()['records'], [])
         self.assertEqual(self.save().status_code, 409)
 
     def test_report_context_duplicate_and_retry(self):
