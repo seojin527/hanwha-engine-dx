@@ -4,14 +4,17 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
+import { Activity, Box, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
 import { Header } from "./components/Header";
 import { DrawingLibrary } from "./components/DrawingLibrary";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
-import { apiUrl, drawingFileUrl } from './lib/drawingAPI';
+import { apiUrl, drawingFileUrl, fetchDrawings } from './lib/drawingAPI';
 import { LoginScreen } from './components/entry/LoginScreen';
-import { DrawingSelectScreen } from './components/entry/DrawingSelectScreen';
+import { DrawingSelectScreen, type AdminView } from './components/entry/DrawingSelectScreen';
+import { ErrorDbManager } from './components/admin/errorDb/ErrorDbManager';
+import { WorkflowProgress } from './components/admin/WorkflowProgress';
+import type { LocationTarget } from './components/admin/adminUi';
 import { useDrawingOcr } from './hooks/useDrawingOcr';
 import { toOcrPoints } from './lib/ocr';
 import { ManufacturingPage } from './pages/ManufacturingPage';
@@ -66,6 +69,12 @@ export function App() {
   const unsavedRegistry = useRef<UnsavedRegistry>(new Set()).current;
   const [selectedDrawing, setSelectedDrawing] =
     useState<Drawing | null>(null);
+  // 관리자 메뉴(부품·도면 관리 · 오류 DB 관리 · 작업 진행 현황)와 선택 화면에서 고른 도면.
+  // 메뉴를 바꿔도 선택은 선택 화면이 유지하고, 작업 현황은 이 도면을 본다.
+  const [adminView, setAdminView] = useState<AdminView>("drawings");
+  const [pickedDrawing, setPickedDrawing] = useState<Drawing | null>(null);
+  // 오류 DB·작업 현황에서 도면 위치를 열 때 도면을 연 뒤 선택할 항목 (revision 이 없으면 현재 버전)
+  const [pendingFocus, setPendingFocus] = useState<{ drawingId: string; itemId: string; revision?: string } | null>(null);
   const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
 
   const [uploadRequest, setUploadRequest] = useState(0);
@@ -402,7 +411,45 @@ export function App() {
   function backToList() {
     if (!confirmLeave("도면 목록으로 이동")) return;
     closeWorkspaceOverlays();
+    setAdminView("drawings");
     setStage("select");
+  }
+
+  /** 관리자 검토 화면 → 이 도면의 작업 진행 현황 */
+  function openProgressFromWorkspace() {
+    if (!confirmLeave("작업 현황으로 이동")) return;
+    closeWorkspaceOverlays();
+    setPickedDrawing(selectedDrawing);
+    setAdminView("progress");
+    setStage("select");
+  }
+
+  /** 관리자 메뉴 이동. 오류 DB 화면 등에 저장하지 않은 입력이 있으면 확인한다. */
+  function changeAdminView(next: AdminView) {
+    if (next === adminView) return;
+    if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 메뉴를 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    setAdminView(next);
+  }
+
+  /** 관리자 메뉴에서 도면을 관리자 검토 화면으로 연다 (itemId 가 있으면 그 항목을 선택). */
+  function openDrawingFromAdmin(drawing: Drawing, itemId?: string, revision?: string) {
+    if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 도면을 열면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    setPendingFocus(itemId ? { drawingId: drawing.drawing_id, itemId, revision } : null);
+    startWorkspace(drawing);
+  }
+
+  async function openLocation(target: LocationTarget) {
+    try {
+      const { drawings } = await fetchDrawings(target.part_id);
+      const drawing = drawings.find((entry) => entry.drawing_id === target.drawing_id);
+      if (!drawing) {
+        window.alert("도면을 찾을 수 없습니다. 삭제됐거나 다른 부품으로 옮겨졌을 수 있습니다.");
+        return;
+      }
+      openDrawingFromAdmin(drawing, target.item_id, target.revision);
+    } catch (cause) {
+      window.alert(cause instanceof Error ? cause.message : "도면 조회 실패");
+    }
   }
 
   function switchPurpose(next: WorkPurpose) {
@@ -413,6 +460,29 @@ export function App() {
     if (positionResolver.current) finishPositionPick(null);
     setPurpose(next);
   }
+
+  // 관리자 메뉴에서 연 항목 위치: OCR 결과가 도착하면 그 항목을 선택한다. 버전이 다르면 위치를 고르지 않는다.
+  useEffect(() => {
+    if (!pendingFocus || stage !== "workspace" || demoMode) return;
+    if (selectedDrawing?.drawing_id !== pendingFocus.drawingId) {
+      setPendingFocus(null);
+      return;
+    }
+    const snapshot = ocr.snapshot;
+    if (!snapshot || snapshot.drawing_id !== pendingFocus.drawingId || !snapshot.result || !snapshot.revision) return;
+    if (pendingFocus.revision && snapshot.revision !== pendingFocus.revision) {
+      setReviewNotice("연결 당시 OCR 버전과 현재 버전이 달라 항목 위치를 선택하지 않았습니다.");
+    } else {
+      const point = toOcrPoints(snapshot.result).find((entry) => entry.source.id === pendingFocus.itemId);
+      if (point) {
+        setSearchQuery("");
+        setSelectedPointId(point.id);
+      } else {
+        setReviewNotice("현재 OCR 결과에서 해당 항목을 찾지 못했습니다.");
+      }
+    }
+    setPendingFocus(null);
+  }, [pendingFocus, stage, demoMode, selectedDrawing, ocr.snapshot]);
 
   async function runSelectedOcr() {
     setSelectedPointId(1);
@@ -589,6 +659,17 @@ export function App() {
             >
               <History aria-hidden="true" className="h-3.5 w-3.5" />
               수정 이력
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={openProgressFromWorkspace}
+              className="btn btn-dark"
+            >
+              <Activity aria-hidden="true" className="h-3.5 w-3.5" />
+              이 도면의 작업 현황
             </button>
           )}
         </>
@@ -775,6 +856,7 @@ export function App() {
 
   if (stage === "select") {
     return (
+      <UnsavedChangesProvider registry={unsavedRegistry}>
       <DrawingSelectScreen
         userLabel={userDisplay}
         initialPartId={activePartId}
@@ -791,11 +873,30 @@ export function App() {
         }}
         onDemo={enterDemo}
         onExit={() => {
+          if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 처음 화면으로 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
           setUserLabel("");
           setRole(null);
+          setAdminView("drawings");
           setStage("login");
         }}
+        adminMenu={isAdmin ? { view: adminView, onChange: changeAdminView } : undefined}
+        onSelectionChange={(partId, drawing) => {
+          setActivePartId(partId);
+          setPickedDrawing(drawing);
+        }}
+        adminContent={
+          !isAdmin ? null : adminView === "errors" ? (
+            <ErrorDbManager onOpenLocation={(target) => void openLocation(target)} />
+          ) : adminView === "progress" ? (
+            <WorkflowProgress
+              drawing={pickedDrawing}
+              onOpenDrawing={(drawing, itemId) => openDrawingFromAdmin(drawing, itemId)}
+              onChooseDrawing={() => changeAdminView("drawings")}
+            />
+          ) : null
+        }
       />
+      </UnsavedChangesProvider>
     );
   }
 

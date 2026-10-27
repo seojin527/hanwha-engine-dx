@@ -200,7 +200,12 @@ def excel_record(row: dict) -> dict:
     for field in ("case_id", "case_title", "search_text"):
         if not record[field]:
             raise ValueError(f"{field}가 비어 있는 행이 있습니다.")
+    for field, value in record.items():
+        if len(value) > MAX_LENGTH:
+            raise ValueError(f"{field}는 10,000자 이하여야 합니다.")
     record["feature_type"] = record["feature_type"].upper() or "UNKNOWN"
     record["tol_type"] = record["tol_type"].upper() or "UNSPECIFIED"
+    if record["feature_type"] not in FEATURE_TYPES:
+        raise ValueError(f"지원하지 않는 feature_type입니다: {record['feature_type']}")
     record["part_family"] = normalize_part_family(record["part_family"])
     return record

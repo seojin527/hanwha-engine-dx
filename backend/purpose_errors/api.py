@@ -96,6 +96,7 @@ def create_case(purpose: Purpose, request: Request, payload: dict = Body(...)):
     data = _new_case(store, _validate(store, payload))
     with database() as db:
         case_store.insert_case(db, store, data)
+        case_store.add_history(db, store, data["case_id"], "create", detail={"via": "form"})
     return _index(request, store, data["case_id"])
 
 
@@ -144,7 +145,8 @@ def create_point_error(purpose: Purpose, drawing_id: str, item_id: str, request:
         raise HTTPException(422, "request_id가 올바르지 않습니다.")
     report_id = "RPT-" + token
 
-    # 사례 원문과 포인트 연결 기록을 함께 저장한다.
+    # 사례 원문 · 포인트 등록 기록 · 이 항목과의 명시 연결 · 이력을 한 트랜잭션에서 저장한다.
+    # 등록한 항목에만 연결된다. 같은 사례를 다른 항목에 쓰려면 관리자 화면에서 따로 연결한다.
     with database() as db:
         db.execute("BEGIN IMMEDIATE")
         current = db.execute(
@@ -170,6 +172,15 @@ def create_point_error(purpose: Purpose, drawing_id: str, item_id: str, request:
                 revision=revision,
                 item=item,
             )
+            link_id = case_store.insert_link(
+                db, store,
+                case_id=data["case_id"], drawing_id=drawing_id, revision=revision, item_id=item_id,
+                item=item, source="point_report", report_id=report_id,
+            )
+            point = dict(drawing_id=drawing_id, revision=revision, item_id=item_id)
+            case_store.add_history(db, store, data["case_id"], "create", **point, detail={"via": "point"})
+            case_store.add_history(db, store, data["case_id"], "link", **point, link_id=link_id,
+                                   detail={"source": "point_report"})
 
     result = _index(request, store, data["case_id"])
     return {**result, "report_id": report_id, "drawing_id": drawing_id, "item_id": item_id, "revision": revision}

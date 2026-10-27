@@ -25,7 +25,8 @@ from measurement_api import current_snapshot, judge, measurement_state
 from ocr_api import retrieval_query
 from ocr_results import read_ocr_result
 from purpose_errors.api import part_families
-from purpose_errors.purposes import Purpose
+from purpose_errors.purposes import STORES, Purpose
+from purpose_errors.vectors import query_active
 
 router = APIRouter(prefix="/api/machining", tags=["부품제작 단계 측정"])
 
@@ -422,12 +423,10 @@ def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal
     candidates = collection.get(where=where, include=[])
     errors = []
     if candidates["ids"]:
-        vector = request.app.state.model.encode(["query: " + retrieval_query(item)], normalize_embeddings=True)
-        result = collection.query(query_embeddings=vector.tolist(), where=where,
-                                  n_results=min(top_k, len(candidates["ids"])),
-                                  include=["metadatas", "distances"])
-        for case_id, metadata, distance in zip(result["ids"][0], result["metadatas"][0], result["distances"][0]):
-            errors.append({**(metadata or {}), "case_id": case_id, "distance": float(distance)})
+        # 비활성 사례는 원문 테이블 기준으로 뺀다 (목적별 검색과 같은 규칙).
+        errors = query_active(STORES[Purpose.manufacturing], collection, request.app.state.model,
+                              query_text=retrieval_query(item), where=where,
+                              candidate_ids=candidates["ids"], top_k=top_k)
     return {"purpose": Purpose.manufacturing.value, "drawing_id": drawing_id, "item_id": item_id,
             "stage": stage, "errors": errors}
 

@@ -27,6 +27,17 @@ class PurposeStore:
     schema: ModuleType
     case_prefix: str
 
+    # 관리자 기능 테이블. 이름은 목적 값에서만 만든다 (요청값으로 만들지 않는다).
+    @property
+    def link_table(self) -> str:
+        """도면 측정항목에 명시적으로 연결한 사례 (연결 해제 시각을 남긴다)."""
+        return f"{self.purpose.value}_case_links"
+
+    @property
+    def history_table(self) -> str:
+        """등록·수정·비활성화·재활성화·연결·해제 이력."""
+        return f"{self.purpose.value}_case_history"
+
 
 STORES: dict[Purpose, PurposeStore] = {
     Purpose.manufacturing: PurposeStore(

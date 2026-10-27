@@ -16,6 +16,8 @@ from ocr_review.api import router as review_router
 from measurement_api import init_measurements
 from measurement_api import router as measurement_router
 from purpose_errors.api import router as purpose_error_router
+from purpose_errors.admin_api import router as purpose_admin_router
+from workflow_status import router as workflow_status_router
 from purpose_errors.store import init_purpose_tables
 from purpose_errors.vectors import ensure_collections
 from paths import LEGACY_ERROR_COLLECTION, SAMPLE_METADATA, VECTOR_DB_DIR
@@ -85,6 +87,9 @@ app.include_router(error_case_router)
 
 # 작업 목적별 오류사례 등록·검색·재시도·포인트 연결
 app.include_router(purpose_error_router)
+# 관리자 오류 DB 관리 · 도면별 작업 진행 현황 (화면에서만 관리자에게 보인다. 서버 인증은 없다)
+app.include_router(purpose_admin_router)
+app.include_router(workflow_status_router)
 
 # 로컬 프론트엔드 접근 허용
 app.add_middleware(
@@ -95,7 +100,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 

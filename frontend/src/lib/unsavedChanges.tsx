@@ -13,6 +13,17 @@ export function UnsavedChangesProvider({ registry, children }: { registry: Unsav
   return <UnsavedContext.Provider value={registry}>{children}</UnsavedContext.Provider>;
 }
 
+/**
+ * 화면 안에서 입력이 사라지는 전환(목적 바꾸기 등) 전에 확인한다.
+ * 저장하지 않은 입력이 있으면 window.confirm 으로 물어보고, 없으면 바로 true.
+ */
+export function useConfirmDiscard() {
+  const registry = useContext(UnsavedContext);
+  return (destination: string) =>
+    !registry || registry.size === 0 ||
+    window.confirm(`저장하지 않은 입력이 있습니다. ${destination}하면 입력한 내용이 사라집니다. 계속할까요?`);
+}
+
 /** dirty 가 true 인 동안 '저장하지 않은 입력이 있음'으로 등록한다. 언마운트되면 해제된다. */
 export function useReportUnsaved(dirty: boolean) {
   const registry = useContext(UnsavedContext);
