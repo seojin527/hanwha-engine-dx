@@ -27,7 +27,8 @@ SYMBOL_NAMES = {
     "⌓": "면의 윤곽도", "⏊": "직각도", "⊥": "직각도", "∠": "경사도", "⫽": "평행도",
     "⌯": "대칭도", "⌖": "위치도", "◎": "동심도", "↗": "원주 흔들림", "⌰": "온 흔들림",
 }
-GDT_VALUE_RE = re.compile(r"^\d+\.\d+$")          # OCR 값 형식 검사 (0.012)
+GDT_VALUE_RE = re.compile(r"^[Ø⌀∅]?\d+\.\d+$")    # OCR 값 형식 검사 (0.012, 지름 공차역 ⌀0.2)
+GDT_INPUT_RE = re.compile(r"^[Ø⌀∅]?(0|[1-9]\d*)(\.\d+)?$")  # 기하공차 확정 값 (0.01, ⌀0.2). '005'처럼 점 빠진 값은 거부
 INPUT_VALUE_RE = re.compile(r"^\d+(\.\d+)?$")      # 작업자 입력 허용 (0.01, 1)
 DATUM_RE = re.compile(r"^[A-Z](-[A-Z])?$")
 _NUM = r"\d+(?:\.\d+)?"
@@ -253,7 +254,7 @@ def apply_review(origin_txt: str, edits: dict, name: str = "drawing",
             errors.append(f"같은 항목이 두 번 들어옴: {iid}")
             continue
         value = str(item.get("value", "")).strip()
-        if not INPUT_VALUE_RE.match(value):
+        if not GDT_INPUT_RE.match(value):
             errors.append(f"{iid}: 확정 값이 숫자가 아님 ({value!r})")
             continue
         for d in item.get("datums") or []:
