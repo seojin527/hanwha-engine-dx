@@ -10,8 +10,8 @@ interface DrawingSelectScreenProps {
   initialDrawingId?: string;
   /** 선택한 도면으로 작업 화면에 들어간다. */
   onStart: (drawing: Drawing) => void;
-  /** 도면 없이 작업 화면을 열어 부품·도면을 등록한다. */
-  onRegister: (partId: string) => void;
+  /** 도면 없이 관리자 화면을 열어 부품·도면을 등록한다. 관리자만 넘긴다 (없으면 등록 버튼을 숨긴다). */
+  onRegister?: (partId: string) => void;
   onDemo: () => void;
   onExit: () => void;
 }
@@ -159,9 +159,13 @@ export function DrawingSelectScreen({
               ) : partList.length === 0 ? (
                 <div className="space-y-2 p-3 text-xs text-neutral-300">
                   <p>등록된 부품이 없습니다.</p>
-                  <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
-                    작업 화면에서 부품 등록
-                  </button>
+                  {onRegister ? (
+                    <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
+                      관리자 화면에서 부품 등록
+                    </button>
+                  ) : (
+                    <p className="text-neutral-400">관리자에게 부품·도면 등록을 요청하세요.</p>
+                  )}
                 </div>
               ) : (
                 <ul aria-label="부품 목록">
@@ -225,9 +229,13 @@ export function DrawingSelectScreen({
               ) : drawingList.length === 0 ? (
                 <div className="space-y-2 p-3 text-xs text-neutral-300">
                   <p>이 부품에 등록된 도면이 없습니다.</p>
-                  <button type="button" onClick={() => onRegister(partId)} className="btn btn-secondary">
-                    작업 화면에서 도면 등록
-                  </button>
+                  {onRegister ? (
+                    <button type="button" onClick={() => onRegister(partId)} className="btn btn-secondary">
+                      관리자 화면에서 도면 등록
+                    </button>
+                  ) : (
+                    <p className="text-neutral-400">관리자에게 도면 등록을 요청하세요.</p>
+                  )}
                 </div>
               ) : (
                 <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-xs">

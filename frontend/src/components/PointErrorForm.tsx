@@ -16,8 +16,10 @@ function newRequestId() {
 }
 
 /** 목적별 등록 폼. 항목 정의는 lib/errorForms/{목적}.ts 에서 목적마다 따로 관리한다. */
-export function PointErrorForm({purpose, drawingId, revision, item, number, onIndexed}: {
+export function PointErrorForm({purpose, drawingId, revision, item, number, onIndexed, readOnly = false}: {
   purpose: WorkPurpose; drawingId: string; revision: string; item: OcrItem; number: number; onIndexed: () => void;
+  /** 다른 업무 작업자가 보는 중이면 true: 기록 조회만 하고 등록·재시도를 숨긴다. */
+  readOnly?: boolean;
 }) {
   const form = ERROR_FORMS[purpose];
   const fields = form.fields.map((field) => [field.key, field.label, !!field.required, field.rows ?? 2] as const);
@@ -70,9 +72,9 @@ export function PointErrorForm({purpose, drawingId, revision, item, number, onIn
   return <section aria-label="이 포인트의 오류 기록" className="card">
     <header className="card-header">
       <h3 className="text-xs font-semibold text-slate-900">이 포인트의 오류 기록{history.length ? <span className="ml-1.5 font-normal text-slate-500">{history.length}건</span> : null}</h3>
-      <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} className={`btn h-6 ${open ? 'btn-ghost' : 'btn-secondary'}`}>{open ? '작성 닫기' : '오류사례 등록'}</button>
+      {readOnly ? <span className="tag bg-slate-100 text-slate-600">조회 전용</span> : <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} className={`btn h-6 ${open ? 'btn-ghost' : 'btn-secondary'}`}>{open ? '작성 닫기' : '오류사례 등록'}</button>}
     </header>
-    {open && <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-3">
+    {open && !readOnly && <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-3">
       <p className="note note-info"><b className="font-mono font-semibold">{number}번 · {item.raw_text}</b><br/>도면·항목·OCR 버전과 인식 정보는 자동 연결됩니다.</p>
       {saved ? <div role="status" className="space-y-2 text-xs"><p className={saved.vector_status === 'ready' ? 'note note-ok' : 'note note-warn'}>{saved.vector_status === 'ready' ? '오류 기록 저장과 검색 반영이 완료됐습니다.' : '오류 기록은 저장됐지만 검색 반영에 실패했습니다.'}</p>
         <p className="break-all font-mono text-[11px] text-slate-500">{saved.case_id}</p>
@@ -97,7 +99,7 @@ export function PointErrorForm({purpose, drawingId, revision, item, number, onIn
     {historyError ? <p className="note note-error m-3">기록 조회 실패: {historyError}</p> : history.length ? history.map(r => <article key={r.case_id} className="space-y-1 p-3 text-xs">
       <h4 className="font-semibold text-slate-900">{r.case_title}</h4><p className="leading-relaxed text-slate-800">{r.error_description}</p>
       <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500"><span>{r.created_at}</span><span className={`tag ${r.vector_status === 'ready' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'}`}>{r.vector_status === 'ready' ? '검색 반영 완료' : '검색 반영 필요'}</span>
-      {r.vector_status !== 'ready' && <button type="button" disabled={busy} onClick={()=>void retry(r.case_id)} className="text-[11px] font-medium text-cyan-800 underline underline-offset-2 disabled:opacity-40">검색 반영 재시도</button>}</p>
+      {r.vector_status !== 'ready' && !readOnly && <button type="button" disabled={busy} onClick={()=>void retry(r.case_id)} className="text-[11px] font-medium text-cyan-800 underline underline-offset-2 disabled:opacity-40">검색 반영 재시도</button>}</p>
     </article>) : <p className="p-3 text-xs text-slate-500">이 OCR 버전의 포인트에 직접 등록된 오류 기록이 없습니다.</p>}
     </div>
   </section>;

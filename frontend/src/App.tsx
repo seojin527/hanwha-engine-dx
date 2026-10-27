@@ -17,7 +17,9 @@ import { toOcrPoints } from './lib/ocr';
 import { ManufacturingPage } from './pages/ManufacturingPage';
 import { AssemblyPage } from './pages/AssemblyPage';
 import { VerificationPage } from './pages/VerificationPage';
-import { WORK_PURPOSES, type WorkPurpose, type WorkspacePageProps } from './pages/workspaceTypes';
+import { AdminPage } from './pages/AdminPage';
+import { WORK_PURPOSES, type AdminPageProps, type DrawingPageProps, type WorkPurpose, type WorkspacePageProps } from './pages/workspaceTypes';
+import { roleLabel, type UserRole } from './lib/role';
 import { UnsavedChangesProvider, type UnsavedRegistry } from './lib/unsavedChanges';
 import type { Drawing } from "./lib/drawingAPI";
 import DrawingReviewHistory from "./components/DrawingReviewHistory";
@@ -50,6 +52,11 @@ export function App() {
   const [stage, setStage] = useState<"login" | "select" | "workspace">("login");
   // 시연용 계정 이름. 화면 표시용으로 메모리에만 둔다 (인증 아님).
   const [userLabel, setUserLabel] = useState("");
+  // 화면 역할 (인증 아님). 관리자는 통합 관리자 화면, 작업자는 자기 업무 페이지에서 입력한다.
+  const [role, setRole] = useState<UserRole | null>(null);
+  const isAdmin = role?.kind === "admin";
+  const ownPurpose: WorkPurpose | null = role?.kind === "worker" ? role.purpose : null;
+  const userDisplay = role ? `${userLabel} · ${roleLabel(role)}` : userLabel;
   // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
   const [activePartId, setActivePartId] = useState("");
   const [libraryOpenOnEnter, setLibraryOpenOnEnter] = useState(false);
@@ -71,7 +78,8 @@ export function App() {
     return `${point.displayNumber} ${point.source.raw_text} ${point.feature.name} ${point.source.id}`.toLowerCase().includes(query);
   });
   const resultUrl = document && ocr.snapshot?.image_url ? apiUrl(ocr.snapshot.image_url) : drawingUrl;
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewOpen =
+    isAdmin && stage === "workspace" && !demoMode && !!document && ocr.status === "ready";
   const [reviewSource, setReviewSource] =
     useState<DrawingReviewSource | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -139,7 +147,8 @@ export function App() {
     const controller = new AbortController();
     setMeasurementError("");
 
-    if (!reviewDrawingId || !reviewRevision) return;
+    // 측정 결과는 작업자 화면만 쓴다 (관리자 화면은 목적별 측정을 보여주지 않는다).
+    if (!reviewDrawingId || !reviewRevision || isAdmin) return;
 
     const target = `${reviewDrawingId}:${reviewRevision}:${purpose}`;
 
@@ -189,7 +198,7 @@ export function App() {
       });
 
     return () => controller.abort();
-  }, [reviewDrawingId, reviewRevision, purpose]);
+  }, [reviewDrawingId, reviewRevision, purpose, isAdmin]);
 
   function handleMeasurementSaved(record: SavedMeasurement) {
     const target = `${record.drawing_id}:${record.revision}:${record.work_purpose}`;
@@ -221,8 +230,8 @@ export function App() {
     }),
   );
   const workerBlocked =
+    !isAdmin &&
     !demoMode &&
-    !reviewOpen &&
     !!document &&
     document.review_status !== "reviewed";
   // 검토 완료 때 서버가 결과 파일을 자동으로 만든다. 저장할 때마다 revision 이 바뀌므로 다시 불러온다.
@@ -277,7 +286,6 @@ export function App() {
 
   // 도면을 바꾸면 관리자 패널과 이전 알림을 닫는다.
   useEffect(() => {
-    setReviewOpen(false);
     setHistoryOpen(false);
     setReviewSource(null);
     setReviewError("");
@@ -354,7 +362,6 @@ export function App() {
 
   function closeWorkspaceOverlays() {
     if (positionResolver.current) finishPositionPick(null);
-    setReviewOpen(false);
     setHistoryOpen(false);
     setEngineViewerOpen(false);
     setPreviewFile(null);
@@ -489,6 +496,7 @@ export function App() {
 
   const ocrBusy = ocr.status === "loading" || ocr.status === "applying";
   const showFileBar =
+    isAdmin &&
     !demoMode &&
     !!document &&
     (documentReviewed
@@ -525,50 +533,31 @@ export function App() {
 
   const toolbarActions = (
     <>
-      <div role="group" aria-label="작업 페이지" className="seg-dark">
-        {WORK_PURPOSES.map((entry) => (
-          <button
-            key={entry.value}
-            type="button"
-            aria-pressed={purpose === entry.value}
-            onClick={() => switchPurpose(entry.value)}
-            className="seg-item"
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
-
-      {divider}
-
-      {!demoMode && selectedDrawing && document && (
-        <div role="group" aria-label="화면 모드" className="seg-dark">
-          <button
-            type="button"
-            aria-pressed={!reviewOpen}
-            onClick={() => setReviewOpen(false)}
-            className="seg-item"
-          >
-            작업자
-          </button>
-          <button
-            type="button"
-            aria-pressed={reviewOpen}
-            disabled={ocr.status !== "ready"}
-            onClick={() => {
-              setReviewNotice("");
-              setReviewOpen(true);
-            }}
-            className="seg-item"
-          >
-            관리자
-          </button>
+      {isAdmin ? (
+        <span className="tag bg-cyan-900/70 text-cyan-100">통합 관리자</span>
+      ) : (
+        <div role="group" aria-label="작업 페이지" className="seg-dark">
+          {WORK_PURPOSES.map((entry) => (
+            <button
+              key={entry.value}
+              type="button"
+              aria-pressed={purpose === entry.value}
+              onClick={() => switchPurpose(entry.value)}
+              title={entry.value === ownPurpose ? "내 업무 (입력 가능)" : "다른 업무 (조회만)"}
+              className="seg-item"
+            >
+              {entry.label}
+              {entry.value !== ownPurpose && <span className="ml-1 text-[10px] opacity-70">조회</span>}
+            </button>
+          ))}
         </div>
       )}
 
+      {divider}
+
       {!demoMode && selectedDrawing && (
         <>
-          {document && divider}
+          {isAdmin && (
           <button
             type="button"
             disabled={ocrBusy}
@@ -590,6 +579,7 @@ export function App() {
                     : "OCR 실행"}
             </span>
           </button>
+          )}
 
           {document && (
             <button
@@ -615,14 +605,16 @@ export function App() {
         3D 뷰어
       </button>
 
-      <button
-        type="button"
-        onClick={() => setUploadRequest((value) => value + 1)}
-        className={`btn ${selectedDrawing && !demoMode ? "btn-dark" : "btn-primary"}`}
-      >
-        <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-        도면 업로드
-      </button>
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => setUploadRequest((value) => value + 1)}
+          className={`btn ${selectedDrawing && !demoMode ? "btn-dark" : "btn-primary"}`}
+        >
+          <Upload aria-hidden="true" className="h-3.5 w-3.5" />
+          도면 업로드
+        </button>
+      )}
 
       {(demoMode || selectedDrawing) && divider}
 
@@ -660,8 +652,8 @@ export function App() {
     </>
   );
 
-  // 관리자 검토 패널: 세 페이지가 같은 흐름을 쓰도록 여기서 하나만 만든다.
-  const reviewPane = (
+  // 관리자 검토 패널: 통합 관리자 화면에서만 만든다 (목적별로 나누지 않는다).
+  const reviewPane = !reviewOpen ? null : (
     <div className="h-full overflow-y-auto bg-white">
       {reviewLoading ? (
         <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
@@ -693,7 +685,6 @@ export function App() {
             }
           }}
           onSaved={() => {
-            setReviewOpen(false);
             setReviewSource(null);
             setReviewNotice(
               "검수 결과를 서버에 저장했습니다. 최신 결과를 불러옵니다.",
@@ -709,7 +700,7 @@ export function App() {
     </div>
   );
 
-  const pageProps: WorkspacePageProps = {
+  const drawingPageProps: DrawingPageProps = {
     demoMode,
     selectedDrawing,
     document,
@@ -720,11 +711,8 @@ export function App() {
     ocrPoints,
     filteredOcrPoints,
     activeOcrPoint,
-    ocrInspectionRecords,
-    measurementRecords,
     onSelectOcrPoint: setSelectedPointId,
     onNavigateOcr: navigateOcr,
-    onMeasurementSaved: handleMeasurementSaved,
     demo: {
       points: filteredPoints,
       selectedPointId,
@@ -741,26 +729,44 @@ export function App() {
       onSaveRecord: handleSaveRecord,
       onSelectItemId: setSelectedItemId,
     },
-    reviewOpen,
+  };
+
+  const workerPageProps: WorkspacePageProps = {
+    ...drawingPageProps,
+    ocrInspectionRecords,
+    measurementRecords,
+    onMeasurementSaved: handleMeasurementSaved,
+    // 자기 업무 페이지가 아니면 조회만
+    readOnly: purpose !== ownPurpose,
+    workerBlocked,
+  };
+
+  const adminPageProps: AdminPageProps = {
+    ...drawingPageProps,
+    reviewPane,
     pickingPosition,
     onCancelPositionPick: () => finishPositionPick(null),
     onPlaceAt: (position) => finishPositionPick(position),
     reviewPreviewMarkers,
-    reviewPane,
-    workerBlocked,
-    canOpenReview: ocr.status === "ready",
-    onOpenReview: () => setReviewOpen(true),
   };
+
+  function enterWithRole(next: UserRole) {
+    setRole(next);
+    // 작업자는 자기 업무 페이지에서 시작한다.
+    if (next.kind === "worker") setPurpose(next.purpose);
+  }
 
   if (stage === "login") {
     return (
       <LoginScreen
-        onLogin={(account) => {
+        onLogin={(account, nextRole) => {
           setUserLabel(account);
+          enterWithRole(nextRole);
           setStage("select");
         }}
-        onDemo={() => {
+        onDemo={(nextRole) => {
           setUserLabel("데모 체험");
+          enterWithRole(nextRole);
           enterDemo();
         }}
       />
@@ -770,12 +776,12 @@ export function App() {
   if (stage === "select") {
     return (
       <DrawingSelectScreen
-        userLabel={userLabel}
+        userLabel={userDisplay}
         initialPartId={activePartId}
         initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
         onStart={startWorkspace}
-        onRegister={(partId) => {
-          // 도면 없이 작업 화면을 열고 부품·도면 관리 영역을 펼친다.
+        onRegister={!isAdmin ? undefined : (partId) => {
+          // 도면 없이 관리자 화면을 열고 부품·도면 관리 영역을 펼친다.
           setActivePartId(partId);
           setSelectedDrawing(null);
           setDrawingUrl(null);
@@ -786,6 +792,7 @@ export function App() {
         onDemo={enterDemo}
         onExit={() => {
           setUserLabel("");
+          setRole(null);
           setStage("login");
         }}
       />
@@ -799,7 +806,7 @@ export function App() {
         displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        userLabel={userLabel}
+        userLabel={userDisplay}
         onBackToList={backToList}
       />
 
@@ -822,6 +829,7 @@ export function App() {
         initialPartId={activePartId}
         initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
         initialOpen={libraryOpenOnEnter}
+        canManage={isAdmin}
         onSelectPart={setActivePartId}
         onSelectDrawing={(drawing, url) => {
           setSelectedPointId(1);
@@ -916,14 +924,16 @@ export function App() {
         </div>
       )}
 
-      {(() => {
+      {isAdmin ? (
+        <AdminPage {...adminPageProps} />
+      ) : (() => {
         const Page =
           purpose === "assembly"
             ? AssemblyPage
             : purpose === "verification"
               ? VerificationPage
               : ManufacturingPage;
-        return <Page {...pageProps} />;
+        return <Page {...workerPageProps} />;
       })()}
 
             {previewFile && (

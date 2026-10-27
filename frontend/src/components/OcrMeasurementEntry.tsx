@@ -21,6 +21,8 @@ interface Props {
   revision: string;
   item: OcrItem;
   onSaved?: (record: SavedMeasurement) => void;
+  /** 다른 업무 작업자가 보는 중이면 true: 저장된 값만 보여주고 입력·저장을 막는다. */
+  readOnly?: boolean;
 }
 
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
@@ -31,7 +33,7 @@ const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
  * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
  * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
  */
-export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved }: Props) {
+export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
@@ -112,7 +114,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
       : "";
 
   async function save(result: "pass" | "fail" | "record") {
-    if (loading || savingRef.current) return;
+    if (readOnly || loading || savingRef.current) return;
     if (mode === "numeric" && numeric === null) {
       setError("실측값을 숫자로 입력해주세요.");
       return;
@@ -154,7 +156,10 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
   return (
     <section aria-label="측정 입력" className="card">
       <header className="card-header">
-        <h3 className="text-xs font-semibold text-slate-900">측정 입력</h3>
+        <h3 className="text-xs font-semibold text-slate-900">{readOnly ? "측정 결과" : "측정 입력"}</h3>
+        {readOnly && !loading && (
+          <span className="tag bg-slate-100 text-slate-600">조회 전용</span>
+        )}
         {loading && (
           <p role="status" className="text-[11px] text-slate-500">
             저장된 결과 불러오는 중…
@@ -163,7 +168,10 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
       </header>
 
       <div className="card-body">
-      <fieldset disabled={loading || saving} className="space-y-3">
+      {readOnly && (
+        <p className="note note-info">이 업무의 담당 작업자만 입력할 수 있습니다. 저장된 결과만 표시합니다.</p>
+      )}
+      <fieldset disabled={readOnly || loading || saving} className="space-y-3">
         {mode === "gauge" ? (
           <p className="note note-info whitespace-pre-wrap">
             <b className="mr-1 font-semibold">판정 기준</b>

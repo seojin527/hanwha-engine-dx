@@ -26,6 +26,8 @@ interface DrawingLibraryProps {
   initialOpen?: boolean;
   /** 선택한 부품이 바뀌면 알린다 (선택 해제는 빈 문자열). */
   onSelectPart?: (partId: string) => void;
+  /** 관리자만 true: 부품 추가·삭제, 도면 등록·삭제를 보여준다. 작업자는 선택만 한다. */
+  canManage?: boolean;
 }
 
 export function DrawingLibrary({
@@ -36,6 +38,7 @@ export function DrawingLibrary({
   initialDrawingId = "",
   initialOpen = false,
   onSelectPart,
+  canManage = false,
   status,
   actions,
 }: DrawingLibraryProps) {
@@ -65,7 +68,7 @@ export function DrawingLibrary({
   const mountedRef = useRef(false);
 
   useEffect(() => {
-        if (!uploadRequest) return;
+        if (!uploadRequest || !canManage) return;
 
     if (!selectedPartRef.current) {
       setLibraryOpen(true);
@@ -467,27 +470,31 @@ export function DrawingLibrary({
               ))}
             </select>
 
-            <button
-              type="button"
-              disabled={busy || loadingParts}
-              aria-expanded={showPartInput}
-              onClick={() => setShowPartInput((previous) => !previous)}
-              className="btn btn-dark"
-            >
-              부품 추가
-            </button>
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  disabled={busy || loadingParts}
+                  aria-expanded={showPartInput}
+                  onClick={() => setShowPartInput((previous) => !previous)}
+                  className="btn btn-dark"
+                >
+                  부품 추가
+                </button>
 
-            <button
-              type="button"
-              disabled={!selectedPartId || busy || loadingDrawings}
-              onClick={() => void handleDeletePart()}
-              className="btn btn-dark-danger"
-            >
-              부품 삭제
-            </button>
+                <button
+                  type="button"
+                  disabled={!selectedPartId || busy || loadingDrawings}
+                  onClick={() => void handleDeletePart()}
+                  className="btn btn-dark-danger"
+                >
+                  부품 삭제
+                </button>
+              </>
+            )}
           </div>
 
-          {showPartInput && (
+          {canManage && showPartInput && (
             <form
               className="flex gap-1.5"
               onSubmit={(event) => {
@@ -560,23 +567,27 @@ export function DrawingLibrary({
               ))}
             </select>
 
-            <button
-              type="button"
-              disabled={!selectedPartId || loadingDrawings || busy}
-              onClick={() => inputRef.current?.click()}
-              className="btn btn-primary"
-            >
-              {uploading ? "등록 중…" : "도면 등록"}
-            </button>
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  disabled={!selectedPartId || loadingDrawings || busy}
+                  onClick={() => inputRef.current?.click()}
+                  className="btn btn-primary"
+                >
+                  {uploading ? "등록 중…" : "도면 등록"}
+                </button>
 
-            <button
-              type="button"
-              disabled={!selectedDrawingId || loadingDrawings || busy}
-              onClick={() => void handleDeleteDrawing()}
-              className="btn btn-dark-danger"
-            >
-              도면 삭제
-            </button>
+                <button
+                  type="button"
+                  disabled={!selectedDrawingId || loadingDrawings || busy}
+                  onClick={() => void handleDeleteDrawing()}
+                  className="btn btn-dark-danger"
+                >
+                  도면 삭제
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -644,7 +655,7 @@ export function DrawingLibrary({
         ref={inputRef}
         type="file"
         accept=".png,.jpg,.jpeg,.pdf"
-        disabled={!selectedPartId || loadingDrawings || busy}
+        disabled={!canManage || !selectedPartId || loadingDrawings || busy}
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
