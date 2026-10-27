@@ -22,8 +22,17 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
 
   const displayNumber = point.displayNumber || point.id || 1;
 
-  const markerColor =
-    status === "remeasure"
+  // 부품제작 가공 단계 색 (황삭 주황 · 중삭 보라 · 정삭 남색 · 다른 단계 회색)
+  const stageColor: Record<string, string> = {
+    "stage-1": "bg-orange-500 text-white",
+    "stage-2": "bg-violet-600 text-white",
+    "stage-3": "bg-indigo-600 text-white",
+    "stage-other": "bg-slate-300 text-slate-600 opacity-70",
+  };
+
+  const markerColor = status && stageColor[status]
+    ? stageColor[status]
+    : status === "remeasure"
       ? "bg-red-600 text-white"
       : status === "completed"
         ? "bg-emerald-600 text-white"
@@ -32,7 +41,11 @@ export const MeasurementMarker: React.FC<MeasurementMarkerProps> = ({
           : "bg-cyan-700 text-white";
 
   const statusLabel =
-    status === "remeasure"
+    status === "stage-other"
+      ? "다른 단계"
+      : status?.startsWith("stage-")
+        ? "이번 단계 측정 대상"
+        : status === "remeasure"
       ? "재측정 필요"
       : status === "completed"
         ? "완료"

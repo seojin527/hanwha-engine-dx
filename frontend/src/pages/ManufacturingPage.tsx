@@ -10,7 +10,9 @@ import { MeasurementPanel } from "../components/MeasurementPanel";
 import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
 import { ResizablePanels } from "../components/ResizablePanels";
 import { ManufacturingPanel } from "../components/ManufacturingPanel";
-import { reviewInfoOf } from "../lib/ocr";
+import { reviewInfoOf, type OcrPoint } from "../lib/ocr";
+import { useEffect } from "react";
+import { useMachining } from "../lib/machiningAPI";
 import { WorkerBlockedNotice } from "./WorkspaceShared";
 import type { WorkspacePageProps } from "./workspaceTypes";
 
@@ -30,11 +32,70 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     measurementRecords,
     onSelectOcrPoint,
     onNavigateOcr,
-    onMeasurementSaved,
     demo,
     readOnly,
     workerBlocked,
   } = props;
+
+  // ---------------------------------------------------------------- 가공 단계 (황삭·중삭·정삭)
+  const machining = useMachining(
+    demoMode || !document ? null : selectedDrawing?.drawing_id ?? null,
+    revision,
+  );
+  const stageOn =
+    !demoMode && document?.review_status === "reviewed" && machining.stageItemIds !== null;
+  const stageIds = machining.stageItemIds;
+  // 이번 단계에서 잴 항목 (이전·다음 이동과 하단 표)
+  const stagePoints = stageOn ? ocrPoints.filter((point) => stageIds!.has(point.source.id)) : ocrPoints;
+  const stageTablePoints: OcrPoint[] = stageOn
+    ? filteredOcrPoints
+        .filter((point) => stageIds!.has(point.source.id))
+        .map((point) => {
+          // 황삭·중삭 여유 확인 항목은 도면 공차 대신 단계 목표 범위를 보여준다.
+          const criteria = machining.itemPlan(point.source.id)?.stages[machining.stage];
+          if (criteria?.role !== "allowance" || criteria.lower_limit === null || criteria.upper_limit === null) return point;
+          const window = (criteria.upper_limit - criteria.lower_limit) / 2;
+          return {
+            ...point,
+            source: {
+              ...point.source,
+              nominal_value: criteria.target ?? undefined,
+              upper_deviation: window,
+              lower_deviation: -window,
+              lower_limit: criteria.lower_limit,
+              upper_limit: criteria.upper_limit,
+              tolerance_source: undefined,
+            },
+          };
+        })
+    : filteredOcrPoints;
+  // 도면 번호 색: 이번 단계 = 단계 색(측정하면 합격·재측정 색), 다른 단계 = 회색
+  const stageMarkerRecords: Record<number, { status: string }> = stageOn
+    ? Object.fromEntries(
+        ocrPoints.map((point) => {
+          const record = machining.stageRecords[point.source.id];
+          const status = !stageIds!.has(point.source.id)
+            ? "stage-other"
+            : record && record.status !== "pending"
+              ? record.status
+              : `stage-${machining.stage}`;
+          return [point.id, { status }];
+        }),
+      )
+    : ocrInspectionRecords;
+  const stageIndex = stagePoints.findIndex((point) => point.id === activeOcrPoint?.id);
+  const navigateStage = (delta: number) => {
+    if (!stageOn) return onNavigateOcr(delta);
+    if (!stagePoints.length) return;
+    const index = stageIndex < 0 ? (delta > 0 ? -1 : 0) : stageIndex;
+    onSelectOcrPoint(stagePoints[(index + delta + stagePoints.length) % stagePoints.length].id);
+  };
+  // 단계가 바뀌면 그 단계의 첫 항목으로 이동한다.
+  const stageListKey = stageOn ? `${machining.stage}:${stagePoints.map((point) => point.id).join(",")}` : "";
+  useEffect(() => {
+    if (!stageListKey || !stagePoints.length) return;
+    if (!stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
+  }, [stageListKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (workerBlocked) {
     return <WorkerBlockedNotice />;
@@ -58,7 +119,7 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
         selectedPointId={demoMode ? demo.selectedPointId : activeOcrPoint?.id || 0}
         onSelectPoint={demoMode ? demo.onSelectPoint : onSelectOcrPoint}
-        inspectionRecords={demoMode ? demo.inspectionRecords : ocrInspectionRecords}
+        inspectionRecords={demoMode ? demo.inspectionRecords : stageMarkerRecords}
         isAnalyzing={!demoMode && ocrStatus === "applying"}
         analyzingStep={0}
         analyzingStage={ocrStage}
@@ -75,11 +136,11 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         />
       ) : document ? (
         <OcrMeasurementTable
-          points={filteredOcrPoints}
+          points={stageTablePoints}
           selectedId={activeOcrPoint?.id || 0}
           onSelect={onSelectOcrPoint}
-          title={document.part_name || "도면"}
-          records={measurementRecords}
+          title={stageOn ? `${document.part_name || "도면"} · ${machining.serial} ${["", "황삭", "중삭", "정삭"][Number(machining.stage)]}` : document.part_name || "도면"}
+          records={stageOn ? machining.stageRecords : measurementRecords}
           reviewed={document.review_status === "reviewed"}
         />
       ) : (
@@ -113,11 +174,13 @@ export function ManufacturingPage(props: WorkspacePageProps) {
               drawingId={selectedDrawing.drawing_id}
               revision={revision}
               point={activeOcrPoint}
-              total={ocrPoints.length}
-              onNavigate={onNavigateOcr}
-              onMeasurementSaved={onMeasurementSaved}
-              records={measurementRecords}
+              position={stageIndex + 1}
+              total={stagePoints.length}
+              labelTotal={ocrPoints.length}
+              onNavigate={navigateStage}
               reviewInfo={reviewInfoOf(document)}
+              machining={machining}
+              unit={document.unit || "mm"}
             />
           </div>
         </div>
