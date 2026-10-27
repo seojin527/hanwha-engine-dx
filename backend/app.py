@@ -19,6 +19,8 @@ from purpose_errors.api import router as purpose_error_router
 from purpose_errors.store import init_purpose_tables
 from purpose_errors.vectors import ensure_collections
 from paths import LEGACY_ERROR_COLLECTION, SAMPLE_METADATA, VECTOR_DB_DIR
+from machining_api import init_machining
+from machining_api import router as machining_router
 
 
 
@@ -31,6 +33,8 @@ async def lifespan(app: FastAPI):
     init_measurements()
     # 작업 목적(부품제작·조립·검증)별 오류사례 원문·연결 기록 테이블
     init_purpose_tables()
+    # 부품제작 황삭·중삭·정삭 기록 테이블
+    init_machining()
     # 이전 단일 도면 API에서 사용하는 JSON
     app.state.drawing = json.loads(
         SAMPLE_METADATA.read_text(encoding="utf-8-sig")
@@ -72,6 +76,9 @@ app.include_router(ocr_router)
 app.include_router(review_router)
 
 app.include_router(measurement_router)
+
+# 부품제작(가공 중 측정) 황삭·중삭·정삭
+app.include_router(machining_router)
 
 # 사용자 오류사례 등록·자동 벡터화
 app.include_router(error_case_router)
