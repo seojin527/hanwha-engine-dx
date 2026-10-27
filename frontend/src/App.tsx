@@ -752,6 +752,7 @@ export function App() {
         <DrawingReviewPanel
           key={`${activeReviewSource.drawing_id}:${activeReviewSource.revision}`}
           source={activeReviewSource}
+          defaultReviewer={userLabel}
           selectedItemId={activeOcrPoint?.source.id ?? null}
           imageUrl={resultUrl}
           onPickPosition={requestPositionPick}

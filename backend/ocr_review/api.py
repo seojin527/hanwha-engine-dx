@@ -242,6 +242,17 @@ class DrawingReviewInput(BaseModel):
 
 TOLERANCE_SOURCES = {"drawing": "DRAWING", "general": "GENERAL", "special": "SPECIAL"}
 
+# 허용 공차의 근거. 도면에서 확인한 공차와 시스템 기본 정책으로 적용한 공차를 구분해 저장한다.
+#   drawing: 도면 표기의 공차 · drawing_note: 도면 주석의 일반공차 표기 · project_default: 프로젝트 기본 정책 · admin: 관리자 지정
+TOLERANCE_BASIS_SOURCE = {
+    "drawing": {"DRAWING"},
+    "drawing_note": {"GENERAL"},
+    "project_default": {"GENERAL"},
+    "admin": {"DRAWING", "GENERAL", "SPECIAL"},
+}
+# 관리자가 바꾸지 않아 시스템 기본값이 그대로 들어간 것으로 표시할 수 있는 필드
+DEFAULTABLE_FIELDS = {"measurement_mode", "feature_type", "tolerance_source", "instrument", "gauge_criteria"}
+
 FEATURE_KO = {
     "HOLE": "구멍·내경", "SHAFT": "축·외경", "PLANE": "평면·길이", "SLOT": "홈",
     "THREAD": "나사", "EDGE": "모서리", "RADIUS": "반지름", "CHAMFER": "모따기",
@@ -267,6 +278,8 @@ def inspection_summary(item: dict) -> Optional[str]:
             sign = lambda v: (f"+{_num(v)}" if isinstance(v, (int, float)) and v >= 0 else _num(v))  # noqa: E731
             deviation = f"{sign(upper)}/{sign(lower)}"
         source = SOURCE_KO.get(item.get("tolerance_source") or "", "")
+        if item.get("tolerance_basis") == "project_default":
+            source += "(프로젝트 기본)"
         parts += [
             "실측값", feature,
             f"{_num(item.get('nominal_value'))} {source} {deviation} → "
@@ -299,6 +312,8 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
         "instrument",
         "gauge_criteria",
         "position_confirmed",
+        "tolerance_basis",
+        "defaults_applied",
     }
 
     unknown = set(setting) - allowed
@@ -339,8 +354,18 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
             f"{item['id']}: 사용할 측정기를 선택해주세요.",
         )
 
+    defaults = setting.get("defaults_applied", [])
+    if not isinstance(defaults, list) or not set(defaults) <= DEFAULTABLE_FIELDS:
+        raise HTTPException(
+            422,
+            f"{item['id']}: 기본값 표시 필드가 올바르지 않습니다.",
+        )
+
     result = dict(item)
     result["measurement_mode"] = mode
+    # 기본값으로 채웠다는 기록일 뿐 승인 근거가 아니다. 확정은 관리자의 저장 요청으로만 일어난다.
+    result["defaults_applied"] = sorted(set(defaults))
+    result["tolerance_basis"] = None
     result["feature_type"] = feature
     result["instrument"] = instrument.strip()
 
@@ -401,6 +426,17 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
             else:
                 upper = float(parsed["upper_deviation"])
                 lower = float(parsed["lower_deviation"])
+
+        basis = setting.get("tolerance_basis")
+        if basis is not None and tolerance_source not in TOLERANCE_BASIS_SOURCE.get(basis, set()):
+            raise HTTPException(
+                422,
+                f"{item['id']}: 허용 공차 근거({basis})가 공차 종류와 맞지 않습니다.",
+            )
+        if basis is None:
+            # 근거를 보내지 않은 이전 방식: 도면 공차만 도면 근거로 보고, 나머지는 관리자 지정으로 둔다.
+            basis = "drawing" if tolerance_source == "DRAWING" else "admin"
+        result["tolerance_basis"] = basis
 
         if nominal < 0:
             raise HTTPException(
@@ -466,6 +502,33 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
 
     return result
 
+# 일반공차 적용 근거: 도면 주석·표제란의 'ISO 2768-m', 'KS B ISO 2768-1 m' 같은 표기.
+# 등급(m)이 명시된 경우에만 기본값으로 일반공차를 고른다. 등급이 없거나 다르면 관리자가 정한다.
+GENERAL_EVIDENCE_RE = re.compile(
+    r"ISO\s*2768(?:\s*-\s*1)?(?:\s*[-‐ ]?\s*(?P<cls>[fmcv])(?:[hkl])?\b)?|일반\s*공차|GENERAL\s+TOLERANCES?",
+    re.IGNORECASE,
+)
+
+
+def general_tolerance_evidence(origin_txt: str) -> dict:
+    """OCR 원문에서 일반공차 표기를 찾는다. 찾은 줄을 그대로 보여주고, 중간급(m)일 때만 applies=True."""
+    matches = list(GENERAL_EVIDENCE_RE.finditer(origin_txt or ""))
+    # 'GENERAL TOLERANCE: ISO 2768-mK' 처럼 한 줄에 둘 다 있으면 등급이 적힌 쪽을 쓴다.
+    match = next((m for m in matches if m.group("cls")), matches[0] if matches else None)
+    if not match:
+        return {"found": False, "applies": False, "text": "",
+                "reason": "도면 OCR 원문에서 일반공차 표기를 찾지 못했습니다."}
+    start = origin_txt.rfind("\n", 0, match.start()) + 1
+    end = origin_txt.find("\n", match.end())
+    line = origin_txt[start:end if end >= 0 else None].strip()[:160]
+    grade = (match.group("cls") or "").lower()
+    if grade == "m":
+        return {"found": True, "applies": True, "text": line, "reason": ""}
+    reason = (f"ISO 2768-{grade} 등급은 이 화면의 일반공차(중간급 m) 표와 다릅니다."
+              if grade else "일반공차 등급이 명시되지 않았습니다.")
+    return {"found": True, "applies": False, "text": line, "reason": reason}
+
+
 def _drawing_origin_text(drawing_id: str, document: dict) -> str:
     # 재검수: 직전 검수에서 수정·추가한 내용을 이어서 사용한다.
     if document.get("reviewed_txt"):
@@ -526,6 +589,7 @@ def drawing_review_source(drawing_id: str):
         "revision": snapshot["revision"],
         "result": snapshot["result"],
         "review": review_data,
+        "general_tolerance": general_tolerance_evidence(origin_txt),
     }
 
 
@@ -599,6 +663,8 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
             )
 
         updated_items = []
+        # 항목별 오류를 모두 모아 한 번에 돌려준다 (첫 오류에서 멈추지 않는다). 하나라도 있으면 저장하지 않는다.
+        setting_errors = []
 
         for item in items:
             setting = settings.get(item["id"])
@@ -607,7 +673,11 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
                 updated_items.append(item)
                 continue
 
-            updated = apply_inspection_settings(item, setting)
+            try:
+                updated = apply_inspection_settings(item, setting)
+            except HTTPException as exc:
+                setting_errors.append(str(exc.detail))
+                continue
             updated_items.append(updated)
 
             log.setdefault("changes", []).append({
@@ -620,6 +690,8 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
                 "setting": setting,
             })
 
+        if setting_errors:
+            raise HTTPException(422, detail=setting_errors)
         items = updated_items
 
     # 도면 이름(원본 파일명)과 작업자 입력을 기록에 같이 남긴다.

@@ -21,6 +21,10 @@ export interface OcrItem {
   instrument?: string;
   /** DRAWING(도면 공차) / GENERAL(일반공차 ISO 2768-m) / SPECIAL(관리자 특별 공차) */
   tolerance_source?: "DRAWING" | "GENERAL" | "SPECIAL" | null;
+  /** 허용 공차 근거. project_default 는 도면 표기가 아니라 프로젝트 기본 정책(ISO 2768-m)으로 적용한 값 */
+  tolerance_basis?: "drawing" | "drawing_note" | "project_default" | "admin" | null;
+  /** 관리자가 바꾸지 않아 시스템 기본값이 그대로 저장된 설정 필드 */
+  defaults_applied?: string[];
   /** 관리자가 검사 기준까지 확정한 항목 */
   inspection_approved?: boolean;
 }
@@ -78,7 +82,9 @@ export function toleranceText(item: OcrItem): string {
         : `${item.upper_deviation >= 0 ? '+' : ''}${fmt(item.upper_deviation)}/${fmt(item.lower_deviation)}`;
       basis = `${fmt(item.nominal_value)} ${dev} → `;
     }
-    const source = item.tolerance_source ? SOURCE_LABEL[item.tolerance_source] : '';
+    const source = item.tolerance_source
+      ? `${SOURCE_LABEL[item.tolerance_source]}${item.tolerance_basis === 'project_default' ? ' · 프로젝트 기본 정책, 도면 표기 아님' : ''}`
+      : '';
     return `${basis}${range}${source ? ` (${source})` : ''}`;
   }
   return item.tol_type === 'UNKNOWN' ? '해석 확인 필요' : '기준 확인 필요';
