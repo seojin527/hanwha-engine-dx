@@ -17,7 +17,11 @@
 - **서버 측 보호**: `DEPLOY_MODE=public` 이면 `backend/deploy_guard.py` 가 GET 외 요청을 403 으로 막는다.
   관리자 주소에서 Basic 인증을 통과한 요청만 Caddy 가 붙인 `X-Admin-Token` 으로 변경이 허용된다.
   로그인 화면의 역할 선택은 여전히 화면 표시용이며 인증이 아니다. 관람객이 '관리자' 역할을 골라도 저장·업로드는 서버가 막는다.
-- **OCR·업로드 제한**: 동시 OCR `OCR_MAX_ACTIVE`(1), 시간당 `OCR_MAX_PER_HOUR`(10), 관리자 변경 요청 IP 당 분당 60, 업로드 30MB(관리자 주소만).
+- **서버 OCR 차단 (발표 구성)**: `OCR_ENABLED=0` 이면 관리자 요청이어도 도면 업로드·OCR 실행·샘플 OCR 저장
+  (`POST /api/parts/{id}/drawings`, `/api/drawings/{id}/ocr/run`, `/api/drawings/{id}/ocr/sample`)을 403 으로 막는다.
+  `APP_MODULE=app:app` 이라 OCR 작업자도 없고, `deploy.sh` 는 `OCR_ENABLED=0` 에서 `app_auto:app`·`WITH_OCR=1` 을 거부한다.
+  화면의 OCR 결과는 노트북에서 미리 만든 것을 데이터 사본으로 올린 것이다.
+- **변경 요청 제한**: 관리자 변경 요청 IP 당 분당 60, 요청 본문 관람객 1MB·관리자 30MB. (OCR 을 켜는 구성이면 동시 1건·시간당 10건)
 
 ## 데이터 위치 (재배포해도 유지)
 
@@ -26,9 +30,14 @@
 | `/srv/hanwha-dx/storage` | SQLite(`library.sqlite3`)·업로드 도면·OCR 결과 이미지·OCR 작업 폴더 |
 | `/srv/hanwha-dx/vector_db` | Chroma 오류사례 검색 DB |
 | `/srv/hanwha-dx/data` | 검수 원본 TXT·검토 결과·측정 이력 CSV (Git 샘플은 없는 것만 추가) |
-| `/srv/hanwha-dx/backups` | 자동(매일 04:00 KST, 14개 보관)·배포 전·복구 전 백업 tar.gz |
+| `/srv/hanwha-dx/backups` | 자동(매일 04:00 KST, 14개 보관)·배포 전·복구 전 백업 tar.gz — **서버와 같은 디스크** |
+| 노트북 `C:\HW\backups\` | `demo-bundle-*.tar.gz`(올린 사본), `server\hanwha-dx-pull-*.tar.gz`(서버에서 내려받은 백업) — **외부 보관본** |
 | `/etc/hanwha-dx/*.env` | 비밀값(ADMIN_TOKEN·관리자 비밀번호 해시). Git 에 없다 |
 | `/opt/hanwha-dx/app` · `/www` | 코드 체크아웃 · 프론트 빌드본 (재배포 시 교체) |
+
+> 서버 안의 백업은 Droplet 삭제·디스크 손실 때 함께 사라진다. **외부 백업이 아니다.**
+> 발표 데이터는 노트북에도 둔다: 올린 사본(`demo-bundle-*.tar.gz`)을 지우지 말고, 서버에서 3D 연결·검토를 마친 뒤·발표 전날·발표 직후에
+> `bash deploy/pull_backup.sh <IP>` 로 서버 백업을 노트북 `backups\server\` 로 내려받는다 (sha256 비교).
 
 경로는 `backend/paths.py` 의 `DX_STORAGE_DIR`·`DX_VECTOR_DB_DIR`·`DX_DATA_DIR`·`DX_LOG_DIR` 로 바뀐다 (미지정 시 기존 로컬 경로 그대로).
 
@@ -41,9 +50,8 @@
 | 백엔드 (`app_auto`, torch + E5 임베딩 + Chroma) | 약 1.24GB 작업 집합 | 시작 직후 |
 | eDOCr2 CPU OCR 1건 (`HDH_63_01.pdf`) | 약 2.13GB 작업 집합 | 213초 소요, TensorFlow 2.10 |
 
-→ **2GB 서버에서는 OCR 을 서버에서 돌리지 않는다** (`APP_MODULE=app:app`, 기본값). 백엔드 + OS + Caddy 가 2GB 안에 들어가고, 스왑 2GB 는 여유분이다.
-OCR 결과는 노트북에서 만든 것을 데이터 사본으로 올린다. 발표장에서 실제 OCR 실행까지 보여주려면 4GB($24) 이상으로 하고
-`APP_MODULE=app_auto:app` + `WITH_OCR=1` 로 배포한다 (2 vCPU 에서 1건 수 분 예상, 미검증).
+→ **이번 발표는 $12·2GB 조회용 구성**: `OCR_ENABLED=0`, `APP_MODULE=app:app`. 백엔드 + OS + Caddy 가 2GB 안에 들어가고 스왑 2GB 는 여유분이다
+(Linux 실측은 서버 생성 후 확인). OCR 결과는 노트북에서 만든 것을 데이터 사본으로 올린다.
 
 ## 비용 (2026-10 DigitalOcean 가격표 기준)
 
@@ -54,11 +62,27 @@ OCR 결과는 노트북에서 만든 것을 데이터 사본으로 올린다. �
 | 부가세 | 결제 화면 확인 | 한국 주소 계정은 VAT 10% 가 붙을 수 있음 |
 | DO 자동 백업 | 선택 안 함 | 켜면 주간 +20%, 일간 +30%. 서버 내 백업 + 노트북 내려받기로 대체 |
 | 도메인 | $0 | sslip.io 또는 DuckDNS 무료 호스트 이름. 자체 도메인은 연 $10~20 (선택) |
-| 트래픽 | $0 | 2TB 포함. 전체 앱 약 3MB, 관람객 수백 명이어도 수 GB 수준 |
+| 트래픽 | 포함량 안에서는 $0 | 아래 「트래픽」 참고. 포함량을 넘는 나가는 전송은 GiB 당 $0.01 |
 | 외부 API | $0 | OCR 은 로컬 eDOCr2/Tesseract. OpenAI·Qwen 코드는 OCR 경로에서 호출되지 않음 |
 | 인증서 | $0 | Let's Encrypt (Caddy 자동) |
 
 **v5(시간당 무상한) Droplet 이 아니라 'Basic' 묶음 요금제를 고른다.**
+
+### 트래픽 (빌드본 실측, 2026-10-28)
+
+| 항목 | 크기 | 비고 |
+| --- | --- | --- |
+| 프론트 빌드본 전체 `frontend/dist` | 3.17MB | 아래 전부 포함 |
+| ├ 3D 모델 GLB 5개 | 432KB | `engine-viewer/models/*.glb` |
+| ├ three.js·로더 | 714KB (three.min.js 는 gzip 시 589→145KB) | |
+| ├ 앱 JS·CSS | 628KB (gzip 시 161KB) | |
+| └ 로그인 선화 PNG 2개 + 샘플 이미지 | 1.42MB | 압축 안 됨 |
+| 도면 1건 열 때 (API) | 원본 PDF 평균 99KB(최대 224KB) + OCR 결과 이미지 약 446KB | 데이터 사본 기준 |
+| 글꼴 (Pretendard·IBM Plex Mono) | 서버 트래픽 아님 | jsDelivr·Google Fonts CDN 에서 받음. CDN 이 막히면 기본 글꼴로 표시 |
+
+관람객 1명이 처음 접속해 도면 몇 건을 열면 대략 3~6MB 다. 2,000GiB 포함량이면 수십만 회 접속에 해당해 발표 규모에서는 넘지 않을 것으로 본다.
+다만 **포함량 안에서만 추가 비용이 없다.** 포함량은 Droplet 이 존재한 시간에 비례해 쌓이고(한 달 내내 있으면 2,000GiB, 1주일이면 약 500GiB),
+같은 계정(팀)의 Droplet 끼리 합산되며, 넘는 나가는 전송은 GiB 당 $0.01 이 붙는다. 들어오는 전송은 무료다.
 
 ## 고정 HTTPS 주소
 
@@ -92,19 +116,38 @@ ssh -i ~/.ssh/hanwha_dx_do root@<IP> 'bash /opt/hanwha-dx/app/deploy/deploy.sh <
 
 ### 발표용 데이터 사본 올리기
 
-노트북의 로컬 백엔드를 멈춘 뒤 (원본은 바뀌지 않는다):
+원본(storage/·vector_db/·data/)은 바뀌지 않는다. 임시 폴더의 사본에서만 제외·이름 변경을 한다.
 
 ```powershell
 cd backend
-.venv\Scripts\python.exe tools\export_demo_bundle.py      # ..\backups\demo-bundle-<시각>.tar.gz
+# 1) 현황 확인 (읽기 전용, 로컬 서버 실행 중이어도 됨)
+.venv\Scripts\python.exe tools\export_demo_bundle.py --list
+# 2) 뺄 부품의 영향 확인 — 연결 도면·OCR·검토·측정 기록·파일 건수 (사본 안 만듦)
+.venv\Scripts\python.exe tools\export_demo_bundle.py --exclude-part <part_id> --dry-run
+# 3) 로컬 백엔드를 멈춘 뒤 사본 생성 → ..\backups\demo-bundle-<시각>.tar.gz (노트북에 보관)
+.venv\Scripts\python.exe tools\export_demo_bundle.py --exclude-part <part_id> --rename-part <part_id>=<새 이름>
 scp -i $HOME\.ssh\hanwha_dx_do ..\backups\demo-bundle-<시각>.tar.gz root@<IP>:/tmp/
 ssh -i $HOME\.ssh\hanwha_dx_do root@<IP> "bash /opt/hanwha-dx/app/deploy/restore.sh /tmp/demo-bundle-<시각>.tar.gz"
 ```
 
 - 검증용 DB 사본 폴더(`environment-verification`, `ui-verification`)는 빠진다.
+- 사본에서 부품을 빼면 그 부품의 도면과, 도면에 딸린 OCR 결과·작업·측정·가공 기록·오류사례 연결·이동 기록·파일·review_history.csv 행을 지운다.
+  오류사례 원문과 벡터DB 는 남긴다. 지운 뒤 외래키 검사를 하고 `VACUUM` 으로 지운 행이 파일에 남지 않게 한다.
 - 자동 OCR 이 `data/origin` 에 복사하기 전에 처리된 도면은 OCR 작업 폴더의 TXT·JPG 를 사본에 채운다 (원본 폴더 변경 없음).
-- **3D 유형 연결은 자동으로 하지 않는다.** 관리자 주소에서 부품을 3D 유형(크랭크 축·커넥팅 로드·크로스헤드·피스톤 로드·피스톤 헤드)에 직접 연결한다.
-- 작업자 화면은 **관리자 검토가 끝난 도면만** 보여준다. 관람객에게 보여줄 도면은 관리자 주소에서 검토를 완료해 둔다.
+- **3D 유형 연결·관리자 검토는 자동으로 하지 않는다.** 아래 「대표 도면 준비」를 서버의 관리자 주소에서 한다.
+
+### 대표 도면 준비 (서버 관리자 주소)
+
+작업자 화면은 **관리자 검토가 끝난 도면만** 보여준다. 3D 부품을 눌러 도면을 여는 흐름은 **3D 유형에 연결된 부품**에서만 이어진다.
+
+1. `https://admin.<…>` 접속 → Basic 인증(관리자 계정) → 로그인 화면에서 역할 '관리자'.
+2. 왼쪽 트리 「3D 미연결 등록 부품」에서 대표 부품을 고르고, 정보의 「3D 부품 종류에 연결」에서 3D 유형(예: **피스톤 로드**)을 골라 「연결」.
+   (또는 트리에서 3D 유형을 고른 뒤 「기존 등록 부품 연결」.) 이름이 비슷한 부품은 안내만 하고 자동 연결하지 않는다.
+   같은 3D 유형에는 대표 부품 하나만 연결하는 것을 권장한다.
+3. 그 부품에서 OCR 결과가 있는 도면을 연다 → 항목마다 「확인 후 다음」 → 「검토 완료 및 서버 저장」.
+   이미 검토가 끝난 도면이 다른 부품에 있으면 「소속 부품 변경」으로 대표 부품으로 옮길 수 있다 (이동 이력이 남는다).
+4. 관람객 주소에서 작업자 역할로 로그인 → 3D 에서 그 부품 클릭 → 연결 도면 → 도면 열기 → 「3D에서 보기」로 복귀까지 확인한다.
+5. 노트북에서 `bash deploy/pull_backup.sh <IP>` 로 이 상태를 노트북에 받아 둔다.
 
 ## 운영 명령
 
@@ -121,7 +164,14 @@ sudo bash /opt/hanwha-dx/app/deploy/set_admin_password.sh     # 관리자 비밀
 sudo cat /etc/hanwha-dx/admin-password.txt                    # 처음 생성된 관리자 계정
 ```
 
-백업을 노트북으로 내려받기: `scp -i ~/.ssh/hanwha_dx_do root@<IP>:/srv/hanwha-dx/backups/<파일> .`
+노트북으로 백업 받기 (Git Bash, 저장소 폴더에서): `bash deploy/pull_backup.sh <IP>` → `backups\server\` (Git 제외 폴더)
+
+## SSH 키
+
+- 이 서버 전용 키: 노트북 `C:\Users\SAMSUNG\.ssh\hanwha_dx_do`(개인키, 암호 없음)·`hanwha_dx_do.pub`(공개키). 저장소 밖이라 Git 에 올라가지 않는다.
+- 개인키는 채팅·Git·메신저로 보내지 않는다. DigitalOcean 에는 공개키(`.pub`)만 등록한다.
+- 키를 잃으면 새 키를 만들고 DigitalOcean 콘솔(Droplet → Access → Recovery/Droplet Console)에서 `~/.ssh/authorized_keys` 에 새 공개키를 추가한다.
+- 발표 후 Droplet 을 지우면 이 키도 지워도 된다 (DigitalOcean Settings → Security 의 등록 공개키도 삭제).
 
 ## 발표 후 정리 (과금 종료)
 

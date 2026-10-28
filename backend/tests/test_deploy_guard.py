@@ -28,6 +28,18 @@ def make_app():
     def create():
         return {"ok": True}
 
+    @app.post("/api/parts/{part_id}/drawings")
+    def upload(part_id: str):
+        return {"ok": True}
+
+    @app.post("/api/drawings/{drawing_id}/ocr/run")
+    def run(drawing_id: str):
+        return {"ok": True}
+
+    @app.post("/api/drawings/{drawing_id}/ocr/sample")
+    def sample(drawing_id: str):
+        return {"ok": True}
+
     @app.get("/api/deploy-mode")
     def mode(request: Request):
         return deploy_guard.mode_info(request)
@@ -74,6 +86,24 @@ class DeployGuardTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as caught:
                 deploy_guard.check_ocr_capacity(2)
             self.assertEqual(caught.exception.status_code, 429)
+
+    def test_ocr_disabled_blocks_ocr_routes_even_for_admin(self):
+        env = {"DEPLOY_MODE": "public", "ADMIN_TOKEN": "secret", "OCR_ENABLED": "0"}
+        with mock.patch.dict(os.environ, env), mock.patch.object(deploy_guard, "_writes", deploy_guard._Window()):
+            admin = {"X-Admin-Token": "secret"}
+            for path in ("/api/parts/p1/drawings", "/api/drawings/d1/ocr/run", "/api/drawings/d1/ocr/sample"):
+                self.assertEqual(self.client.post(path, headers=admin).status_code, 403, path)
+            # OCR 과 무관한 관리자 변경은 그대로 허용
+            self.assertEqual(self.client.post("/api/parts", headers=admin).status_code, 200)
+            self.assertFalse(self.client.get("/api/deploy-mode").json()["ocr_enabled"])
+            with self.assertRaises(HTTPException) as caught:
+                deploy_guard.check_ocr_capacity(0)
+            self.assertEqual(caught.exception.status_code, 403)
+
+    def test_ocr_disabled_also_applies_in_local_mode(self):
+        with mock.patch.dict(os.environ, {"DEPLOY_MODE": "local", "OCR_ENABLED": "0"}):
+            self.assertEqual(self.client.post("/api/drawings/d1/ocr/run").status_code, 403)
+            self.assertEqual(self.client.post("/api/parts").status_code, 200)
 
 
 if __name__ == "__main__":

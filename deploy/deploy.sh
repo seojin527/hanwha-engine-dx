@@ -2,7 +2,7 @@
 # 지정한 브랜치·커밋으로 배포(또는 재배포)한다. root 로 실행. 데이터(/srv/hanwha-dx)는 건드리지 않는다.
 #   sudo bash /opt/hanwha-dx/app/deploy/deploy.sh main4
 #   sudo bash /opt/hanwha-dx/app/deploy/deploy.sh 6f2c6fb           # 커밋 고정
-#   WITH_OCR=1 sudo -E bash .../deploy.sh main4                      # OCR 환경(.venv-ocr)도 설치
+#   WITH_OCR=1 sudo -E bash .../deploy.sh main4                      # OCR 환경도 설치 (OCR_ENABLED=1 인 4GB 이상 서버만)
 # 순서: 데이터 백업 → 코드 체크아웃 → Python 의존성 → 프론트 빌드 → Caddy·systemd 설정 → 재시작 → /health 확인
 set -euo pipefail
 
@@ -15,6 +15,13 @@ DATA=/srv/hanwha-dx
 as_app() { sudo -u hanwha -H "$@"; }
 [[ $EUID -eq 0 ]] || { echo "root 로 실행하세요 (sudo)"; exit 1; }
 set -a; source /etc/hanwha-dx/hanwha-dx.env; set +a
+OCR_ENABLED=${OCR_ENABLED:-1}
+if [[ $OCR_ENABLED =~ ^(0|false|no|off)$ ]]; then
+  # 조회용 구성: OCR 앱·OCR 환경을 쓰지 않는다.
+  if [[ $APP_MODULE != app:app || ${WITH_OCR:-0} == 1 ]]; then
+    echo "!! OCR_ENABLED=0 인데 APP_MODULE=$APP_MODULE / WITH_OCR=${WITH_OCR:-0} 입니다. app:app 으로 두세요."; exit 1
+  fi
+fi
 
 echo "== 1. 배포 전 데이터 백업"
 if [[ -f $DATA/storage/library.sqlite3 ]]; then

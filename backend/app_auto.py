@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, File, UploadFile
 
 from app import app
-from deploy_guard import check_ocr_capacity
+from deploy_guard import check_ocr_capacity, ocr_enabled
 from drawing_library import database, upload_drawing
 from ocr_jobs import OcrWorker, enqueue, snapshot
 
@@ -16,6 +16,11 @@ previous_lifespan=app.router.lifespan_context
 @asynccontextmanager
 async def automatic_lifespan(application):
     async with previous_lifespan(application):
+        if not ocr_enabled():
+            # OCR_ENABLED=0 이면 대기 중인 작업도 실행하지 않는다.
+            application.state.ocr_worker=None
+            yield
+            return
         worker=OcrWorker();worker.start()
         application.state.ocr_worker=worker
         try:yield

@@ -59,6 +59,7 @@ ADMIN_TOKEN=$(openssl rand -hex 32)
 WRITE_RATE_PER_MIN=60
 OCR_MAX_ACTIVE=1
 OCR_MAX_PER_HOUR=10
+OCR_ENABLED=0
 APP_MODULE=app:app
 DX_STORAGE_DIR=/srv/hanwha-dx/storage
 DX_VECTOR_DB_DIR=/srv/hanwha-dx/vector_db
