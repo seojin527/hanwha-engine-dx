@@ -953,6 +953,8 @@ export function App() {
   }
 
   if (stage === "login") {
+    // 서버 정책(관람객 주소 여부)을 받기 전에는 로그인 칸을 그리지 않는다. 관리자 역할이 잠깐 보였다 사라지지 않게.
+    if (!deployMode.loaded) return <main className="dx-shell h-dvh w-screen bg-[#0b1522]" aria-busy="true" />;
     return (
       <LoginScreen
         visitor={visitor}
