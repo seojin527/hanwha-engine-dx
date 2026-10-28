@@ -86,11 +86,13 @@ def init_library():
             )
         """)
 
-        # 처음 시작할 때 기본 부품만 등록
-        db.execute(
-            "INSERT OR IGNORE INTO parts (part_id, name) VALUES (?, ?)",
-            ("part-piston-rod", "피스톤로드"),
-        )
+        # 처음 시작할 때(부품이 하나도 없을 때)만 기본 부품을 등록한다.
+        # 관리자가 지운 기본 부품을 재시작 때마다 되살리지 않는다.
+        if db.execute("SELECT 1 FROM parts LIMIT 1").fetchone() is None:
+            db.execute(
+                "INSERT INTO parts (part_id, name) VALUES (?, ?)",
+                ("part-piston-rod", "피스톤로드"),
+            )
 
 
 class PartCreate(BaseModel):
