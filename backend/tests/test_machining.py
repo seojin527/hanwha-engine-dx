@@ -49,6 +49,14 @@ class Matching(unittest.TestCase):
         self.assertEqual(len(match_template(document_from(template, drop_diameter=True), template)),
                          len(template["items"]))
 
+    def test_excluded_items_are_not_matched(self):
+        template = TEMPLATES["PR"]
+        doc = document_from(template)
+        doc["items"][0]["excluded"] = True  # 관리자가 오인식으로 제외
+        matched = match_template(doc, template)
+        self.assertNotIn(doc["items"][0]["id"], matched)
+        self.assertEqual(len(matched), len(template["items"]) - 1)
+
     def test_part_names(self):
         self.assertEqual(part_key_for("피스톤 로드"), "PR")
         self.assertEqual(part_key_for("", "CRANK SHAFT"), "CS")

@@ -86,16 +86,17 @@ type Filter = "all" | "DIMENSION" | "GDT" | "needs" | "unconfirmed" | "invalid" 
  * - saved: 이전에 저장한 관리자 설정 그대로
  * 검토 확정은 「검토 완료 및 서버 저장」이 성공했을 때 전체 항목에 한 번에 일어난다.
  */
-type ItemStatus = "needs" | "default" | "edited" | "saved";
+type ItemStatus = "needs" | "default" | "edited" | "saved" | "excluded";
 
 const STATUS_LABEL: Record<ItemStatus, string> = {
   needs: "설정 필요",
   default: "기본값 적용",
   edited: "관리자 수정",
   saved: "저장된 설정",
+  excluded: "오인식 제외",
 };
 
-const STATUS_TONE = { needs: "warn", default: "neutral", edited: "info", saved: "ok" } as const;
+const STATUS_TONE = { needs: "warn", default: "neutral", edited: "info", saved: "ok", excluded: "neutral" } as const;
 
 const inputClass = "field text-[13px]";
 /** 관리자가 고칠 수 있는 값: 왼쪽 강조선으로 편집 대상임을 구분한다. */
@@ -195,6 +196,9 @@ export default function DrawingReviewPanel({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   // 관리자가 항목별로 확인한 상태 (화면 안에서만. 서버 확정은 「검토 완료 및 서버 저장」 때 전체를 한 번에)
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
+  // 측정 항목이 아닌 OCR 오인식(데이텀 기호·단면 표기 등). 지우지 않고 표시만 해 작업자 화면에서 뺀다.
+  const [excluded, setExcluded] = useState<Record<string, boolean>>({});
+  const initialExcluded = useRef<Record<string, boolean>>({});
   // 「확인 후 다음」을 눌렀는데 입력 오류가 있어 확인하지 못한 항목의 안내
   const [confirmBlocked, setConfirmBlocked] = useState<{ itemId: string; issues: string[] } | null>(null);
   const initialConfirmed = useRef<Record<string, boolean>>({});
@@ -206,6 +210,7 @@ export default function DrawingReviewPanel({
   useReportUnsaved(
     Object.keys(touched).length > 0 ||
       added.length > 0 ||
+      Object.keys(excluded).some((id) => excluded[id] !== (initialExcluded.current[id] ?? false)) ||
       Object.keys(confirmed).some((id) => confirmed[id] !== (initialConfirmed.current[id] ?? false)),
   );
   const [reviewer, setReviewer] = useState("");
@@ -313,8 +318,13 @@ export default function DrawingReviewPanel({
     setDrafts(nextDrafts);
     setTouched({});
     // 저장된 검토의 승인 항목은 확인된 상태로 이어서 보여준다. 새 항목은 미확인.
+    const initialOut = Object.fromEntries(
+      source.result.items.map((item) => [item.id, reviewed && item.excluded === true]),
+    );
+    initialExcluded.current = initialOut;
+    setExcluded(initialOut);
     const initial = Object.fromEntries(
-      source.result.items.map((item) => [item.id, reviewed && item.inspection_approved === true]),
+      source.result.items.map((item) => [item.id, reviewed && (item.inspection_approved === true || item.excluded === true)]),
     );
     initialConfirmed.current = initial;
     setConfirmed(initial);
@@ -395,6 +405,7 @@ export default function DrawingReviewPanel({
   }
 
   function hasInvalidValue(item: OcrItem) {
+    if (excluded[item.id]) return false;
     if (item.category === "GDT") return rowsByItem[item.id].some((row) => !isValidGdtValue(gdtValue(row)));
     return !parseDimension(dimensionText(item)).valid;
   }
@@ -402,6 +413,7 @@ export default function DrawingReviewPanel({
   /** 저장을 막는 문제 목록 (실제로 검증할 수 있는 것만). 비어 있으면 저장할 수 있다. */
   function issuesFor(item: OcrItem): string[] {
     const issues: string[] = [];
+    if (excluded[item.id]) return [];
     const draft = drafts[item.id];
     if (!draft) return ["검토 정보를 준비하는 중입니다."];
 
@@ -454,6 +466,7 @@ export default function DrawingReviewPanel({
   }
 
   function statusOf(item: OcrItem): ItemStatus {
+    if (excluded[item.id]) return "excluded";
     if (issuesFor(item).length) return "needs";
     if (touched[item.id]) return "edited";
     const approved = source.result.review_status === "reviewed" && item.inspection_approved === true;
@@ -525,6 +538,25 @@ export default function DrawingReviewPanel({
     setConfirmBlocked(null);
     const next = { ...confirmed, [item.id]: true };
     setConfirmed(next);
+    const index = points.findIndex((entry) => entry.id === item.id);
+    for (let step = 1; step < points.length; step += 1) {
+      const candidate = points[(index + step) % points.length];
+      if (!next[candidate.id]) {
+        selectItem(candidate.id);
+        return;
+      }
+    }
+  }
+
+  /** 「오인식 제외」: 측정 항목이 아닌 인식 결과를 제외(확인 처리)하고 다음으로 넘어간다. 다시 누르면 되살린다. */
+  function toggleExcluded(item: OcrItem) {
+    const out = !excluded[item.id];
+    setExcluded((previous) => ({ ...previous, [item.id]: out }));
+    setConfirmBlocked(null);
+    setError("");
+    const next = { ...confirmed, [item.id]: out };
+    setConfirmed(next);
+    if (!out) return;
     const index = points.findIndex((entry) => entry.id === item.id);
     for (let step = 1; step < points.length; step += 1) {
       const candidate = points[(index + step) % points.length];
@@ -670,6 +702,7 @@ export default function DrawingReviewPanel({
 
     const inspectionSettings: Record<string, InspectionSetting> = {};
     for (const item of points) {
+      if (excluded[item.id]) continue;
       const draft = drafts[item.id];
       const setting: InspectionSetting = {
         measurement_mode: draft.mode,
@@ -705,6 +738,7 @@ export default function DrawingReviewPanel({
         reviewer: reviewer.trim(),
         // 모두 확인한 뒤에만 여기까지 온다. 서버는 이 저장 요청으로 검토를 확정한다.
         confirmed_item_ids: points.filter((item) => confirmed[item.id]).map((item) => item.id),
+        excluded_item_ids: points.filter((item) => excluded[item.id]).map((item) => item.id),
         inspection_settings: inspectionSettings,
         edits: {
           // 데이텀은 OCR 그대로 둔다. 기호·값은 관리자가 확정한 것.
@@ -787,6 +821,14 @@ export default function DrawingReviewPanel({
                 </button>
               </div>
             )}
+            <div className="mt-1.5 flex items-center justify-end gap-2">
+              <span className="text-[11px] text-slate-500">
+                {excluded[selected.id] ? "측정 항목에서 제외했습니다. 작업자 화면에 나오지 않습니다." : "치수가 아닌 기호·글자를 잘못 읽었다면"}
+              </span>
+              <button type="button" disabled={saving || picking} onClick={() => toggleExcluded(selected)} className="btn btn-secondary">
+                {excluded[selected.id] ? "제외 취소" : "오인식 제외"}
+              </button>
+            </div>
             {blocked.length > 0 && (
               <ul role="alert" className="note note-error mt-2 space-y-0.5 text-[11px]">
                 <li className="font-semibold">입력 오류가 있어 확인하지 않았습니다. 고친 뒤 다시 눌러주세요.</li>
@@ -936,7 +978,7 @@ export default function DrawingReviewPanel({
                           invalid ? "text-rose-600" : confirmed[item.id] ? "text-emerald-600" : "text-amber-500"
                         }`}
                       >
-                        {invalid ? "!" : confirmed[item.id] ? "✓" : "•"}
+                        {invalid ? "!" : excluded[item.id] ? "×" : confirmed[item.id] ? "✓" : "•"}
                       </span>
                       <span className="w-6 text-slate-500">{index + 1}</span>
                       <span className="min-w-0 flex-1 truncate font-mono font-semibold">

@@ -237,6 +237,8 @@ class DrawingReviewInput(BaseModel):
     revision: str
     reviewer: str = ""
     confirmed_item_ids: List[str]
+    # 측정 항목이 아닌 OCR 오인식. 지우지 않고 excluded 로 표시해 번호(ID)를 유지한다.
+    excluded_item_ids: List[str] = []
     edits: Dict[str, Any]
     inspection_settings: Optional[Dict[str, Dict[str, Any]]] = None
 
@@ -608,6 +610,11 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
         raise HTTPException(
             422, "현재 도면의 모든 항목을 확인해야 검토를 완료할 수 있습니다."
         )
+    excluded = set(req.excluded_item_ids)
+    if not excluded <= required:
+        raise HTTPException(
+            422, f"현재 도면에 없는 제외 항목입니다: {sorted(excluded - required)}"
+        )
 
     # 지원하지 않는 요청 필드는 조용히 무시하지 않는다.
     allowed = {"gdt", "dimensions", "added_dimensions", "reviewer"}
@@ -650,6 +657,12 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
         else:
             # 값이 바뀐 항목은 main 변환기로 기준·허용범위를 다시 계산한다.
             items.append(item)
+    for item in items:
+        if item["id"] in excluded:
+            item["excluded"] = True
+            item["inspection_approved"] = False
+        else:
+            item.pop("excluded", None)
 
     if req.inspection_settings is not None:
         settings = req.inspection_settings
@@ -660,6 +673,11 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
             raise HTTPException(
                 422,
                 f"현재 도면에 없는 검사 항목입니다: {sorted(unknown_ids)}",
+            )
+        if set(settings) & excluded:
+            raise HTTPException(
+                422,
+                f"오인식으로 제외한 항목에는 검사 기준을 저장할 수 없습니다: {sorted(set(settings) & excluded)}",
             )
 
         updated_items = []
@@ -700,10 +718,16 @@ def submit_drawing_review(drawing_id: str, req: DrawingReviewInput):
             "SELECT original_filename FROM drawings WHERE drawing_id=?", (drawing_id,)
         ).fetchone()
     log["drawing_name"] = Path(row["original_filename"]).stem if row else drawing_id
+    for item_id in sorted(excluded):
+        log.setdefault("changes", []).append({
+            "item_id": item_id, "type": "EXCLUDED", "action": "excluded",
+            "raw_text": old_items[item_id].get("raw_text"), "before": None, "after": "오인식 제외",
+        })
     log["input"] = {
         "reviewer": req.reviewer,
         "revision": req.revision,
         "confirmed_item_ids": req.confirmed_item_ids,
+        "excluded_item_ids": req.excluded_item_ids,
         "edits": req.edits,
         "inspection_settings": req.inspection_settings,
     }

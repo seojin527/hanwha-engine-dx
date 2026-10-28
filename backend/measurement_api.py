@@ -234,6 +234,8 @@ def save_measurement(
     )
     if item is None:
         raise HTTPException(404, '이 도면의 항목이 아닙니다.')
+    if item.get('excluded'):
+        raise HTTPException(409, '관리자가 오인식으로 제외한 항목입니다.')
 
     # 측정 방식은 저장된 관리자 설정을 사용한다.
     # 기존 숫자 측정 항목과의 호환성을 위해 미설정은 numeric으로 처리한다.

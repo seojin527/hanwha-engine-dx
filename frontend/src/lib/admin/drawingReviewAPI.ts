@@ -79,6 +79,8 @@ export interface DrawingReviewRequest {
   revision: string;
   reviewer: string;
   confirmed_item_ids: string[];
+  /** 측정 항목이 아닌 OCR 오인식. 데이터에는 남기고 excluded 로 표시해 작업자 화면에서 뺀다. */
+  excluded_item_ids?: string[];
   edits: DrawingReviewEdits;
   inspection_settings?: Record<string, InspectionSetting>;
 }

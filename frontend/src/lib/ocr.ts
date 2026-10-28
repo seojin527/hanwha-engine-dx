@@ -27,6 +27,8 @@ export interface OcrItem {
   defaults_applied?: string[];
   /** 관리자가 검사 기준까지 확정한 항목 */
   inspection_approved?: boolean;
+  /** 관리자가 오인식으로 제외한 항목. 작업·관람 화면에는 나오지 않는다. */
+  excluded?: boolean;
 }
 export interface OcrDocument {
   review_status?: string;
@@ -61,12 +63,15 @@ const names: Record<string, string> = {
   RADIUS: '반지름', LINEAR_DIMENSION: '길이', GEOMETRIC_TOLERANCE: '기하공차',
 };
 export function toOcrPoints(document: OcrDocument): OcrPoint[] {
-  return document.items.map((source, index) => ({
-    id: index + 1, displayNumber: index + 1,
-    x: source.position.x, y: source.position.y,
-    feature: { name: names[source.measurement_characteristic || ''] || source.category },
-    source,
-  }));
+  // 번호는 전체 순서를 그대로 쓴다 (검토 화면·측정 계획의 번호와 맞춘다). 오인식 제외 항목만 뺀다.
+  return document.items
+    .map((source, index) => ({
+      id: index + 1, displayNumber: index + 1,
+      x: source.position.x, y: source.position.y,
+      feature: { name: names[source.measurement_characteristic || ''] || source.category },
+      source,
+    }))
+    .filter((point) => !point.source.excluded);
 }
 const SOURCE_LABEL: Record<string, string> = {
   DRAWING: '도면 공차', GENERAL: '일반공차 ISO 2768-m', SPECIAL: '특별 공차',

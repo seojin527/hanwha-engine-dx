@@ -106,6 +106,8 @@ def match_template(document: dict, template: dict) -> dict:
     """item_id → 템플릿 항목. 가까운 쌍부터 하나씩 짝짓는다."""
     pairs = []
     for item in document.get("items", []):
+        if item.get("excluded"):
+            continue
         xy = normalized(item, document)
         if xy is None:
             continue
@@ -182,6 +184,8 @@ def build_plan(drawing_id: str, document: dict) -> dict:
     matched = match_template(document, template) if template else {}
     items = []
     for item in document.get("items", []):
+        if item.get("excluded"):
+            continue  # 관리자가 오인식으로 제외한 항목은 재지 않는다
         entry = matched.get(item["id"])
         if entry:
             plan, stages, label, source = entry["plan"], entry["stages"], entry["label"], "template"
