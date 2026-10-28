@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { OcrItem } from "../lib/ocr";
 import {
   fetchMeasurements,
   saveMeasurement,
-  measurementStatusClasses,
   measurementStatusLabels,
   type MeasurementRecord,
   type SavedMeasurement,
@@ -13,6 +13,7 @@ import { recommendedInstruments } from "../lib/inspection/instruments";
 import { formatNumber } from "../lib/inspection/tolerance";
 import { useReportUnsaved } from "../lib/unsavedChanges";
 import type { WorkPurpose } from "../lib/purpose";
+import { RESULT_BOX, WorkFooter, saveErrorText } from "./work/WorkParts";
 
 interface Props {
   /** 이 화면의 작업 목적. 조회·저장 모두 이 목적의 기록만 쓴다. */
@@ -23,6 +24,10 @@ interface Props {
   onSaved?: (record: SavedMeasurement) => void;
   /** 다른 업무 작업자가 보는 중이면 true: 저장된 값만 보여주고 입력·저장을 막는다. */
   readOnly?: boolean;
+  /** 이전·다음 항목 (하단 고정 버튼). 합격 저장이 끝나면 다음 항목으로 넘어간다. */
+  onNavigate?: (delta: number) => void;
+  /** 입력 위에 보여줄 검사 기준 요약 */
+  criteria?: ReactNode;
 }
 
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
@@ -33,7 +38,7 @@ const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
  * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
  * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
  */
-export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false }: Props) {
+export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false, onNavigate, criteria }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
@@ -141,8 +146,10 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
       setRecord(saved);
       setDirty(false);
       onSaved?.(saved);
+      // 합격(또는 기준 없이 기록)이면 다음 항목으로. 불합격은 결과를 보고 다시 재도록 이 항목에 남는다.
+      if (result !== "fail") onNavigate?.(1);
     } catch (cause: unknown) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : "측정 저장 실패");
+      if (mounted.current) setError(saveErrorText(cause));
     } finally {
       savingRef.current = false;
       if (mounted.current) setSaving(false);
@@ -150,172 +157,149 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
   }
 
   const currentRecord = dirty ? null : record;
-  const inputClass = "field";
-  const passClass = "btn btn-lg w-full";
+  const label = "block space-y-1 text-[11px] font-medium text-dx-muted";
+  const canPass = mode === "gauge" || inRange === true;
+  const canFail = mode === "gauge" || inRange === false;
+  const recordOnly = mode === "numeric" && !hasRange;
 
   return (
-    <section aria-label="측정 입력" className="card">
-      <header className="card-header">
-        <h3 className="text-xs font-semibold text-slate-900">{readOnly ? "측정 결과" : "측정 입력"}</h3>
-        {readOnly && !loading && (
-          <span className="tag bg-slate-100 text-slate-600">조회 전용</span>
-        )}
-        {loading && (
-          <p role="status" className="text-[11px] text-slate-500">
-            저장된 결과 불러오는 중…
-          </p>
-        )}
-      </header>
-
-      <div className="card-body">
-      {readOnly && (
-        <p className="note note-info">이 업무의 담당 작업자만 입력할 수 있습니다. 저장된 결과만 표시합니다.</p>
-      )}
-      <fieldset disabled={readOnly || loading || saving} className="space-y-3">
-        {mode === "gauge" ? (
-          <p className="note note-info whitespace-pre-wrap">
-            <b className="mr-1 font-semibold">판정 기준</b>
-            {item.gauge_criteria || "관리자 설정이 필요합니다."}
-          </p>
-        ) : (
-          <>
-            {hasRange ? (
-              <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                <span className="text-[11px] text-slate-500">허용 범위</span>
-                <b className="font-mono text-sm font-semibold text-slate-900">
-                  {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
-                </b>
-                {typeof item.nominal_value === "number" && (
-                  <span className="text-[11px] text-slate-500">기준 {formatNumber(item.nominal_value)}</span>
-                )}
-              </div>
-            ) : (
-              <p className="note note-warn">
-                허용 범위가 지정되지 않아 자동 판정 없이 기록만 합니다.
-              </p>
-            )}
-            <label className="block space-y-1">
-              <span className="field-label">실측값 ({unit})</span>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+        {mode === "gauge" && criteria}
+        {readOnly && <p className="rounded border border-dx-line bg-dx-raised/60 px-3 py-2 text-xs text-dx-muted">이 업무의 담당 작업자만 입력할 수 있습니다. 저장된 결과만 표시합니다.</p>}
+        {loading && <p role="status" className="text-[11px] text-dx-muted">저장된 결과 불러오는 중…</p>}
+        <fieldset disabled={readOnly || loading || saving} className="space-y-3">
+          {mode === "numeric" ? (
+            <label className={label}>
+              <span className="flex items-baseline justify-between gap-2">
+                <span>실측값 ({unit})</span>
+                {hasRange && <span className="font-mono text-[12px] text-white">허용 {formatNumber(low!)} ~ {formatNumber(high!)}</span>}
+              </span>
               <input
                 type="text"
                 inputMode="decimal"
                 value={value}
                 placeholder="측정한 값을 입력하세요"
+                autoComplete="off"
                 onChange={(event) => {
                   setValue(event.target.value);
                   markChanged();
                 }}
-                className={`${inputClass} h-9 font-mono text-sm ${
-                  inRange === true
-                    ? "border-emerald-500 bg-emerald-50 focus:border-emerald-600 focus:ring-emerald-600"
-                    : inRange === false
-                      ? "border-rose-500 bg-rose-50 focus:border-rose-600 focus:ring-rose-600"
-                      : ""
+                onKeyDown={(event) => {
+                  // Enter: 범위 안이면 합격 저장 후 다음 (밖이면 저장하지 않는다)
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  if (recordOnly && numeric !== null) void save("record");
+                  else if (inRange === true) void save("pass");
+                }}
+                className={`dx-input h-10 font-mono text-base ${
+                  inRange === true ? "border-emerald-500 focus:border-emerald-400 focus:ring-emerald-400" : inRange === false ? "border-rose-500 focus:border-rose-400 focus:ring-rose-400" : ""
                 }`}
               />
             </label>
-            {trimmed && numeric === null && <p className="text-[11px] text-rose-700">숫자로 입력해주세요.</p>}
-            {inRange === true && <p className="text-[11px] font-medium text-emerald-700">허용 범위 안입니다.</p>}
-            {inRange === false && (
-              <p className="text-[11px] font-medium text-rose-700">허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
-            )}
-          </>
-        )}
+          ) : (
+            <p className="text-xs text-dx-muted">판정 기준을 보고 아래 [합격] 또는 [불합격]을 누릅니다.</p>
+          )}
+          {mode === "numeric" && (
+            <p aria-live="polite" className="min-h-4 text-xs font-medium">
+              {trimmed && numeric === null && <span className="text-rose-300">숫자로 입력해주세요.</span>}
+              {inRange === true && <span className="text-emerald-300">허용 범위 안 → 합격 가능</span>}
+              {inRange === false && <span className="text-rose-300">허용 범위 밖 ({offBy}) → 측정 위치·측정기를 확인하세요</span>}
+              {recordOnly && <span className="text-amber-200">허용 범위가 없어 자동 판정 없이 기록만 합니다.</span>}
+            </p>
+          )}
 
-        <label className="block space-y-1">
-          <span className="field-label">
-            사용 측정기 {item.instrument && <span className="font-normal text-slate-500">· 관리자 지정: {item.instrument}</span>}
-          </span>
-          <InstrumentSelect
-            className={inputClass}
-            value={instrument}
-            onChange={(next) => {
-              setInstrument(next);
-              markChanged();
-            }}
-            recommended={Array.from(
-              new Set([
-                ...(item.instrument ? [item.instrument] : []),
-                ...recommendedInstruments({
-                  feature: item.feature_type,
-                  gdtSymbols:
-                    item.category === "GDT" ? item.raw_text.split("\n").map((row) => row.split("|")[0]) : [],
-                }),
-              ]),
-            )}
-          />
-        </label>
+          {mode === "numeric" && criteria}
 
-        <label className="block space-y-1">
-          <span className="field-label">측정 메모</span>
-          <textarea
-            className={inputClass}
-            rows={2}
-            value={note}
-            onChange={(event) => {
-              setNote(event.target.value);
-              markChanged();
-            }}
-          />
-        </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={label}>
+              사용 측정기
+              <InstrumentSelect
+                className="dx-input"
+                value={instrument}
+                onChange={(next) => {
+                  setInstrument(next);
+                  markChanged();
+                }}
+                recommended={Array.from(
+                  new Set([
+                    ...(item.instrument ? [item.instrument] : []),
+                    ...recommendedInstruments({
+                      feature: item.feature_type,
+                      gdtSymbols:
+                        item.category === "GDT" ? item.raw_text.split("\n").map((row) => row.split("|")[0]) : [],
+                    }),
+                  ]),
+                )}
+              />
+            </label>
+            <label className={label}>
+              측정 메모
+              <textarea
+                className="dx-input"
+                rows={1}
+                value={note}
+                onChange={(event) => {
+                  setNote(event.target.value);
+                  markChanged();
+                }}
+              />
+            </label>
+          </div>
 
-        {mode === "numeric" && !hasRange ? (
-          <button
-            type="button"
-            disabled={numeric === null}
-            onClick={() => void save("record")}
-            className="btn btn-primary btn-lg w-full"
-          >
-            {saving ? "저장 중…" : "측정값 기록"}
+          {currentRecord ? (
+            <div role="status" className={`space-y-0.5 rounded px-3 py-2 text-xs ${RESULT_BOX[currentRecord.status] ?? RESULT_BOX.pending}`}>
+              <p className="font-semibold">
+                저장된 판정: {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
+                {" · "}
+                {measurementStatusLabels[currentRecord.status]}
+                {currentRecord.measured_value ? ` · ${currentRecord.measured_value} ${unit}` : ""}
+              </p>
+              <p>{currentRecord.judgement_reason}</p>
+              {currentRecord.judgement === "fail" && <p>측정 위치와 측정기를 확인한 뒤 다시 측정해주세요. 이전 결과는 기록으로 남습니다.</p>}
+            </div>
+          ) : (
+            dirty && <p className="text-[11px] text-dx-muted">아직 저장하지 않았습니다. 아래 버튼을 누르면 저장됩니다.</p>
+          )}
+        </fieldset>
+      </div>
+
+      <WorkFooter error={error}>
+        <button type="button" className="dx-btn dx-btn-lg dx-icon-btn w-9" aria-label="이전 항목" title="이전 항목" onClick={() => onNavigate?.(-1)}>
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {readOnly ? (
+          <span className="flex-1 text-center text-xs text-dx-muted">조회 전용 · 이전/다음으로 항목을 넘겨 볼 수 있습니다</span>
+        ) : recordOnly ? (
+          <button type="button" disabled={loading || saving || numeric === null} onClick={() => void save("record")} className="dx-btn dx-btn-primary dx-btn-lg flex-1">
+            {saving ? "저장 중…" : "기록 · 저장 후 다음"}
           </button>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <>
             <button
               type="button"
-              disabled={mode === "numeric" && inRange !== true}
+              disabled={loading || saving || !canPass}
               onClick={() => void save("pass")}
-              className={`${passClass} border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800`}
+              className="dx-btn dx-btn-lg flex-1 border-emerald-600 bg-emerald-600 text-white hover:border-emerald-500 hover:bg-emerald-500"
+              title={mode === "numeric" ? "허용 범위 안일 때만 누를 수 있습니다" : undefined}
             >
-              {saving ? "저장 중…" : "합격"}
+              {saving ? "저장 중…" : "합격 · 저장 후 다음"}
             </button>
             <button
               type="button"
-              disabled={mode === "numeric" && inRange !== false}
+              disabled={loading || saving || !canFail}
               onClick={() => void save("fail")}
-              className={`${passClass} border-rose-600 bg-white text-rose-700 hover:bg-rose-50`}
+              className="dx-btn dx-btn-lg border-rose-500/70 bg-transparent text-rose-300 hover:bg-rose-500/10"
+              title={mode === "numeric" ? "허용 범위 밖일 때만 누를 수 있습니다" : undefined}
             >
-              불합격
+              불합격 저장
             </button>
-          </div>
+          </>
         )}
-        {mode === "numeric" && hasRange && (
-          <p className="text-[10px] text-slate-500">값이 허용 범위 안이면 [합격], 밖이면 [불합격]만 누를 수 있습니다.</p>
-        )}
-
-        {currentRecord ? (
-          <div role="status" className={`space-y-1 rounded p-2.5 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
-            <p className="font-semibold">
-              {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
-              {" · "}
-              {measurementStatusLabels[currentRecord.status]}
-              {currentRecord.measured_value ? ` · ${currentRecord.measured_value} ${unit}` : ""}
-            </p>
-            <p>{currentRecord.judgement_reason}</p>
-            {currentRecord.judgement === "fail" && (
-              <p>측정 위치와 측정기를 확인한 뒤 다시 측정해주세요. 이전 결과는 기록으로 남습니다.</p>
-            )}
-          </div>
-        ) : (
-          dirty && <p className="text-[11px] text-slate-500">입력값이 바뀌었습니다. 버튼을 누르면 저장됩니다.</p>
-        )}
-      </fieldset>
-
-      {error && (
-        <p role="alert" className="note note-error whitespace-pre-wrap">
-          {error}
-        </p>
-      )}
-      </div>
-    </section>
+        <button type="button" className="dx-btn dx-btn-lg dx-icon-btn w-9" aria-label="다음 항목" title="다음 항목" onClick={() => onNavigate?.(1)}>
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </WorkFooter>
+    </div>
   );
 }
