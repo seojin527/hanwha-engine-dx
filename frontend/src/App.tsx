@@ -15,7 +15,6 @@ import { useDeployMode } from "./hooks/useDeployMode";
 import { MoveDrawingDialog } from "./components/shell/MoveDrawingDialog";
 import { ENGINE_PART_LABEL, type EnginePartKey } from "./lib/engineParts";
 import { DrawingLibrary } from "./components/DrawingLibrary";
-import { stageReportUrl } from "./lib/machiningAPI";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 import { apiUrl, drawingFileUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
@@ -774,18 +773,6 @@ export function App() {
             </button>
           )}
 
-          {!isAdmin && purpose === "manufacturing" && document && ocr.snapshot?.revision && (
-            <a
-              href={stageReportUrl(selectedDrawing.drawing_id, ocr.snapshot.revision)}
-              download
-              className="btn btn-dark"
-              title="제품 번호별 실측·편차·판정 (치수 검사 기록서 양식)"
-            >
-              <Download aria-hidden="true" className="h-3.5 w-3.5" />
-              자주검사 성적서
-            </a>
-          )}
-
           {isAdmin && (
             <button
               type="button"
@@ -1201,7 +1188,7 @@ export function App() {
             />
           )}
           {stage === "workspace" && (
-    <PanelLayoutContext.Provider value={{ side: "left", header: isAdmin || demoMode ? drawingContext : undefined }}>
+    <PanelLayoutContext.Provider value={{ side: "left", header: drawingContext }}>
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
       <DrawingLibrary
         uploadRequest={uploadRequest}

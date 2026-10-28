@@ -1,21 +1,18 @@
 /**
  * 부품제작 작업자 페이지.
- * 왼쪽 작업 패널(제품 번호·단계 → 이번 단계 항목 목록 → 기준·입력·판정 → 하단 고정 버튼),
- * 오른쪽 도면(크게) + 아래 접을 수 있는 「측정 전 주의사항 / 오류 사례」.
+ * 도면 뷰어 · 마커 · 하단 측정표 · 오른쪽 패널을 이 파일에서 직접 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
  * 부품제작 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
 import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";
 import { MeasurementPanel } from "../components/MeasurementPanel";
+import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
 import { ResizablePanels } from "../components/ResizablePanels";
 import { ManufacturingPanel } from "../components/ManufacturingPanel";
-import { PointErrorForm } from "../components/PointErrorForm";
-import { WorkAssistPanel, useCaseSearch } from "../components/work/WorkParts";
-import type { OcrPoint } from "../lib/ocr";
-import { useEffect, useState } from "react";
-import { fetchStageErrors, useMachining } from "../lib/machiningAPI";
-import { NoDocument } from "./MeasureWorkPage";
+import { reviewInfoOf, type OcrPoint } from "../lib/ocr";
+import { useEffect } from "react";
+import { useMachining } from "../lib/machiningAPI";
 import { WorkerBlockedNotice } from "./WorkspaceShared";
 import type { WorkspacePageProps } from "./workspaceTypes";
 
@@ -100,89 +97,128 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     if (!stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
   }, [stageListKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 관련 오류 사례: 이번 단계(황삭 후·중삭 후·정삭 후)와 '가공 공통' 사례만 찾는다.
-  const drawingId = selectedDrawing?.drawing_id ?? "";
-  const item = activeOcrPoint?.source;
-  const working = !demoMode && !!document && !!selectedDrawing && !!revision;
-  const caseKey = `manufacturing/${drawingId}/${revision}/${machining.serial}/${machining.stage}/${item?.id}`;
-  const search = useCaseSearch(caseKey, working && !!item, async (signal) =>
-    (await fetchStageErrors(drawingId, item!.id, machining.stage, signal)).errors,
-  );
-  const [linkedCount, setLinkedCount] = useState<number | null>(null);
-
   if (workerBlocked) {
     return <WorkerBlockedNotice />;
   }
 
-  const viewer = (
-    <DrawingViewer
-      key={demoMode ? "demo" : selectedDrawing?.drawing_id || "empty"}
-      drawingUrl={demoMode ? "/images/1_image.png" : resultUrl}
-      mediaType={demoMode ? "image/png" : document ? "image/jpeg" : selectedDrawing?.media_type}
-      points={demoMode ? demo.points : filteredOcrPoints}
-      coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
-      selectedPointId={demoMode ? demo.selectedPointId : activeOcrPoint?.id || 0}
-      onSelectPoint={demoMode ? demo.onSelectPoint : onSelectOcrPoint}
-      inspectionRecords={demoMode ? demo.inspectionRecords : stageMarkerRecords}
-      isAnalyzing={!demoMode && ocrStatus === "applying"}
-      analyzingStep={0}
-      analyzingStage={ocrStage}
-    />
-  );
-
-  if (demoMode) {
-    return (
-      <ResizablePanels
-        left={<>{viewer}<MeasurementTable points={demo.points} selectedPointId={demo.selectedPointId} onSelectPoint={demo.onSelectPoint} inspectionRecords={demo.inspectionRecords} selectedItemId={demo.selectedItemId} onSelectItem={demo.onSelectItem} /></>}
-        right={<MeasurementPanel currentPoint={demo.currentPoint} totalPointsCount={demo.total} onNavigatePoint={demo.onNavigatePoint} record={demo.inspectionRecords[demo.selectedPointId] || {}} onSaveRecord={demo.onSaveRecord} selectedItemId={demo.selectedItemId} onSelectItemId={demo.onSelectItemId} />}
-      />
-    );
-  }
-
   return (
-    <ResizablePanels
-      left={
-        <>
-          {viewer}
-          {working && activeOcrPoint && (
-            <WorkAssistPanel
-              search={search}
-              linkedCount={linkedCount}
-              emptyNote={`${["", "황삭", "중삭", "정삭"][Number(machining.stage)]} 측정 전에 확인할 내용입니다.`}
-              linked={
-                <PointErrorForm
-                  key={`cases-${caseKey}`}
-                  purpose="manufacturing"
-                  readOnly={readOnly}
-                  drawingId={drawingId}
-                  revision={revision!}
-                  item={activeOcrPoint.source}
-                  number={activeOcrPoint.displayNumber}
-                  onIndexed={search.retry}
-                  onCount={setLinkedCount}
-                />
-              }
+    <ResizablePanels left={<>
+      <DrawingViewer
+        key={
+          demoMode
+            ? "demo"
+            : selectedDrawing?.drawing_id || "empty"
+        }
+        drawingUrl={
+          demoMode ? "/images/1_image.png" : resultUrl
+        }
+        mediaType={
+          demoMode ? "image/png" : document ? "image/jpeg" : selectedDrawing?.media_type
+        }
+        points={demoMode ? demo.points : filteredOcrPoints}
+        coordinateSize={!demoMode && document ? { width: document.image.width_px, height: document.image.height_px } : undefined}
+        selectedPointId={demoMode ? demo.selectedPointId : activeOcrPoint?.id || 0}
+        onSelectPoint={demoMode ? demo.onSelectPoint : onSelectOcrPoint}
+        inspectionRecords={demoMode ? demo.inspectionRecords : stageMarkerRecords}
+        isAnalyzing={!demoMode && ocrStatus === "applying"}
+        analyzingStep={0}
+        analyzingStage={ocrStage}
+      />
+
+      {demoMode ? (
+        <MeasurementTable
+          points={demo.points}
+          selectedPointId={demo.selectedPointId}
+          onSelectPoint={demo.onSelectPoint}
+          inspectionRecords={demo.inspectionRecords}
+          selectedItemId={demo.selectedItemId}
+          onSelectItem={demo.onSelectItem}
+        />
+      ) : document ? (
+        <OcrMeasurementTable
+          points={stageTablePoints}
+          selectedId={activeOcrPoint?.id || 0}
+          onSelect={onSelectOcrPoint}
+          title={stageOn ? `${document.part_name || "도면"} · ${machining.serial} ${["", "황삭", "중삭", "정삭"][Number(machining.stage)]}` : document.part_name || "도면"}
+          records={stageOn ? machining.stageRecords : measurementRecords}
+          reviewed={document.review_status === "reviewed"}
+        />
+      ) : (
+        <section className="flex shrink-0 items-baseline gap-3 border-t border-slate-800 bg-slate-900 px-3 py-2">
+          <h2 className="text-xs font-semibold text-slate-200">
+            측정항목
+          </h2>
+          <p className="min-w-0 text-[11px] text-slate-400">
+            {selectedDrawing
+              ? (ocrStatus === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
+              : "도면을 선택하거나 등록해주세요."}
+          </p>
+        </section>
+      )}
+    </>} right={<>
+      {demoMode ? (
+        <MeasurementPanel
+          currentPoint={demo.currentPoint}
+          totalPointsCount={demo.total}
+          onNavigatePoint={demo.onNavigatePoint}
+          record={demo.inspectionRecords[demo.selectedPointId] || {}}
+          onSaveRecord={demo.onSaveRecord}
+          selectedItemId={demo.selectedItemId}
+          onSelectItemId={demo.onSelectItemId}
+        />
+      ) : document && selectedDrawing && revision ? (
+        <div className="flex h-full min-h-0 flex-col bg-white">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ManufacturingPanel
+              readOnly={readOnly}
+              drawingId={selectedDrawing.drawing_id}
+              revision={revision}
+              point={activeOcrPoint}
+              position={stageIndex + 1}
+              total={stagePoints.length}
+              labelTotal={ocrPoints.length}
+              onNavigate={navigateStage}
+              reviewInfo={reviewInfoOf(document)}
+              machining={machining}
+              unit={document.unit || "mm"}
             />
+          </div>
+        </div>
+      ) : (
+        <section className="space-y-3 p-4">
+          <h2 className="card-title">
+            도면 정보
+          </h2>
+
+          {selectedDrawing ? (
+            <>
+              <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-xs">
+                <dt className="text-slate-500">파일명</dt>
+                <dd className="break-all text-slate-900">
+                  {selectedDrawing.original_filename}
+                </dd>
+                <dt className="text-slate-500">파일 크기</dt>
+                <dd className="font-mono text-slate-900">
+                  {(
+                    selectedDrawing.size_bytes /
+                    1024 /
+                    1024
+                  ).toFixed(2)}{" "}
+                  MB
+                </dd>
+              </dl>
+
+              <p className={`note ${ocrStatus === "applying" ? "note-info" : "note-warn"}`}>
+                {ocrStatus === "applying" ? "CPU OCR 분석 중입니다. 완료 후 측정항목을 표시하고 관련 오류·주의사항을 검색합니다." : "OCR 실행 대기 중입니다. 새 업로드는 자동 분석되며 기존 도면은 상단의 OCR 실행을 눌러주세요."}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-500">
+              상단에서 부품과 도면을 선택해주세요.
+            </p>
           )}
-        </>
-      }
-      right={
-        working ? (
-          <ManufacturingPanel
-            readOnly={readOnly}
-            drawingId={drawingId}
-            revision={revision!}
-            point={activeOcrPoint}
-            points={stageTablePoints}
-            onSelect={onSelectOcrPoint}
-            onNavigate={navigateStage}
-            machining={machining}
-            unit={document!.unit || "mm"}
-          />
-        ) : (
-          <NoDocument selected={!!selectedDrawing} name={selectedDrawing?.original_filename} analyzing={ocrStatus === "applying"} />
-        )
-      }
-    />
+        </section>
+      )}
+    </>} />
   );
 }

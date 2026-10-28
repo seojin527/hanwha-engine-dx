@@ -32,6 +32,6 @@ export function retryCaseIndex(purpose: WorkPurpose, caseId: string) {
   return json<RegistrationResult>(`/api/purposes/${purpose}/error-cases/${encodeURIComponent(caseId)}/retry-index`, post({}));
 }
 export function fetchPointReports(purpose: WorkPurpose, drawingId: string, itemId: string, revision: string, signal?: AbortSignal) {
-  return json<{reports: {case_id: string; case_title: string; error_description: string; vector_status: string; created_at: string; active?: boolean}[]}>(
+  return json<{reports: {case_id: string; case_title: string; error_description: string; vector_status: string; created_at: string}[]}>(
     `${purposeBase(purpose, drawingId)}/items/${encodeURIComponent(itemId)}/error-cases?revision=${encodeURIComponent(revision)}`, {signal});
 }

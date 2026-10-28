@@ -216,12 +216,6 @@ export interface ErrorCandidate {
   exclude_condition?: string;
   data_origin?: string;
   source_file?: string;
-  /** 오류사례 DB 에 값이 있을 때만 온다 (없으면 화면에 표시하지 않는다) */
-  corrective_action?: string;
-  impact?: string;
-  severity?: string;
-  process_stage?: string;
-  error_type?: string;
   distance: number;
 }
 /** 화면 표시명(name)과 서버가 실제 검색에 쓴 부품 식별값(key: 3D 연결 키 또는 공통 별칭 · families: 오류 DB 표기). */
