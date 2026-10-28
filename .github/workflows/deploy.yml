@@ -120,7 +120,7 @@ jobs:
           if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub 2>/dev/null; then
             # 값 자체는 출력하지 않고 형식만 알려준다.
             K=~/.ssh/deploy_key
-            echo "형식 점검: 줄 수=$(wc -l < $K), 첫 줄이 BEGIN=$(head -1 $K | grep -q '^-----BEGIN OPENSSH PRIVATE KEY-----$' && echo 예 || echo 아니오), 마지막 줄이 END=$(tail -1 $K | grep -q '^-----END OPENSSH PRIVATE KEY-----$' && echo 예 || echo 아니오), 공개키 형식(ssh-ed25519 ...)=$(grep -q '^ssh-' $K && echo 예 || echo 아니오), 다른 형식 머리줄=$(grep -o '^-----BEGIN [A-Z ]*-----' $K | head -1 || true)"
+            echo "::warning title=DEPLOY_SSH_KEY 형식 점검::줄 수=$(wc -l < $K), 첫 줄이 BEGIN=$(head -1 $K | grep -q '^-----BEGIN OPENSSH PRIVATE KEY-----$' && echo 예 || echo 아니오), 마지막 줄이 END=$(tail -1 $K | grep -q '^-----END OPENSSH PRIVATE KEY-----$' && echo 예 || echo 아니오), 공개키 형식(ssh-ed25519 ...)=$(grep -q '^ssh-' $K && echo 예 || echo 아니오), 다른 형식 머리줄=$(grep -o '^-----BEGIN [A-Z ]*-----' $K | head -1 || true)"
             echo "::error::DEPLOY_SSH_KEY 를 개인키로 읽을 수 없습니다. hanwha_dx_actions(.pub 아님) 파일 전체를 BEGIN 줄부터 END 줄까지 넣었는지 확인하세요"; exit 1
           fi
           echo "Actions 키 지문: $(ssh-keygen -lf ~/.ssh/deploy_key.pub | cut -d' ' -f2)"
