@@ -200,5 +200,61 @@ class SaveSettings(unittest.TestCase):
         self.assertEqual((item["lower_limit"], item["upper_limit"]), (0.8, 1.2))
 
 
+class LegendValueMisread(unittest.TestCase):
+    """범례 값의 1을 l 로 읽은 실제 사례: 'R2 = Ral.6' (크로스헤드 도면)."""
+
+    def test_l_read_as_one_in_value(self):
+        legend = roughness_legend("PART NAME CROSS HEAD\nR1 = Ra 0.4, R2 = Ral.6")
+        self.assertEqual({key: value["text"] for key, value in legend.items()}, {"R1": "Ra 0.4", "R2": "Ra 1.6"})
+        self.assertFalse(legend["R1"]["misread"])
+        self.assertTrue(legend["R2"]["misread"])
+        self.assertFalse(legend["R2"]["key_misread"])
+        self.assertEqual(legend["R2"]["raw"], "l.6")      # 읽힌 그대로를 남긴다
+
+    def test_other_confusions(self):
+        self.assertEqual(roughness_legend("R2 = RaO.8")["R2"]["text"], "Ra 0.8")      # 0 을 O 로
+        self.assertEqual(roughness_legend("R2 = Ra I.6 um")["R2"]["text"], "Ra 1.6")  # 1 을 I 로
+
+    def test_value_needs_a_real_digit(self):
+        # 숫자가 하나도 없으면 무엇을 뜻하는지 알 수 없으므로 읽지 않는다.
+        for title in ("R2 = Ral", "R2 = RaO", "R2 = Ra l l"):
+            self.assertEqual(roughness_legend(title), {}, title)
+
+    def test_t_is_not_guessed(self):
+        self.assertEqual(roughness_legend("R2 = Rat.6"), {})
+
+    def test_conflicting_values_still_dropped(self):
+        legend = roughness_legend("R2 = Ra 1.6\nR2 = Ral.8\nR1 = Ra 0.4")
+        self.assertEqual(set(legend), {"R1"})
+
+
+class ConvertWithValueMisread(unittest.TestCase):
+    """OCR이 범례를 단어 단위로 'R1 = Ra 0.4, R2 = Ral.6' 처럼 읽었을 때 R1·R2 항목이 모두 표면 거칠기가 된다."""
+
+    WORDS = [("R1", 100), ("=", 160), ("Ra", 190), ("0.4,", 240), ("R2", 330), ("=", 390), ("Ral.6", 420)]   # 실제 OCR은 Ra 와 값을 붙여 읽음
+
+    def setUp(self):
+        self.doc = convert(origin(["R1", "R2", "R5"], legend_words=self.WORDS), "T", "T.jpg")
+        self.items = items_by_text(self.doc)
+
+    def test_both_symbols_are_surface(self):
+        self.assertEqual(self.items["R1"]["surface_roughness"], "Ra 0.4")
+        self.assertEqual(self.items["R2"]["surface_roughness"], "Ra 1.6")
+        for raw in ("R1", "R2"):
+            self.assertEqual(self.items[raw]["feature_type"], "SURFACE", raw)
+            self.assertTrue(self.items[raw]["requires_review"], raw)
+        self.assertEqual(self.doc["roughness_legend"], {"R1": "Ra 0.4", "R2": "Ra 1.6"})
+
+    def test_misread_is_flagged_only_where_it_happened(self):
+        r1 = " ".join(self.items["R1"]["review_reasons"])
+        r2 = " ".join(self.items["R2"]["review_reasons"])
+        self.assertNotIn("OCR 오독", r1)
+        self.assertIn("l.6", r2)
+        self.assertIn("도면과 대조", r2)
+
+    def test_real_radius_unchanged(self):
+        self.assertEqual(self.items["R5"]["feature_type"], "RADIUS")
+
+
 if __name__ == "__main__":
     unittest.main()

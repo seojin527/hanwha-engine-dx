@@ -9,7 +9,11 @@ NUMBER = r'\d+(?:\.\d+)?'
 ROUGH_NUMBER = r'\d+(?:\.\d+)?|\.\d+'
 # 거칠기 기호 글자: R 뒤 숫자. OCR이 1을 i, I, l, L, | 로 읽는 경우를 같은 글자로 본다.
 ROUGH_KEY_CHAR = r'[0-9iIlL|]'
-ROUGH_LEGEND_RE = re.compile(rf'(?<![A-Za-z0-9])R\s*({ROUGH_KEY_CHAR})\s*[=:]\s*Ra\s*({ROUGH_NUMBER})')
+# 범례 값(R2 = Ral.6)에서만 쓰는 느슨한 숫자: OCR이 1을 l·I·i·| 로, 0을 O·o 로 읽는 경우를 받는다.
+# 진짜 숫자가 하나는 있어야 하고(Ra l, Ra O 는 읽지 않음), 'Rat.8' 처럼 t 가 섞인 건 읽지 않는다.
+ROUGH_LEGEND_NUMBER = r'(?=[0-9iIl|oO.]*\d)[0-9iIl|oO]*\.?[0-9iIl|oO]+'
+ROUGH_MISREAD = str.maketrans('iIl|oO', '111100')
+ROUGH_LEGEND_RE = re.compile(rf'(?<![A-Za-z0-9])R\s*({ROUGH_KEY_CHAR})\s*[=:]\s*Ra\s*({ROUGH_LEGEND_NUMBER})')
 ROUGH_KEY_RE = re.compile(rf'R\s*({ROUGH_KEY_CHAR})')
 
 
@@ -21,13 +25,23 @@ def roughness_text(value):
 def roughness_legend(title):
     """표제란 글자에서 'R1 = Ra 0.8' 범례를 찾는다. 같은 기호에 값이 다르면 그 기호는 읽지 않는다.
 
-    반환: {'R1': {'text': 'Ra 0.8', 'misread': False}, ...}. misread 는 1을 i/l 등으로 읽어 보정했다는 뜻.
+    반환: {'R1': {'text': 'Ra 0.8', 'misread': False, 'key_misread': False, 'raw': None}, ...}.
+    misread 는 기호나 값의 글자를 OCR 오독으로 보고 보정했다는 뜻이다.
+    key_misread: 기호의 1을 i/l 등으로 읽음 (Ri → R1). raw: 값의 글자를 보정했을 때 읽힌 그대로의 값 (Ral.6).
     """
     found, conflict = {}, set()
     for match in ROUGH_LEGEND_RE.finditer(title or ''):
         char = match[1]
         key = 'R' + (char if char.isdigit() else '1')
-        entry = {'text': roughness_text(match[2]), 'misread': not char.isdigit()}
+        raw_number = match[2]
+        try:
+            text = roughness_text(raw_number.translate(ROUGH_MISREAD))
+        except ValueError:
+            continue
+        value_misread = any(ch not in '0123456789.' for ch in raw_number)
+        key_misread = not char.isdigit()
+        entry = {'text': text, 'misread': key_misread or value_misread,
+                 'key_misread': key_misread, 'raw': raw_number if value_misread else None}
         if key in found and found[key]['text'] != entry['text']:
             conflict.add(key)
         elif key not in found or not entry['misread']:
@@ -55,8 +69,10 @@ def apply_roughness_legend(item, legend):
     reasons = [f'표제란 범례 {key} = {entry["text"]}: 표면 거칠기로 읽음 (반지름이면 확정 표기를 {key}로 고치세요)']
     if match[1] != key[1]:
         reasons.append(f'기호 {match[0]!r}는 {key}의 OCR 오독으로 봄: 도면 확인 필요')
-    if entry['misread']:
+    if entry.get('key_misread'):
         reasons.append(f'범례의 {key} 글자가 OCR에서 다르게 읽힘: 도면 확인 필요')
+    if entry.get('raw'):
+        reasons.append(f'범례 값 {entry["raw"]!r}를 {entry["text"]}로 읽음 (1을 l 등으로 읽은 OCR 오독 보정): 도면과 대조하세요')
     reasons.append('합격 기준은 관리자가 지정 (도면에서 임의로 만들지 않음)')
     item['review_reasons'] = reasons
     item['requires_review'] = True
