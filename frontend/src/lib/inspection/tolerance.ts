@@ -109,6 +109,19 @@ export function parseDimension(text: string): ParsedDimension {
 }
 
 /**
+ * 괄호 공차가 붙은 치수 표기를 기준치수와 공차로 나눈다: '⌀680(+.08/0)' → { base: '⌀680', upper: 0.08, lower: 0 }.
+ * 괄호 공차가 없거나(±, 괄호 없는 +x/-y 포함) 해석할 수 없으면 null. 원문은 바꾸지 않고 화면 초기값에만 쓴다.
+ */
+export function splitParenTolerance(text: string): { base: string; upper: number; lower: number } | null {
+  const value = text.trim();
+  const match = value.match(PLAIN_RE);
+  if (!match || !match[4]) return null;
+  const parsed = parseDimension(value);
+  if (!parsed.valid || !parsed.drawing) return null;
+  return { base: value.slice(0, value.indexOf("(")).trim(), upper: parsed.drawing.upper, lower: parsed.drawing.lower };
+}
+
+/**
  * 숫자 입력칸(특별 공차 편차 등) 값 해석. OCR 원문 표기에는 쓰지 않는다.
  * '.3' → 0.3, '-.3' → -0.3, '+0.05' → 0.05. ',3'·'1e3'·'0x1'·빈 값처럼 소수 표기가 아니면 null (임의로 바꾸지 않는다).
  */

@@ -22,6 +22,7 @@ import {
   normalizeGdtValueText,
   parseDecimal,
   parseDimension,
+  splitParenTolerance,
   type ParsedDimension,
   type ToleranceSource,
 } from "../lib/inspection/tolerance";
@@ -247,14 +248,32 @@ export default function DrawingReviewPanel({
   // 저장된 관리자 설정(inspection_approved)은 기본값으로 덮어쓰지 않는다.
   useEffect(() => {
     const reviewed = source.result.review_status === "reviewed";
-    // 표제란 범례(R1 = Ra 0.8)로 거칠기로 읽은 항목은 확정 표기를 "Ra 0.8"로 시작한다. OCR 원문(R1)은 되돌리기로 복원.
+    // 표제란 범례(R1 = Ra 0.8)로 거칠기로 읽은 항목은 확정 표기를 "Ra 0.8"로 시작한다. OCR 원문(R1)은 아래 "OCR 원문" 표시로 확인한다.
     const roughnessByNo = new Map(
       source.result.items
         .filter((item) => item.category === "DIMENSION" && item.surface_roughness)
         .map((item) => [itemNumber(item), item.surface_roughness as string]),
     );
+    // 괄호 공차 ⌀680(+.08/0)는 확정 표기를 "⌀680"으로 시작하고, 공차는 특별 공차 칸에 미리 채운다 (OCR 원문은 화면의 "OCR 원문" 표시로 확인).
+    // 이미 승인된 항목은 저장된 표기를 그대로 보여준다.
+    const approvedNos = new Set(
+      source.result.items
+        .filter((item) => reviewed && item.inspection_approved === true)
+        .map((item) => itemNumber(item)),
+    );
+    const parenByNo = new Map<number, NonNullable<ReturnType<typeof splitParenTolerance>>>();
+    for (const dim of source.review.dimensions) {
+      if (roughnessByNo.has(dim.no) || approvedNos.has(dim.no)) continue;
+      const split = splitParenTolerance(dim.text);
+      if (split) parenByNo.set(dim.no, split);
+    }
     setDimensions(
-      Object.fromEntries(source.review.dimensions.map((item) => [item.item_id, roughnessByNo.get(item.no) ?? item.text])),
+      Object.fromEntries(
+        source.review.dimensions.map((item) => [
+          item.item_id,
+          roughnessByNo.get(item.no) ?? parenByNo.get(item.no)?.base ?? item.text,
+        ]),
+      ),
     );
     setGdtValues(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.value])));
     setGdtSymbols(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.symbol])));
@@ -292,7 +311,8 @@ export default function DrawingReviewPanel({
       const defaults: string[] = [];
       const { feature, isDefault } = defaultFeature(item, allowed, parsed.kind);
       if (isDefault) defaults.push("feature_type");
-      const toleranceSource = isGauge ? "" : defaultToleranceSource(parsed);
+      const paren = parenByNo.get(itemNumber(item));
+      const toleranceSource = isGauge ? "" : paren ? "special" : defaultToleranceSource(parsed);
       if (toleranceSource === "general") defaults.push("tolerance_source");
       // 해석은 됐지만 일반공차 표 범위 밖인 치수: 실측 판정 기준이 없으므로 합격·불합격 기록으로 기본 설정
       const gaugeFallback = !isGauge && parsed.valid && toleranceSource === "";
@@ -302,8 +322,8 @@ export default function DrawingReviewPanel({
         mode: isGauge || gaugeFallback ? "gauge" : "numeric",
         feature,
         toleranceSource,
-        upper: "",
-        lower: "",
+        upper: paren && !isGauge ? deviationText(paren.upper) : "",
+        lower: paren && !isGauge ? deviationText(paren.lower) : "",
         unit,
         instrument: savedInstrument || defaultInstrument(feature, rowSymbols),
         instrumentAuto: !savedInstrument,
@@ -1246,10 +1266,7 @@ function SelectedItem({
               )}
               {dimText !== dim.text && (
                 <p className="text-[11px] text-slate-500">
-                  OCR 원문: <span className="font-mono">{dim.text}</span>{" "}
-                  <button type="button" className="underline" onClick={() => onDimension(dim.text)}>
-                    되돌리기
-                  </button>
+                  OCR 원문: <span className="font-mono">{dim.text}</span>
                 </p>
               )}
               {isSurface && (
