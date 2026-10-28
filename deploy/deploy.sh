@@ -26,7 +26,10 @@ if [[ $OCR_ENABLED =~ ^(0|false|no|off)$ ]]; then
 fi
 
 echo "== 1. 배포 전 데이터 백업"
-if [[ -f $DATA/storage/library.sqlite3 ]]; then
+# 자동 배포(ci/hanwha-dx-ci-deploy)는 코드 체크아웃 전에 직접 백업하고 SKIP_BACKUP=1 로 부른다.
+if [[ ${SKIP_BACKUP:-0} == 1 ]]; then
+  echo "(배포 래퍼가 이미 백업함)"
+elif [[ -f $DATA/storage/library.sqlite3 ]]; then
   bash "$APP/deploy/backup.sh" pre-deploy
 fi
 

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# deployer 계정의 authorized_keys 에 command= 로 묶인 게이트. 셸·임의 명령은 허용하지 않는다.
+# 서버에는 /usr/local/sbin/hanwha-dx-deploy-gate 로 설치한다 (deploy/setup_ci_deploy.sh).
+set -euo pipefail
+read -r action sha extra <<<"${SSH_ORIGINAL_COMMAND:-}" || true
+case "${action:-}" in
+  status)
+    [[ -z ${sha:-} ]] || { echo "허용되지 않은 명령"; exit 2; }
+    exec sudo -n /usr/local/sbin/hanwha-dx-ci-deploy status
+    ;;
+  deploy|rollback)
+    [[ -z ${extra:-} && ${sha:-} =~ ^[0-9a-f]{40}$ ]] || { echo "형식: $action <40자리 SHA>"; exit 2; }
+    exec sudo -n /usr/local/sbin/hanwha-dx-ci-deploy "$action" "$sha"
+    ;;
+  *)
+    echo "허용되지 않은 명령 (status | deploy <sha> | rollback <sha>)"
+    exit 2
+    ;;
+esac

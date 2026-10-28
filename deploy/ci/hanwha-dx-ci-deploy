@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# 자동 배포 진입점 (root). GitHub Actions 가 deployer 계정·전용 키로 접속하면 게이트를 거쳐 sudo 로 이 파일만 실행된다.
+# 서버에는 /usr/local/sbin/hanwha-dx-ci-deploy 로 설치한다 (deploy/setup_ci_deploy.sh). 저장소의 이 파일을 고쳐도
+# 다시 설치하기 전에는 서버 동작이 바뀌지 않는다.
+#
+#   hanwha-dx-ci-deploy status                 현재 배포된 커밋
+#   hanwha-dx-ci-deploy deploy   <40자리 SHA>   deploy-main4 의 커밋 배포 (더 새 커밋이 이미 있으면 건너뜀)
+#   hanwha-dx-ci-deploy rollback <40자리 SHA>   deploy-main4 의 이전 커밋으로 되돌림 (수동 실행용)
+#
+# 순서: 잠금 대기(취소 없음) → 브랜치 확인 → 오래된 커밋 거부 → 데이터 백업 → 체크아웃 → 그 커밋의 deploy.sh
+#       → health·HTTPS·정책 확인 → 실패하면 이전 커밋으로 다시 배포
+set -euo pipefail
+
+BRANCH=deploy-main4
+APP=/opt/hanwha-dx/app
+LOCK=/run/lock/hanwha-dx-deploy.lock
+LOG_DIR=/var/log/hanwha-dx-deploy
+as_app() { sudo -u hanwha -H "$@"; }
+current() { as_app git -C "$APP" rev-parse HEAD; }
+
+action=${1:-}
+sha=${2:-}
+cd /opt/hanwha-dx
+
+if [[ $action == status ]]; then
+  echo "deployed=$(current)"
+  exit 0
+fi
+[[ $action == deploy || $action == rollback ]] || { echo "사용법: status | deploy <sha> | rollback <sha>"; exit 2; }
+[[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "커밋은 40자리 SHA 로 지정합니다"; exit 2; }
+
+mkdir -p "$LOG_DIR"
+LOG=$LOG_DIR/$(date +%Y%m%d-%H%M%S)-$action-${sha:0:12}.log
+exec > >(tee -a "$LOG") 2>&1
+
+# 동시에 하나만. 앞 배포를 끊지 않고 끝날 때까지 기다린다.
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "[잠금] 다른 배포가 진행 중입니다. 끝날 때까지 기다립니다."
+  flock 9
+fi
+echo "[시작] $action $sha ($(date -Is))"
+
+set -a; source /etc/hanwha-dx/hanwha-dx.env; set +a
+
+as_app git -C "$APP" fetch --prune --quiet origin
+as_app git -C "$APP" cat-file -e "$sha^{commit}" 2>/dev/null || { echo "!! 저장소에 없는 커밋입니다"; exit 3; }
+if ! as_app git -C "$APP" merge-base --is-ancestor "$sha" "origin/$BRANCH"; then
+  echo "!! $BRANCH 브랜치에 없는 커밋은 배포하지 않습니다"; exit 3
+fi
+
+prev=$(current)
+echo "[현재] $prev"
+if [[ $action == deploy && $sha != "$prev" ]] && as_app git -C "$APP" merge-base --is-ancestor "$sha" "$prev"; then
+  # 늦게 도착한 이전 커밋이 최신 배포를 덮지 않게 한다. 되돌리려면 rollback 을 쓴다.
+  echo "[건너뜀] 더 새 커밋이 이미 배포되어 있습니다"
+  echo "result=skipped-older deployed=$prev"
+  exit 0
+fi
+
+verify() {
+  local host_check
+  curl -fsS --max-time 10 http://127.0.0.1:8000/health >/dev/null || { echo "!! 로컬 health 실패"; return 1; }
+  # 공개 HTTPS 주소에서도 화면·API 가 나오는지, 체험 모드·OCR 차단 정책이 그대로인지 확인한다.
+  curl -fsS --max-time 15 "https://$PUBLIC_HOST/" | grep -q '<div id="root">' || { echo "!! 공개 주소 화면 응답 실패"; return 1; }
+  host_check=$(curl -fsS --max-time 15 "https://$PUBLIC_HOST/api/deploy-mode") || { echo "!! 공개 주소 API 응답 실패"; return 1; }
+  grep -q '"read_only":true' <<<"$host_check" || { echo "!! 관람객 읽기 전용이 아닙니다: $host_check"; return 1; }
+  grep -q '"ocr_enabled":false' <<<"$host_check" || { echo "!! 서버 OCR 이 꺼져 있지 않습니다: $host_check"; return 1; }
+  [[ $(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$ADMIN_HOST/") == 401 ]] || { echo "!! 관리자 주소가 인증 없이 열립니다"; return 1; }
+  echo "[확인] health · 공개 HTTPS · 읽기 전용 · OCR 차단 · 관리자 인증 정상"
+}
+
+run_deploy() {
+  local target=$1 script rc
+  as_app git -C "$APP" checkout --quiet --detach "$target"
+  # 실행 중에 스크립트 파일이 바뀌지 않도록 그 커밋의 deploy.sh 를 복사해서 실행한다.
+  script=$(mktemp /tmp/hanwha-dx-deploy.XXXXXX.sh)
+  cp "$APP/deploy/deploy.sh" "$script"
+  set +e
+  SKIP_BACKUP=1 bash "$script" "$target"
+  rc=$?
+  set -e
+  rm -f "$script"
+  return $rc
+}
+
+echo "[백업] 배포 전 데이터"
+bash "$APP/deploy/backup.sh" pre-deploy
+
+if run_deploy "$sha" && verify; then
+  echo "result=deployed sha=$sha previous=$prev"
+  exit 0
+fi
+
+echo "!! 배포 또는 확인 실패 → 이전 커밋 $prev 로 되돌립니다"
+if [[ $sha != "$prev" ]] && run_deploy "$prev" && verify; then
+  echo "result=rolled-back failed=$sha restored=$prev"
+  exit 1
+fi
+echo "result=broken failed=$sha previous=$prev (수동 확인 필요: journalctl -u hanwha-dx, $LOG)"
+exit 4
