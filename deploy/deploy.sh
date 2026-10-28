@@ -14,6 +14,8 @@ VENV_OCR=/opt/hanwha-dx/venv-ocr
 DATA=/srv/hanwha-dx
 as_app() { sudo -u hanwha -H "$@"; }
 [[ $EUID -eq 0 ]] || { echo "root 로 실행하세요 (sudo)"; exit 1; }
+# hanwha 사용자로 실행하는 uv·npm 이 현재 폴더(/root 등)의 설정 파일을 읽으려다 권한 오류가 나지 않게 한다.
+cd /opt/hanwha-dx
 set -a; source /etc/hanwha-dx/hanwha-dx.env; set +a
 OCR_ENABLED=${OCR_ENABLED:-1}
 if [[ $OCR_ENABLED =~ ^(0|false|no|off)$ ]]; then
