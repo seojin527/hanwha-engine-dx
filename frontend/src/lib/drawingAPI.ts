@@ -1,7 +1,10 @@
 import type { WorkPurpose } from "./purpose";
 
-// 백엔드 주소. 기본은 로컬 서버이며, 검증용으로 다른 서버를 쓸 때만 VITE_API_BASE 로 바꾼다.
-const API_BASE: string = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+// 백엔드 주소. 개발 서버(npm run dev)는 로컬 백엔드, 빌드본은 화면과 같은 주소(origin)의 /api 를 쓴다.
+// 다른 서버를 쓸 때만 VITE_API_BASE 로 바꾼다.
+const API_BASE: string =
+  import.meta.env.VITE_API_BASE ||
+  (import.meta.env.DEV ? "http://127.0.0.1:8000" : window.location.origin);
 
 export interface Part {
   part_id: string;

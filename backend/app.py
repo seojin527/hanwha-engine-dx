@@ -2,7 +2,7 @@ import json
 from contextlib import asynccontextmanager
 
 import chromadb
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
 
@@ -23,6 +23,7 @@ from purpose_errors.vectors import ensure_collections
 from paths import LEGACY_ERROR_COLLECTION, SAMPLE_METADATA, VECTOR_DB_DIR
 from machining_api import init_machining
 from machining_api import router as machining_router
+from deploy_guard import guard_middleware, mode_info
 
 
 
@@ -105,9 +106,18 @@ app.add_middleware(
 )
 
 
+# 공개 배포(DEPLOY_MODE=public)에서 변경 요청을 서버 측에서 막는다. 로컬 실행은 그대로다.
+app.middleware("http")(guard_middleware)
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/deploy-mode")
+def get_deploy_mode(request: Request):
+    return mode_info(request)
 
 
 # 아래 두 경로는 이전 단일 도면 테스트용으로 유지한다.

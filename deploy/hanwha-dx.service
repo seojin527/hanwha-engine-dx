@@ -1,0 +1,28 @@
+# /etc/systemd/system/hanwha-dx.service — 백엔드(FastAPI) 상시 실행.
+# 부팅 시 자동 시작, 비정상 종료 시 5초 뒤 재시작. 로그: journalctl -u hanwha-dx -f
+[Unit]
+Description=Hanwha Engine DX backend (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hanwha
+Group=hanwha
+EnvironmentFile=/etc/hanwha-dx/hanwha-dx.env
+WorkingDirectory=/opt/hanwha-dx/app/backend
+# 단일 프로세스만 쓴다 (--workers 금지: SQLite·OCR 작업자·속도 제한이 한 프로세스 전제).
+ExecStart=/opt/hanwha-dx/venv/bin/python -m uvicorn ${APP_MODULE} --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=5
+# 임베딩 모델 첫 다운로드가 느릴 수 있다.
+TimeoutStartSec=600
+# OCR 하위 프로세스까지 포함한 메모리 상한 (기본값). deploy.sh 가 서버 RAM 에 맞춘 값으로 덮어쓴다 (service.d/memory.conf).
+MemoryHigh=1400M
+MemoryMax=1700M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/hanwha-dx
+
+[Install]
+WantedBy=multi-user.target

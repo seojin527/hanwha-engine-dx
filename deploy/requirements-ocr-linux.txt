@@ -1,0 +1,26 @@
+# 서버용 eDOCr2 CPU OCR 환경 (Python 3.10). deploy.sh 가 /opt/hanwha-dx/venv-ocr 에 설치한다.
+# 로컬 .venv-ocr 에서 test_drawing_cpu.py 가 실제로 불러오는 패키지만 같은 버전으로 고정했다.
+# (로컬 환경의 torch·transformers·chromadb 등은 OCR 실행 경로에서 쓰지 않아 뺐다.)
+tensorflow-cpu==2.10.1
+keras==2.10.0
+protobuf==3.19.6
+numpy==1.23.5
+h5py==3.16.0
+opencv-python==4.8.1.78
+pdf2image==1.17.0
+pytesseract==0.3.13
+pillow==12.3.0
+scipy==1.10.1
+scikit-image==0.21.0
+imgaug==0.4.0
+shapely==2.1.2
+pyclipper==1.4.0
+editdistance==0.8.1
+efficientnet==1.0.0
+Keras-Applications==1.0.8
+essential-generators==1.0
+fonttools==4.65.0
+matplotlib==3.7.5
+validators==0.35.0
+tqdm==4.70.1
+python-dotenv==1.2.4

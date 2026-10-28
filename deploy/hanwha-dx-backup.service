@@ -1,0 +1,6 @@
+[Unit]
+Description=Hanwha Engine DX daily data backup
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/hanwha-dx/app/deploy/backup.sh daily

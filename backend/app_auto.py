@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, File, UploadFile
 
 from app import app
-from drawing_library import upload_drawing
+from deploy_guard import check_ocr_capacity
+from drawing_library import database, upload_drawing
 from ocr_jobs import OcrWorker, enqueue, snapshot
 
 previous_lifespan=app.router.lifespan_context
@@ -25,8 +26,15 @@ app.router.lifespan_context=automatic_lifespan
 router=APIRouter(tags=['CPU OCR 자동 실행'])
 
 
+def active_ocr_count():
+    with database() as db:
+        return db.execute("SELECT COUNT(*) FROM ocr_jobs WHERE status IN ('queued','running')").fetchone()[0]
+
+
 @router.post('/api/parts/{part_id}/drawings',status_code=201)
 def upload_and_start(part_id: str, file: UploadFile=File(...)):
+    # 공개 배포에서는 업로드 전에 OCR 한도를 확인한다 (로컬 실행은 제한 없음)
+    check_ocr_capacity(active_ocr_count())
     drawing=upload_drawing(part_id,file)
     job=enqueue(drawing['drawing_id'])
     return {**drawing,'ocr_status':job['status']}
@@ -39,6 +47,7 @@ def get_automatic_ocr(drawing_id: str):
 
 @router.post('/api/drawings/{drawing_id}/ocr/run',status_code=202)
 def start_ocr(drawing_id: str):
+    check_ocr_capacity(active_ocr_count())
     return enqueue(drawing_id)
 
 

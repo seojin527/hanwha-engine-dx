@@ -1,0 +1,2 @@
+# 서버에서 실행하는 배포 파일은 항상 LF
+deploy/** text eol=lf
