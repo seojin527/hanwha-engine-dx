@@ -12,6 +12,8 @@ import {
   STAGE_KEYS,
   STAGE_NAME,
   fetchStageErrors,
+  quickFillRemembered,
+  rememberQuickFill,
   saveStageRecord,
   stageReportUrl,
   type MachiningItem,
@@ -70,6 +72,7 @@ export function ManufacturingPanel({
   const key = `${drawingId}/${revision}/${machining.serial}/${stage}/${itemId}`;
   const [result, setResult] = useState<{ key: string; loading: boolean; errors: ErrorCandidate[]; error: string }>({ key: '', loading: true, errors: [], error: '' });
   const [retry, setRetry] = useState(0);
+  const [quickFill, setQuickFill] = useState(quickFillRemembered);
   const sequence = useRef(0);
   useEffect(() => {
     if (!itemId) return;
@@ -149,7 +152,7 @@ export function ManufacturingPanel({
 
       <div className="flex-1 space-y-3 p-3">
         {itemPlan && <StageCriteriaCard itemPlan={itemPlan} stage={stage} stageLabel={plan!.stage_labels[stage]} />}
-        {(!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
+        {(!criteria || (criteria.role !== 'allowance' && !criteria.kind)) && <CriteriaCard item={item} />}
         {!plan ? (
           <p className="note note-info">가공 단계 정보를 불러오는 중입니다.</p>
         ) : !criteria ? (
@@ -160,14 +163,27 @@ export function ManufacturingPanel({
             stage={stage}
             criteria={criteria}
             rawText={item.raw_text}
-            unit={item.unit || unit}
-            defaultInstrument={item.instrument ?? ''}
+            unit={criteria.kind === 'roughness' ? 'µm' : item.unit || unit}
+            defaultInstrument={criteria.kind === 'roughness' ? '표면조도계' : item.instrument ?? ''}
             featureType={item.feature_type}
             gdtSymbols={item.category === 'GDT' ? item.raw_text.split('\n').map((row) => row.split('|')[0]) : []}
             record={record}
             locked={readOnly ? READ_ONLY_MESSAGE : locked}
             zeroChecked={machining.zeroChecked}
             onZeroChecked={machining.markZeroChecked}
+            quickFill={quickFill && !readOnly}
+            onQuickFillChange={readOnly ? undefined : (on) => {
+              setQuickFill(on);
+              rememberQuickFill(on);
+            }}
+            onPassed={() => {
+              if (!quickFill) return;
+              // 이번 단계 마지막 합격이면 다음 단계로, 아니면 다음 항목으로
+              const newlyPassed = record?.status !== 'completed';
+              const nextStage = STAGE_KEYS[STAGE_KEYS.indexOf(stage) + 1];
+              if (status && newlyPassed && nextStage && status.passed + 1 >= status.required) machining.setStage(nextStage);
+              else onNavigate(1);
+            }}
             save={async (body) => {
               if (readOnly) throw new Error(READ_ONLY_MESSAGE);
               const saved = await saveStageRecord(drawingId, item.id, { ...body, revision, serial: machining.serial, stage });
@@ -351,9 +367,20 @@ function StageCriteriaCard({ itemPlan, stage, stageLabel }: { itemPlan: Machinin
                   <span className="mt-0.5 block text-[11px] text-slate-500">다음 가공 여유가 남아 있는지 확인합니다. 도면 공차는 정삭에서 판정합니다.</span>
                 </>
               )
-              : criteria.role === 'finish'
-                ? '이 단계에서 마무리 — 도면 공차로 판정'
-                : '마무리(정삭) 후 — 도면 공차로 판정'}
+              : criteria.kind
+                ? (
+                  <>
+                    <span>{criteria.text}</span>
+                    {criteria.lower_limit !== null && criteria.upper_limit !== null && (
+                      <b className="mt-0.5 block font-mono text-[13px] font-semibold text-slate-900">
+                        {formatNumber(criteria.lower_limit)} ~ {formatNumber(criteria.upper_limit)} {criteria.kind === 'roughness' ? 'µm' : 'mm'}
+                      </b>
+                    )}
+                  </>
+                )
+                : criteria.role === 'finish'
+                  ? '이 단계에서 마무리 — 도면 공차로 판정'
+                  : '마무리(정삭) 후 — 도면 공차로 판정'}
         </dd>
       </dl>
     </section>

@@ -11,7 +11,7 @@ import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
 import { ResizablePanels } from "../components/ResizablePanels";
 import { ManufacturingPanel } from "../components/ManufacturingPanel";
 import { reviewInfoOf, type OcrPoint } from "../lib/ocr";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMachining } from "../lib/machiningAPI";
 import { WorkerBlockedNotice } from "./WorkspaceShared";
 import type { WorkspacePageProps } from "./workspaceTypes";
@@ -53,7 +53,30 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         .map((point) => {
           // 황삭·중삭 여유 확인 항목은 도면 공차 대신 단계 목표 범위를 보여준다.
           const criteria = machining.itemPlan(point.source.id)?.stages[machining.stage];
-          if (criteria?.role !== "allowance" || criteria.lower_limit === null || criteria.upper_limit === null) return point;
+          if (criteria?.kind === "roughness" && (criteria.lower_limit === null || criteria.upper_limit === null)) {
+            return { ...point, feature: { name: "표면 거칠기" } }; // Ra 값을 못 읽은 경우 (합격·불합격 기록)
+          }
+          if (!criteria || criteria.lower_limit === null || criteria.upper_limit === null) return point;
+          // 표면 거칠기(Ra)·괄호 끼워맞춤 공차는 이 단계 기준(µm 상한·끼워맞춤 범위)을 보여준다.
+          if (criteria.kind) {
+            const fit = criteria.kind === "fit" && criteria.target !== null;
+            return {
+              ...point,
+              feature: criteria.kind === "roughness" ? { name: "표면 거칠기" } : point.feature,
+              source: {
+                ...point.source,
+                measurement_mode: "numeric",
+                nominal_value: fit ? criteria.target! : undefined,
+                upper_deviation: fit ? criteria.upper_limit - criteria.target! : undefined,
+                lower_deviation: fit ? criteria.lower_limit - criteria.target! : undefined,
+                lower_limit: criteria.lower_limit,
+                upper_limit: criteria.upper_limit,
+                unit: criteria.kind === "roughness" ? "µm Ra" : point.source.unit,
+                tolerance_source: undefined,
+              },
+            };
+          }
+          if (criteria.role !== "allowance") return point;
           const window = (criteria.upper_limit - criteria.lower_limit) / 2;
           return {
             ...point,
@@ -91,10 +114,14 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     onSelectOcrPoint(stagePoints[(index + delta + stagePoints.length) % stagePoints.length].id);
   };
   // 단계가 바뀌면 그 단계의 첫 항목으로 이동한다.
+  // (목록만 다시 불러온 경우에는 보던 항목이 이번 단계에 있으면 그대로 둔다.)
   const stageListKey = stageOn ? `${machining.stage}:${stagePoints.map((point) => point.id).join(",")}` : "";
+  const shownStage = useRef("");
   useEffect(() => {
     if (!stageListKey || !stagePoints.length) return;
-    if (!stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
+    const stageChanged = shownStage.current !== "" && shownStage.current !== machining.stage;
+    shownStage.current = machining.stage;
+    if (stageChanged || !stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
   }, [stageListKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (workerBlocked) {

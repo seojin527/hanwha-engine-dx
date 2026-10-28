@@ -9,7 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from machining_api import judge_allowance, match_template, stage_criteria, stage_status  # noqa: E402
+from machining_api import (  # noqa: E402
+    roughness_items, judge_allowance, judge_range, match_template, parse_fit, signature, stage_criteria, stage_status,
+)
 from machining_templates import TEMPLATES, part_key_for  # noqa: E402
 
 W, H = 2339, 1654
@@ -52,7 +54,8 @@ class Matching(unittest.TestCase):
     def test_part_names(self):
         self.assertEqual(part_key_for("피스톤 로드"), "PR")
         self.assertEqual(part_key_for("", "CRANK SHAFT"), "CS")
-        self.assertIsNone(part_key_for("크로스헤드"))
+        self.assertEqual(part_key_for("", "CROSS HEAD"), "CH")
+        self.assertIsNone(part_key_for("실린더 라이너"))
 
 
 class Criteria(unittest.TestCase):
@@ -82,6 +85,71 @@ class Criteria(unittest.TestCase):
 
     def test_not_measured_stage(self):
         self.assertIsNone(stage_criteria(self.item, {"1": 0.0}, "3"))
+
+
+class RoughnessAndFit(unittest.TestCase):
+    """개정 도면: 표면 거칠기(Ra)·괄호 끼워맞춤 공차가 붙고 일부 표기가 옮겨진 경우."""
+
+    def test_roughness_is_not_a_dimension(self):
+        self.assertEqual(signature("DIMENSION", "Ra0.8"), "S")
+        self.assertEqual(signature("DIMENSION", "Rat.8"), "S")      # OCR 오인식도 Ra 로 시작하면 조도
+        self.assertEqual(signature("DIMENSION", "R500"), "R")
+
+    def test_roughness_does_not_steal_a_dimension_label(self):
+        template = TEMPLATES["CS"]
+        doc = document_from(template)
+        d680 = next(i for i in doc["items"] if i["raw_text"] == "Ø680")
+        # 조도 표기가 원래 Ø680 자리 가까이에 오고, Ø680 은 왼쪽으로 옮겨짐(개정 도면)
+        doc["items"].append({"id": "DIMENSION_099", "category": "DIMENSION", "raw_text": "Ra0.4",
+                             "position": {"x": 0.435 * W, "y": 0.233 * H}})
+        d680["raw_text"], d680["position"] = "⌀680(+0.08/0)", {"x": 0.314 * W, "y": 0.221 * H}
+        matched = match_template(doc, template)
+        self.assertNotIn("DIMENSION_099", matched)
+        self.assertEqual(matched[d680["id"]]["key"], "CS-D680")
+
+    def test_fit_tolerance_in_brackets(self):
+        self.assertEqual(parse_fit("⌀560(+0.07/0)"), (560.0, 0.0, 0.07))
+        self.assertEqual(parse_fit("Ø700(-0.08/-0.16)"), (700.0, -0.16, -0.08))
+        self.assertEqual(parse_fit("⌀680(+.08/0)"), (680.0, 0.0, 0.08))
+        self.assertIsNone(parse_fit("⌀700(:0.08/-0.16)"))           # 깨진 표기는 관리자 검토에서 고친다
+        item = {"id": "D", "category": "DIMENSION", "raw_text": "⌀680(+0.08/0)", "measurement_mode": "gauge",
+                "nominal_value": None, "lower_limit": None, "upper_limit": None}
+        stages = TEMPLATES["CR"]["items"][8]["stages"]
+        self.assertEqual(stage_criteria(item, stages, "1")["target"], 676.0)
+        final = stage_criteria(item, stages, "3")
+        self.assertEqual((final["kind"], final["lower_limit"], final["upper_limit"]), ("fit", 680.0, 680.08))
+        self.assertEqual(judge_range(final, Decimal("680.05"), "정삭")[0], "pass")
+        self.assertEqual(judge_range(final, Decimal("680.09"), "정삭")[0], "fail")
+
+
+class RoughnessLegend(unittest.TestCase):
+    """조도를 R1·R2 기호로 쓰고 표제란에 'R1 = Ra 0.4, R2 = Ra 1.6' 범례를 둔 도면."""
+
+    def doc(self, legend):
+        doc = document_from(TEMPLATES["CS"])
+        doc["title_table_raw"] = legend
+        doc["items"] += [
+            {"id": "DIMENSION_090", "category": "DIMENSION", "raw_text": "R1", "position": {"x": 0.439 * W, "y": 0.232 * H}},
+            {"id": "DIMENSION_091", "category": "DIMENSION", "raw_text": "R2", "position": {"x": 0.401 * W, "y": 0.570 * H}},
+        ]
+        return doc
+
+    def test_legend_symbols_become_roughness(self):
+        found = roughness_items(self.doc("UNIT MM\nRi = Ra 0.4, R2 = Ra 1.6"))   # OCR 이 R1 을 Ri 로 읽음
+        self.assertEqual(found["DIMENSION_090"][0], 0.4)
+        self.assertEqual(found["DIMENSION_091"][0], 1.6)
+
+    def test_legend_value_misread_as_letter(self):
+        found = roughness_items(self.doc("UNIT MM\nR1 = Ra 0.4, R2 = Ral.6"))   # 범례 글자를 키운 도면: 1.6 → l.6
+        self.assertEqual(found["DIMENSION_090"][0], 0.4)
+        self.assertEqual(found["DIMENSION_091"][0], 1.6)
+
+    def test_without_legend_r1_stays_a_radius(self):
+        self.assertEqual(roughness_items(self.doc("UNIT MM")), {})
+
+    def test_crosshead_template_matches(self):
+        template = TEMPLATES["CH"]
+        self.assertEqual(len(match_template(document_from(template), template)), len(template["items"]))
 
 
 class Gating(unittest.TestCase):
