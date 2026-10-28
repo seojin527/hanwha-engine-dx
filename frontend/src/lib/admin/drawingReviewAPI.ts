@@ -31,6 +31,8 @@ export interface DrawingReviewSource {
     dimensions: ReviewDimension[];
     warnings: string[];
   };
+  /** 도면 OCR 원문(주석·표제란)에서 찾은 일반공차 표기. applies 는 ISO 2768 중간급(m)이 명시된 경우만 true. */
+  general_tolerance?: { found: boolean; applies: boolean; text: string; reason: string };
 }
 
 export interface DrawingReviewEdits {
@@ -63,6 +65,13 @@ export interface InspectionSetting {
   instrument: string;
   gauge_criteria: string;
   position_confirmed: boolean;
+  /**
+   * 허용 공차의 근거 (실측값 방식만). 도면에서 확인한 공차와 시스템 기본 정책을 구분해 저장한다.
+   * drawing: 도면 표기의 공차 · drawing_note: 도면 주석의 일반공차 표기 · project_default: 프로젝트 기본 정책 · admin: 관리자 지정
+   */
+  tolerance_basis?: "drawing" | "drawing_note" | "project_default" | "admin";
+  /** 관리자가 바꾸지 않아 시스템 기본값이 그대로 들어간 설정 필드 */
+  defaults_applied?: string[];
 }
 
 

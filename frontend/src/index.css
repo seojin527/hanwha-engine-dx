@@ -140,4 +140,6 @@
   .entry-gray .card-header { @apply border-neutral-700; }
   .entry-gray .note-warn { @apply border-amber-400 bg-amber-400/10 text-amber-100; }
   .entry-gray .note-error { @apply border-rose-400 bg-rose-400/10 text-rose-100; }
+  .entry-gray .note-ok { @apply border-emerald-400 bg-emerald-400/10 text-emerald-100; }
+  .entry-gray .note-info { @apply border-neutral-500 bg-white/5 text-neutral-200; }
 }

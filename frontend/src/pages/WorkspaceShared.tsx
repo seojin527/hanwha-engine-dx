@@ -1,6 +1,6 @@
 /**
- * 세 작업 페이지가 함께 쓰는 관리자 흐름 요소.
- * (페이지별로 바꿀 대상이 아닌 공통 흐름이라 한 곳에 둔다.)
+ * 작업 화면이 함께 쓰는 공통 요소.
+ * PositionPickBanner 는 통합 관리자 페이지, WorkerBlockedNotice 는 작업자 페이지가 쓴다.
  */
 import { Crosshair } from "lucide-react";
 
@@ -31,8 +31,8 @@ export function PositionPickBanner({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-/** 관리자 검토가 끝나지 않은 도면을 작업자 페이지에서 열었을 때 */
-export function WorkerBlockedNotice({ canOpenReview, onOpenReview }: { canOpenReview: boolean; onOpenReview: () => void }) {
+/** 관리자 검토가 끝나지 않은 도면을 작업자 페이지에서 열었을 때 (작업자는 관리자 화면으로 갈 수 없다) */
+export function WorkerBlockedNotice() {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-6">
       <section className="w-full max-w-md rounded border border-slate-700 border-t-amber-500 border-t-2 bg-slate-900 p-5">
@@ -42,19 +42,8 @@ export function WorkerBlockedNotice({ canOpenReview, onOpenReview }: { canOpenRe
 
         <p className="mt-2 text-xs leading-relaxed text-slate-300">
           관리자가 OCR 추출 항목을 확인하고 「검토 완료 및 서버 저장」을 누른 뒤에
-          작업자 화면에서 사용할 수 있습니다.
+          작업자 화면에서 사용할 수 있습니다. 검토가 필요하면 관리자에게 요청해주세요.
         </p>
-
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            disabled={!canOpenReview}
-            onClick={onOpenReview}
-            className="btn btn-primary"
-          >
-            관리자 모드로 전환
-          </button>
-        </div>
       </section>
     </div>
   );

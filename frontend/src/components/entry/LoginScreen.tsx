@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { BookOpenCheck, ClipboardCheck, Info, MapPin, PlayCircle, Ruler, ScanText } from "lucide-react";
+import { ROLE_OPTIONS, type UserRole } from "../../lib/role";
 
 interface LoginScreenProps {
-  /** 계정 이름으로 도면 선택 화면에 들어간다. 이름은 화면 표시용으로 메모리에만 둔다. */
-  onLogin: (account: string) => void;
-  /** 샘플 도면으로 작업 화면을 바로 연다. */
-  onDemo: () => void;
+  /** 계정 이름·역할로 도면 선택 화면에 들어간다. 이름은 화면 표시용으로 메모리에만 둔다. */
+  onLogin: (account: string, role: UserRole) => void;
+  /** 고른 역할로 샘플 도면 화면을 바로 연다. */
+  onDemo: (role: UserRole) => void;
 }
 
 /** 저장소 README 의 Scope 표와 같은 내용 (실제 제공 기능만 적는다) */
@@ -25,7 +26,9 @@ const WORKFLOW = ["부품 조회", "도면 분석", "측정 기준 확인", "검
  */
 export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
   const [account, setAccount] = useState("");
+  const [roleKey, setRoleKey] = useState("");
   const trimmed = account.trim();
+  const role = ROLE_OPTIONS.find((option) => option.key === roleKey)?.role ?? null;
 
   return (
     <main className="entry-gray grid h-screen break-keep w-screen overflow-y-auto lg:grid-cols-[minmax(420px,5fr)_7fr]">
@@ -101,7 +104,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (trimmed) onLogin(trimmed);
+              if (trimmed && role) onLogin(trimmed, role);
             }}
           >
             <p className="note note-warn flex gap-2">
@@ -125,6 +128,35 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               />
             </label>
 
+            <fieldset className="space-y-1.5">
+              <legend className="field-label mb-1.5 text-xs">역할</legend>
+              <div role="radiogroup" aria-label="역할" className="grid grid-cols-2 gap-2">
+                {ROLE_OPTIONS.map((option) => {
+                  const selected = option.key === roleKey;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setRoleKey(option.key)}
+                      className={`rounded border px-3 py-2 text-left transition-colors ${
+                        selected
+                          ? "border-cyan-500 bg-cyan-500/10 text-white"
+                          : "border-neutral-600 text-neutral-300 hover:border-neutral-500 hover:bg-white/5"
+                      }`}
+                    >
+                      <span className="block text-[13px] font-medium">{option.label}</span>
+                      <span className="block text-[11px] text-neutral-400">{option.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="block text-[11px] text-neutral-500">
+                작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 관리자 화면은 관리자만 엽니다.
+              </span>
+            </fieldset>
+
             <label className="block space-y-1.5">
               <span className="field-label text-xs">비밀번호</span>
               {/* 시연용: 값을 받지 않도록 비활성화하고 name 도 두지 않는다. */}
@@ -143,7 +175,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               </span>
             </label>
 
-            <button type="submit" disabled={!trimmed} className="btn btn-primary btn-lg w-full">
+            <button type="submit" disabled={!trimmed || !role} className="btn btn-primary btn-lg w-full">
               로그인
             </button>
           </form>
@@ -154,12 +186,12 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
             <span className="h-px flex-1 bg-neutral-700" />
           </div>
 
-          <button type="button" onClick={onDemo} className="btn btn-secondary btn-lg w-full">
+          <button type="button" disabled={!role} onClick={() => role && onDemo(role)} className="btn btn-secondary btn-lg w-full">
             <PlayCircle aria-hidden="true" className="h-4 w-4" />
             데모 체험하기
           </button>
           <p className="mt-2.5 text-center text-[11px] text-neutral-400">
-            샘플 도면과 샘플 측정항목으로 작업 화면을 미리 봅니다.
+            {role ? "샘플 도면과 샘플 측정항목으로 고른 역할의 화면을 미리 봅니다." : "역할을 먼저 고르면 샘플 화면을 볼 수 있습니다."}
           </p>
         </div>
       </section>

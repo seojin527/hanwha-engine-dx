@@ -38,6 +38,7 @@ export function AssemblyPanel({
   onMeasurementSaved,
   records = {},
   reviewInfo,
+  readOnly = false,
 }: {
   drawingId: string;
   revision: string;
@@ -48,6 +49,8 @@ export function AssemblyPanel({
   /** item_id → 저장된 측정 결과 (진행률·상태 표시용) */
   records?: Record<string, MeasurementRecord>;
   reviewInfo?: ReviewInfo | null;
+  /** 이 업무 담당이 아닌 작업자가 보는 중이면 true (측정 입력·오류 등록 잠금, 조회만) */
+  readOnly?: boolean;
 }) {
   const itemId = point?.source.id;
   const key = `${drawingId}/${revision}/${itemId}`;
@@ -120,6 +123,7 @@ export function AssemblyPanel({
         <CriteriaCard item={item} />
         <OcrMeasurementEntry
           purpose={PURPOSE}
+          readOnly={readOnly}
           key={`measurement-${key}`}
           drawingId={drawingId}
           revision={revision}
@@ -155,7 +159,7 @@ export function AssemblyPanel({
               <p className="text-[11px] text-slate-400">출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
             </article>)}</div>}
         </section>
-        <PointErrorForm key={`error-form-${key}`} purpose={PURPOSE} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
+        <PointErrorForm key={`error-form-${key}`} purpose={PURPOSE} readOnly={readOnly} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
       </div>
     </section>
   );

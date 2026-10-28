@@ -1,6 +1,15 @@
-import { useEffect, useState } from "react";
-import { ArrowRight, FileText, Loader2, LogOut, PlayCircle, RotateCw, Ruler } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Activity, ArrowRight, Database, FileText, Loader2, LogOut, PlayCircle, RotateCw, Ruler } from "lucide-react";
 import { fetchDrawings, fetchParts, type Drawing, type Part } from "../../lib/drawingAPI";
+
+/** 관리자 메뉴: ① 부품·도면 관리(기존 화면) ② 오류 DB 관리 ③ 작업 진행 현황 */
+export type AdminView = "drawings" | "errors" | "progress";
+
+const ADMIN_MENU: { view: AdminView; label: string; icon: typeof Database }[] = [
+  { view: "drawings", label: "부품·도면 관리", icon: FileText },
+  { view: "errors", label: "오류 DB 관리", icon: Database },
+  { view: "progress", label: "작업 진행 현황", icon: Activity },
+];
 
 interface DrawingSelectScreenProps {
   /** 헤더에 보여줄 이름 (시연용 계정 이름) */
@@ -10,10 +19,16 @@ interface DrawingSelectScreenProps {
   initialDrawingId?: string;
   /** 선택한 도면으로 작업 화면에 들어간다. */
   onStart: (drawing: Drawing) => void;
-  /** 도면 없이 작업 화면을 열어 부품·도면을 등록한다. */
-  onRegister: (partId: string) => void;
+  /** 도면 없이 관리자 화면을 열어 부품·도면을 등록한다. 관리자만 넘긴다 (없으면 등록 버튼을 숨긴다). */
+  onRegister?: (partId: string) => void;
   onDemo: () => void;
   onExit: () => void;
+  /** 관리자만: 메뉴 탭. 없으면(작업자) 기존 선택 화면만 보인다. */
+  adminMenu?: { view: AdminView; onChange: (view: AdminView) => void };
+  /** 관리자 메뉴 ②·③ 의 본문. 부품·도면 선택 상태는 이 화면이 그대로 들고 있어 메뉴를 바꿔도 유지된다. */
+  adminContent?: ReactNode;
+  /** 선택한 부품·도면이 바뀔 때 (관리자 작업 현황에서 같은 대상을 쓴다) */
+  onSelectionChange?: (partId: string, drawing: Drawing | null) => void;
 }
 
 const OCR_STATUS_LABEL: Record<string, { label: string; className: string }> = {
@@ -46,6 +61,9 @@ export function DrawingSelectScreen({
   onRegister,
   onDemo,
   onExit,
+  adminMenu,
+  adminContent,
+  onSelectionChange,
 }: DrawingSelectScreenProps) {
   const [parts, setParts] = useState<Load<Part[]>>({ status: "loading" });
   const [partsRetry, setPartsRetry] = useState(0);
@@ -97,6 +115,14 @@ export function DrawingSelectScreen({
   const drawingList = drawingState.status === "ready" ? drawingState.data : [];
   const selectedDrawing = drawingList.find((drawing) => drawing.drawing_id === drawingId);
 
+  // 목록을 불러오는 동안에는 알리지 않는다 (이전 선택을 비우지 않도록).
+  const selectionReady = !drawingId || drawingState.status === "ready";
+  useEffect(() => {
+    if (selectionReady) onSelectionChange?.(partId, selectedDrawing ?? null);
+  }, [partId, selectedDrawing?.drawing_id, selectionReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const view: AdminView = adminMenu?.view ?? "drawings";
+
   function selectPart(next: string) {
     if (next === partId) return;
     setPartId(next);
@@ -122,6 +148,33 @@ export function DrawingSelectScreen({
         </div>
       </header>
 
+      {adminMenu && (
+        <nav aria-label="관리자 메뉴" className="flex shrink-0 items-center gap-3 border-b border-neutral-700 bg-neutral-900/40 px-4 lg:px-6">
+          {ADMIN_MENU.map(({ view: key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              aria-current={view === key ? "page" : undefined}
+              onClick={() => adminMenu.onChange(key)}
+              className={`-mb-px inline-flex h-9 items-center gap-1.5 border-b-2 px-1 text-xs font-medium ${
+                view === key ? "border-cyan-400 text-white" : "border-transparent text-neutral-400 hover:text-neutral-100"
+              }`}
+            >
+              <Icon aria-hidden="true" className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+          {selectedPart && (
+            <span className="ml-auto hidden min-w-0 truncate text-[11px] text-neutral-400 sm:block">
+              선택: {selectedPart.name}{selectedDrawing ? ` · ${selectedDrawing.original_filename || selectedDrawing.name}` : ""}
+            </span>
+          )}
+        </nav>
+      )}
+
+      {view !== "drawings" ? (
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 lg:p-6">{adminContent}</main>
+      ) : (
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:overflow-hidden lg:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -159,9 +212,13 @@ export function DrawingSelectScreen({
               ) : partList.length === 0 ? (
                 <div className="space-y-2 p-3 text-xs text-neutral-300">
                   <p>등록된 부품이 없습니다.</p>
-                  <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
-                    작업 화면에서 부품 등록
-                  </button>
+                  {onRegister ? (
+                    <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
+                      관리자 화면에서 부품 등록
+                    </button>
+                  ) : (
+                    <p className="text-neutral-400">관리자에게 부품·도면 등록을 요청하세요.</p>
+                  )}
                 </div>
               ) : (
                 <ul aria-label="부품 목록">
@@ -225,9 +282,13 @@ export function DrawingSelectScreen({
               ) : drawingList.length === 0 ? (
                 <div className="space-y-2 p-3 text-xs text-neutral-300">
                   <p>이 부품에 등록된 도면이 없습니다.</p>
-                  <button type="button" onClick={() => onRegister(partId)} className="btn btn-secondary">
-                    작업 화면에서 도면 등록
-                  </button>
+                  {onRegister ? (
+                    <button type="button" onClick={() => onRegister(partId)} className="btn btn-secondary">
+                      관리자 화면에서 도면 등록
+                    </button>
+                  ) : (
+                    <p className="text-neutral-400">관리자에게 도면 등록을 요청하세요.</p>
+                  )}
                 </div>
               ) : (
                 <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-xs">
@@ -305,19 +366,33 @@ export function DrawingSelectScreen({
                   "도면을 선택해주세요."
                 )}
               </p>
-              <button
-                type="button"
-                disabled={!selectedDrawing}
-                onClick={() => selectedDrawing && onStart(selectedDrawing)}
-                className="btn btn-primary btn-lg"
-              >
-                작업 시작
-                <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </button>
+              <span className="flex items-center gap-2">
+                {adminMenu && (
+                  <button
+                    type="button"
+                    disabled={!selectedDrawing}
+                    onClick={() => adminMenu.onChange("progress")}
+                    className="btn btn-secondary btn-lg"
+                  >
+                    <Activity aria-hidden="true" className="h-4 w-4" />
+                    작업 현황
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={!selectedDrawing}
+                  onClick={() => selectedDrawing && onStart(selectedDrawing)}
+                  className="btn btn-primary btn-lg"
+                >
+                  작업 시작
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </button>
+              </span>
             </footer>
           </section>
         </div>
       </main>
+      )}
     </div>
   );
 }

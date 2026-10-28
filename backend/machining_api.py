@@ -25,7 +25,8 @@ from measurement_api import current_snapshot, judge, measurement_state
 from ocr_api import retrieval_query
 from ocr_results import read_ocr_result
 from purpose_errors.api import part_families
-from purpose_errors.purposes import Purpose
+from purpose_errors.purposes import STORES, Purpose
+from purpose_errors.vectors import query_active
 
 router = APIRouter(prefix="/api/machining", tags=["부품제작 단계 측정"])
 
@@ -35,8 +36,21 @@ PLAN_LABEL = {
     "R": "황삭에서 마무리",
     "RF": "황삭·중삭 여유 확인 → 정삭 마무리",
     "F": "정삭 후 측정",
+    "S": "정삭 후 표면 거칠기 측정",
     "none": "가공 측정 안 함",
 }
+ROUGHNESS_RE = re.compile(r"^R\s*a", re.IGNORECASE)          # Ra0.8 (OCR 이 'Rat.8' 처럼 읽어도 Ra 로 시작)
+# Ra 값: OCR 이 숫자 1 을 l·I·|, 0 을 O 로 읽기도 함 ('Ral.6' → Ra 1.6)
+_RA_NUMBER = r"([0-9iIl|oO]*\.?[0-9iIl|oO]+)"
+ROUGHNESS_VALUE_RE = re.compile(r"^R\s*a\s*" + _RA_NUMBER + r"$", re.IGNORECASE)
+# 조도를 기호(R1, R2)로 쓰고 표제란에 범례를 둔 도면: 'R1 = Ra 0.4, R2 = Ra 1.6' (OCR 이 R1 을 Ri 로 읽기도 함)
+LEGEND_RE = re.compile(r"R\s*([0-9iIl|])\s*=\s*R\s*a\s*" + _RA_NUMBER, re.IGNORECASE)
+SYMBOL_RE = re.compile(r"^R\s*([0-9iIl|])$")
+ROUGHNESS_CATEGORIES = {"ROUGHNESS", "SURFACE_ROUGHNESS", "SURFACE"}  # 관리자 검토에서 조도로 분류한 항목
+# 끼워맞춤 공차를 괄호로 적은 치수: Ø560(+0.07/0), Ø700(-0.08/-0.16), OCR 이 0 을 빼먹은 Ø680(+.08/0)
+FIT_RE = re.compile(
+    r"^[Ø⌀∅ø]?\s*(\d+(?:\.\d+)?)\s*\(\s*([+-]?\s*\d*\.?\d+)\s*/\s*([+-]?\s*\d*\.?\d+)\s*\)$"
+)
 
 
 def init_machining():
@@ -81,6 +95,8 @@ def signature(category: str, text: str) -> str:
     text = (text or "").strip()
     if category == "GDT":
         return "G"
+    if ROUGHNESS_RE.match(text):
+        return "S"  # 표면 거칠기 — 치수 라벨과 맞추지 않는다
     if text[:1].upper() in ("Ø", "⌀", "∅"):
         return "Ø"
     if re.match(r"^M\d", text):
@@ -116,7 +132,9 @@ def match_template(document: dict, template: dict) -> dict:
                 penalty = 0.02  # OCR이 Ø 기호를 빠뜨린 경우도 위치가 같으면 맞춘다
             else:
                 continue
-            distance = math.dist(xy, entry["pos"]) + penalty
+            # 기준 위치가 여러 개면(도면 개정으로 표기가 옮겨진 경우) 가장 가까운 위치로 잰다.
+            positions = entry.get("alt_pos", ()) + (entry["pos"],)
+            distance = min(math.dist(xy, pos) for pos in positions) + penalty
             if distance <= MATCH_DISTANCE:
                 pairs.append((distance, item["id"], entry["key"]))
     pairs.sort()
@@ -135,10 +153,91 @@ def fmt(value) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
+def dev(value) -> str:
+    """편차 표시: +0.07 · -0.16 · 0"""
+    return "0" if value == 0 else ("+" if value > 0 else "-") + fmt(abs(value))
+
+
 def stage_window(stage: str, allowance: float) -> float:
     if stage == "2":
         return MID_WINDOW
     return round(max(abs(allowance) / 4, 0.5), 3)
+
+
+def parse_fit(raw_text: str):
+    """괄호로 적은 끼워맞춤 공차 → (기준치수, 하한 편차, 상한 편차). 못 읽으면 None."""
+    match = FIT_RE.match((raw_text or "").strip())
+    if not match:
+        return None
+    nominal = float(match[1])
+    first, second = (float(value.replace(" ", "")) for value in (match[2], match[3]))
+    return nominal, min(first, second), max(first, second)
+
+
+def with_fit(item: dict) -> dict:
+    """공용 치수 해석이 못 읽은 끼워맞춤 공차 치수면 기준치수·허용 범위를 채운 사본을 돌려준다."""
+    if isinstance(item.get("nominal_value"), (int, float)):
+        return item
+    fit = parse_fit(item.get("raw_text", ""))
+    if fit is None:
+        return item
+    nominal, lower, upper = fit
+    return {**item, "measurement_mode": "numeric", "nominal_value": nominal,
+            "lower_deviation": lower, "upper_deviation": upper,
+            "lower_limit": round(nominal + lower, 6), "upper_limit": round(nominal + upper, 6),
+            "fit_tolerance": True}
+
+
+def _symbol_key(char: str) -> str:
+    return "1" if char in "iIl|" else char
+
+
+def ra_number(text: str) -> float:
+    """OCR 이 읽은 Ra 값 → 숫자 ('l.6' → 1.6, 'O.8' → 0.8)"""
+    return float(text.translate(str.maketrans("iIl|oO", "111100")))
+
+
+def roughness_legend(document: dict) -> dict:
+    """표제란 범례 → {'1': 0.4, '2': 1.6}"""
+    text = " ".join(str(document.get(key) or "") for key in ("title_table_raw", "notes_raw"))
+    return {_symbol_key(m[1]): ra_number(m[2]) for m in LEGEND_RE.finditer(text)}
+
+
+def roughness_items(document: dict) -> dict:
+    """조도 항목 → (Ra 값 또는 None, 표기). 'Ra0.8' 직접 표기, 범례 기호 R1·R2, 조도로 분류된 항목."""
+    legend = roughness_legend(document)
+    found = {}
+    for item in document.get("items", []):
+        if item.get("category") == "GDT":
+            continue
+        raw = (item.get("raw_text") or "").strip()
+        symbol = SYMBOL_RE.match(raw)
+        if symbol and _symbol_key(symbol[1]) in legend:
+            key = _symbol_key(symbol[1])
+            found[item["id"]] = (legend[key], f"R{key} = Ra {fmt(legend[key])}")
+        elif ROUGHNESS_RE.match(raw) or str(item.get("category") or "").upper() in ROUGHNESS_CATEGORIES:
+            value = ROUGHNESS_VALUE_RE.match(raw.replace(" ", ""))
+            if value:
+                found[item["id"]] = (ra_number(value[1]), f"Ra {fmt(ra_number(value[1]))}")
+            else:
+                found[item["id"]] = (None, raw)
+    return found
+
+
+def roughness_criteria(item: dict, value: float | None = None, label: str = "") -> dict:
+    """표면 거칠기(Ra): 정삭 후 표면조도계로 재고, 도면 값 이하이면 합격."""
+    raw = (item.get("raw_text") or "").strip()
+    if value is None:
+        match = ROUGHNESS_VALUE_RE.match(raw.replace(" ", ""))
+        value = ra_number(match[1]) if match else None
+    if value is not None:
+        name = label or f"Ra {fmt(value)}"
+        return {"role": "final", "mode": "numeric", "kind": "roughness", "target": None, "allowance": 0.0,
+                "lower_limit": 0.0, "upper_limit": value,
+                "text": f"표면 거칠기 {name} 이하 (표면조도계)"}
+    return {"role": "final", "mode": "gauge", "kind": "roughness", "target": None, "allowance": 0.0,
+            "lower_limit": None, "upper_limit": None,
+            "text": f"표면 거칠기 — OCR 값 확인 필요({raw}). 표면조도계로 재고 도면 Ra 이하이면 합격"}
 
 
 def stage_criteria(item: dict, stages: dict, stage: str) -> dict | None:
@@ -146,6 +245,7 @@ def stage_criteria(item: dict, stages: dict, stage: str) -> dict | None:
     if stage not in stages:
         return None
     allowance = stages[stage]
+    item = with_fit(item)
     mode = item.get("measurement_mode") or "numeric"
     name = STAGE_NAMES[stage]
     if allowance:
@@ -161,9 +261,13 @@ def stage_criteria(item: dict, stages: dict, stage: str) -> dict | None:
                 "lower_limit": round(target - window, 6), "upper_limit": round(target + window, 6),
                 "text": f"{name} 목표 {fmt(target)} (도면 {fmt(nominal)} {sign} 여유 {fmt(abs(allowance))}, ±{fmt(window)})"}
     role = "final" if stage == "3" else "finish"
-    return {"role": role, "mode": mode, "target": item.get("nominal_value"), "allowance": 0.0,
-            "lower_limit": item.get("lower_limit"), "upper_limit": item.get("upper_limit"),
-            "text": "도면 공차로 판정" if mode == "numeric" else (item.get("gauge_criteria") or "합격·불합격 기록")}
+    criteria = {"role": role, "mode": mode, "target": item.get("nominal_value"), "allowance": 0.0,
+                "lower_limit": item.get("lower_limit"), "upper_limit": item.get("upper_limit"),
+                "text": "도면 공차로 판정" if mode == "numeric" else (item.get("gauge_criteria") or "합격·불합격 기록")}
+    if item.get("fit_tolerance"):
+        lower, upper = item["lower_deviation"], item["upper_deviation"]
+        criteria.update(kind="fit", text=f"끼워맞춤 공차 {fmt(item['nominal_value'])}({dev(upper)}/{dev(lower)}) 로 판정")
+    return criteria
 
 
 def part_info(drawing_id: str, document: dict):
@@ -178,10 +282,22 @@ def part_info(drawing_id: str, document: dict):
 
 def build_plan(drawing_id: str, document: dict) -> dict:
     key, template = part_info(drawing_id, document)
-    matched = match_template(document, template) if template else {}
+    rough = roughness_items(document)
+    # 조도 항목은 치수 라벨과 위치를 맞추지 않는다 (R1·R2 가 반지름 라벨을 빼앗지 않도록).
+    dims = {**document, "items": [i for i in document.get("items", []) if i["id"] not in rough]}
+    matched = match_template(dims, template) if template else {}
     items = []
     for item in document.get("items", []):
         entry = matched.get(item["id"])
+        if item["id"] in rough:
+            value, name = rough[item["id"]]
+            items.append({
+                "item_id": item["id"], "raw_text": item.get("raw_text", ""), "plan": "S",
+                "plan_label": PLAN_LABEL["S"], "label": f"표면 거칠기 ({name})" if value is not None else "표면 거칠기",
+                "source": "rule", "template_key": None,
+                "stages": {s: (roughness_criteria(item, value, name) if s == "3" else None) for s in STAGE_KEYS},
+            })
+            continue
         if entry:
             plan, stages, label, source = entry["plan"], entry["stages"], entry["label"], "template"
         else:
@@ -296,6 +412,16 @@ def judge_allowance(criteria: dict, number: Decimal, stage_name: str):
     return "fail", f"{stage_name}: 여유가 너무 많습니다. {stage_name} 추가 가공이 필요합니다."
 
 
+def judge_range(criteria: dict, number: Decimal, stage_name: str):
+    """표면 거칠기·끼워맞춤 공차처럼 이 모듈이 범위를 계산한 항목의 판정."""
+    low, high = criteria["lower_limit"], criteria["upper_limit"]
+    if low is None or high is None:
+        return "review", f"{stage_name}: 판정 범위를 계산할 수 없습니다. 관리자 확인이 필요합니다."
+    if Decimal(str(low)) <= number <= Decimal(str(high)):
+        return "pass", f"{stage_name}: {criteria['text']} — 범위 안입니다."
+    return "fail", f"{stage_name}: {criteria['text']} — 범위를 벗어났습니다. 재가공·재측정이 필요합니다."
+
+
 @router.post("/{drawing_id}/items/{item_id}/record")
 def save_stage_record(drawing_id: str, item_id: str, payload: StageInput):
     snapshot = current_snapshot(drawing_id, payload.revision)
@@ -340,6 +466,8 @@ def save_stage_record(drawing_id: str, item_id: str, payload: StageInput):
         number = parse_value(value)
         if criteria["role"] == "allowance":
             judgement, reason = judge_allowance(criteria, number, stage_name)
+        elif criteria.get("kind") in ("roughness", "fit"):
+            judgement, reason = judge_range(criteria, number, stage_name)
         else:
             judgement, reason = judge(item, number)
             if judgement != "review":
@@ -387,6 +515,16 @@ def save_stage_record(drawing_id: str, item_id: str, payload: StageInput):
 
 
 # --------------------------------------------------------------------------- 단계별 오류사례 검색
+def stage_query(drawing_id: str, document: dict, item: dict, stage: str) -> str:
+    """기본 검색 문장 + 부위 이름(템플릿 라벨)·가공 단계. 같은 형상끼리도 부위가 맞는 사례가 위로 오게 한다."""
+    plan = next((entry for entry in build_plan(drawing_id, document)["items"] if entry["item_id"] == item["id"]), None)
+    parts = [retrieval_query(item)]
+    if plan and plan["label"]:
+        parts.append(f"부위 {plan['label']}")
+    parts.append(f"공정 {STAGE_NAMES[stage]} 후")
+    return ". ".join(parts)
+
+
 @router.get("/{drawing_id}/items/{item_id}/errors")
 def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal["1", "2", "3"],
                  top_k: int = Query(default=3, ge=1, le=10)):
@@ -415,19 +553,21 @@ def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal
 
     conditions = [{"part_family": {"$in": families}},
                   {"process_stage": {"$in": [f"{STAGE_NAMES[stage]} 후", "가공 공통", ""]}}]
-    feature = item.get("feature_type")
-    if feature and feature != "UNKNOWN":
-        conditions.append({"feature_type": feature})
+    if item_id in roughness_items(document):
+        # 조도 항목은 형상(관리자 지정) 대신 조도 사례로 좁힌다.
+        conditions.append({"tol_type": "SURFACE_ROUGHNESS"})
+    else:
+        feature = item.get("feature_type")
+        if feature and feature != "UNKNOWN":
+            conditions.append({"feature_type": feature})
     where = {"$and": conditions}
     candidates = collection.get(where=where, include=[])
     errors = []
     if candidates["ids"]:
-        vector = request.app.state.model.encode(["query: " + retrieval_query(item)], normalize_embeddings=True)
-        result = collection.query(query_embeddings=vector.tolist(), where=where,
-                                  n_results=min(top_k, len(candidates["ids"])),
-                                  include=["metadatas", "distances"])
-        for case_id, metadata, distance in zip(result["ids"][0], result["metadatas"][0], result["distances"][0]):
-            errors.append({**(metadata or {}), "case_id": case_id, "distance": float(distance)})
+        # 비활성 사례는 원문 테이블 기준으로 뺀다 (목적별 검색과 같은 규칙).
+        errors = query_active(STORES[Purpose.manufacturing], collection, request.app.state.model,
+                              query_text=stage_query(drawing_id, document, item, stage), where=where,
+                              candidate_ids=candidates["ids"], top_k=top_k)
     return {"purpose": Purpose.manufacturing.value, "drawing_id": drawing_id, "item_id": item_id,
             "stage": stage, "errors": errors}
 

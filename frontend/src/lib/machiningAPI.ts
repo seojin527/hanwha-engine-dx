@@ -11,6 +11,8 @@ export const STAGE_NAME: Record<StageKey, string> = { "1": "황삭", "2": "중�
 export interface StageCriteria {
   role: "finish" | "allowance" | "final";
   mode: "numeric" | "gauge";
+  /** roughness: 표면 거칠기(Ra, µm, 상한만) · fit: 괄호로 적은 끼워맞춤 공차를 이 모듈이 읽은 경우 */
+  kind?: "roughness" | "fit";
   target: number | null;
   allowance: number;
   lower_limit: number | null;
@@ -21,7 +23,7 @@ export interface StageCriteria {
 export interface MachiningItem {
   item_id: string;
   raw_text: string;
-  plan: "R" | "RF" | "F" | "none";
+  plan: "R" | "RF" | "F" | "S" | "none";
   plan_label: string;
   label: string;
   source: "template" | "rule";
@@ -117,12 +119,32 @@ export function stageReportUrl(drawingId: string, revision: string) {
 
 /** 목표·허용 범위 가운데 (보정값 계산 기준) */
 export function criteriaCenter(criteria: StageCriteria): number | null {
+  if (criteria.kind === "roughness") return null; // 조도는 공구 보정량 안내를 하지 않는다
   if (criteria.role === "allowance") return criteria.target;
   if (typeof criteria.lower_limit === "number" && typeof criteria.upper_limit === "number") {
     return (criteria.lower_limit + criteria.upper_limit) / 2;
   }
   return null;
 }
+
+/**
+ * 시연용 빠른 입력 값: 이번 단계 판정 범위의 가운데.
+ * 여유치수 단계는 목표, 조도는 0 ~ Ra 의 절반, 나머지는 하한·상한의 가운데.
+ */
+export function criteriaMidpoint(criteria: StageCriteria): number | null {
+  if (criteria.mode !== "numeric") return null;
+  const low = criteria.lower_limit;
+  const high = criteria.upper_limit;
+  let mid: number | null = null;
+  if (criteria.role === "allowance" && typeof criteria.target === "number") mid = criteria.target;
+  else if (typeof low === "number" && typeof high === "number") mid = (low + high) / 2;
+  return mid === null ? null : Number(mid.toFixed(4));
+}
+
+const QUICK_FILL_KEY = "machining-quick-fill";
+/** 시연용 빠른 입력(가운데 값 자동 입력·0점 자동 체크·합격 후 다음 항목) 켜짐 여부 */
+export const quickFillRemembered = () => remembered(QUICK_FILL_KEY) === "on";
+export const rememberQuickFill = (on: boolean) => remember(QUICK_FILL_KEY, on ? "on" : "off");
 
 function remembered(key: string): string {
   try {

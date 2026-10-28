@@ -7,6 +7,7 @@ import { useReportUnsaved } from "../../lib/unsavedChanges";
 import {
   STAGE_NAME,
   criteriaCenter,
+  criteriaMidpoint,
   type MachiningRecord,
   type StageCriteria,
   type StageKey,
@@ -31,6 +32,11 @@ interface Props {
   zeroChecked: (instrument: string) => boolean;
   onZeroChecked: (instrument: string, checked: boolean) => void;
   save: (body: StageRecordBody) => Promise<MachiningRecord>;
+  /** 시연용 빠른 입력: 범위 가운데 값 자동 입력 · 0점 자동 체크 · 합격 후 다음 항목 */
+  quickFill?: boolean;
+  onQuickFillChange?: (on: boolean) => void;
+  /** 합격으로 저장된 뒤 (빠른 입력일 때 다음 항목으로 넘긴다) */
+  onPassed?: () => void;
 }
 
 /**
@@ -41,10 +47,13 @@ interface Props {
  */
 export default function StageEntry({
   stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked,
-  zeroChecked, onZeroChecked, save,
+  zeroChecked, onZeroChecked, save, quickFill = false, onQuickFillChange, onPassed,
 }: Props) {
   const mode = criteria.mode;
-  const [value, setValue] = useState(record?.measured_value ?? "");
+  const midpoint = criteriaMidpoint(criteria);
+  const [value, setValue] = useState(
+    record?.measured_value || (quickFill && !locked && midpoint !== null ? String(midpoint) : ""),
+  );
   const [instrument, setInstrument] = useState(record?.instrument || defaultInstrument);
   const [note, setNote] = useState(record?.note ?? "");
   const [saved, setSaved] = useState<MachiningRecord | null>(record);
@@ -57,6 +66,13 @@ export default function StageEntry({
   useEffect(() => () => {
     mounted.current = false;
   }, []);
+
+  // 빠른 입력을 켜면: 빈 실측값에 가운데 값, 측정기 0점 체크를 자동으로 채운다 (화면에 그대로 보이므로 과정은 확인 가능).
+  useEffect(() => {
+    if (!quickFill || locked) return;
+    if (midpoint !== null) setValue((previous) => (previous.trim() ? previous : String(midpoint)));
+    if (instrument.trim() && !zeroChecked(instrument)) onZeroChecked(instrument, true);
+  }, [quickFill, locked, midpoint, instrument]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changed = () => {
     setDirty(true);
@@ -103,6 +119,7 @@ export default function StageEntry({
       if (!mounted.current) return;
       setSaved(next);
       setDirty(false);
+      if (result === "pass" && next.judgement === "pass") onPassed?.();
     } catch (cause: unknown) {
       if (mounted.current) setError(cause instanceof Error ? cause.message : "측정 저장 실패");
     } finally {
@@ -118,6 +135,17 @@ export default function StageEntry({
     <section aria-label={`${stageName} 측정 입력`} className="card">
       <header className="card-header">
         <h3 className="text-xs font-semibold text-slate-900">{stageName} 측정 입력</h3>
+        {onQuickFillChange && (
+          <label
+            className={`flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${
+              quickFill ? "bg-sky-100 font-semibold text-sky-800" : "text-slate-500"
+            }`}
+            title="범위 가운데 값 자동 입력 · 0점 자동 체크 · 합격 누르면 다음 항목으로"
+          >
+            <input type="checkbox" checked={quickFill} onChange={(event) => onQuickFillChange(event.target.checked)} />
+            시연 빠른 입력
+          </label>
+        )}
       </header>
       <div className="card-body">
         {locked && <p role="status" className="note note-warn mb-3">{locked}</p>}
@@ -136,7 +164,9 @@ export default function StageEntry({
                 {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
               </b>
               {criteria.target !== null && (
-                <span className="text-[11px] text-slate-500">목표 {formatNumber(criteria.target)}</span>
+                <span className="text-[11px] text-slate-500">
+                  {criteria.role === "allowance" ? "목표" : "기준치수"} {formatNumber(criteria.target)}
+                </span>
               )}
             </div>
           ) : (
@@ -250,6 +280,9 @@ export default function StageEntry({
             </button>
           </div>
           {!zeroOk && <p className="text-[10px] text-amber-800">0점 확인을 체크해야 기록할 수 있습니다.</p>}
+          {quickFill && !locked && (
+            <p className="text-[10px] text-sky-800">시연 빠른 입력: 범위 가운데 값과 0점 확인을 자동으로 채웠습니다. 합격을 누르면 다음 항목으로 넘어갑니다.</p>
+          )}
 
           {current ? (
             <div role="status" className={`space-y-1 rounded p-2.5 text-xs ${measurementStatusClasses[current.status]}`}>

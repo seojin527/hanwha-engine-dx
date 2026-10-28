@@ -1,7 +1,8 @@
 /**
- * 부품제작 작업 페이지.
+ * 부품제작 작업자 페이지.
  * 도면 뷰어 · 마커 · 하단 측정표 · 오른쪽 패널을 이 파일에서 직접 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
+ * 부품제작 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
 import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";
@@ -10,9 +11,9 @@ import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
 import { ResizablePanels } from "../components/ResizablePanels";
 import { ManufacturingPanel } from "../components/ManufacturingPanel";
 import { reviewInfoOf, type OcrPoint } from "../lib/ocr";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMachining } from "../lib/machiningAPI";
-import { PositionPickBanner, WorkerBlockedNotice } from "./WorkspaceShared";
+import { WorkerBlockedNotice } from "./WorkspaceShared";
 import type { WorkspacePageProps } from "./workspaceTypes";
 
 export function ManufacturingPage(props: WorkspacePageProps) {
@@ -32,15 +33,8 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     onSelectOcrPoint,
     onNavigateOcr,
     demo,
-    reviewOpen,
-    pickingPosition,
-    onCancelPositionPick,
-    onPlaceAt,
-    reviewPreviewMarkers,
-    reviewPane,
+    readOnly,
     workerBlocked,
-    canOpenReview,
-    onOpenReview,
   } = props;
 
   // ---------------------------------------------------------------- 가공 단계 (황삭·중삭·정삭)
@@ -49,7 +43,7 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     revision,
   );
   const stageOn =
-    !demoMode && !reviewOpen && document?.review_status === "reviewed" && machining.stageItemIds !== null;
+    !demoMode && document?.review_status === "reviewed" && machining.stageItemIds !== null;
   const stageIds = machining.stageItemIds;
   // 이번 단계에서 잴 항목 (이전·다음 이동과 하단 표)
   const stagePoints = stageOn ? ocrPoints.filter((point) => stageIds!.has(point.source.id)) : ocrPoints;
@@ -59,7 +53,30 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         .map((point) => {
           // 황삭·중삭 여유 확인 항목은 도면 공차 대신 단계 목표 범위를 보여준다.
           const criteria = machining.itemPlan(point.source.id)?.stages[machining.stage];
-          if (criteria?.role !== "allowance" || criteria.lower_limit === null || criteria.upper_limit === null) return point;
+          if (criteria?.kind === "roughness" && (criteria.lower_limit === null || criteria.upper_limit === null)) {
+            return { ...point, feature: { name: "표면 거칠기" } }; // Ra 값을 못 읽은 경우 (합격·불합격 기록)
+          }
+          if (!criteria || criteria.lower_limit === null || criteria.upper_limit === null) return point;
+          // 표면 거칠기(Ra)·괄호 끼워맞춤 공차는 이 단계 기준(µm 상한·끼워맞춤 범위)을 보여준다.
+          if (criteria.kind) {
+            const fit = criteria.kind === "fit" && criteria.target !== null;
+            return {
+              ...point,
+              feature: criteria.kind === "roughness" ? { name: "표면 거칠기" } : point.feature,
+              source: {
+                ...point.source,
+                measurement_mode: "numeric",
+                nominal_value: fit ? criteria.target! : undefined,
+                upper_deviation: fit ? criteria.upper_limit - criteria.target! : undefined,
+                lower_deviation: fit ? criteria.lower_limit - criteria.target! : undefined,
+                lower_limit: criteria.lower_limit,
+                upper_limit: criteria.upper_limit,
+                unit: criteria.kind === "roughness" ? "µm Ra" : point.source.unit,
+                tolerance_source: undefined,
+              },
+            };
+          }
+          if (criteria.role !== "allowance") return point;
           const window = (criteria.upper_limit - criteria.lower_limit) / 2;
           return {
             ...point,
@@ -97,22 +114,22 @@ export function ManufacturingPage(props: WorkspacePageProps) {
     onSelectOcrPoint(stagePoints[(index + delta + stagePoints.length) % stagePoints.length].id);
   };
   // 단계가 바뀌면 그 단계의 첫 항목으로 이동한다.
+  // (목록만 다시 불러온 경우에는 보던 항목이 이번 단계에 있으면 그대로 둔다.)
   const stageListKey = stageOn ? `${machining.stage}:${stagePoints.map((point) => point.id).join(",")}` : "";
+  const shownStage = useRef("");
   useEffect(() => {
     if (!stageListKey || !stagePoints.length) return;
-    if (!stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
+    const stageChanged = shownStage.current !== "" && shownStage.current !== machining.stage;
+    shownStage.current = machining.stage;
+    if (stageChanged || !stagePoints.some((point) => point.id === activeOcrPoint?.id)) onSelectOcrPoint(stagePoints[0].id);
   }, [stageListKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (workerBlocked) {
-    return <WorkerBlockedNotice canOpenReview={canOpenReview} onOpenReview={onOpenReview} />;
+    return <WorkerBlockedNotice />;
   }
 
   return (
     <ResizablePanels left={<>
-      {!demoMode && reviewOpen && pickingPosition && (
-        <PositionPickBanner onCancel={onCancelPositionPick} />
-      )}
-
       <DrawingViewer
         key={
           demoMode
@@ -133,14 +150,6 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         isAnalyzing={!demoMode && ocrStatus === "applying"}
         analyzingStep={0}
         analyzingStage={ocrStage}
-        previewMarkers={
-          !demoMode && reviewOpen ? reviewPreviewMarkers : []
-        }
-        onPlaceAt={
-          !demoMode && reviewOpen && pickingPosition
-            ? onPlaceAt
-            : undefined
-        }
       />
 
       {demoMode ? (
@@ -174,9 +183,7 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         </section>
       )}
     </>} right={<>
-      {!demoMode && reviewOpen ? (
-        reviewPane
-      ) : demoMode ? (
+      {demoMode ? (
         <MeasurementPanel
           currentPoint={demo.currentPoint}
           totalPointsCount={demo.total}
@@ -190,6 +197,7 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         <div className="flex h-full min-h-0 flex-col bg-white">
           <div className="min-h-0 flex-1 overflow-y-auto">
             <ManufacturingPanel
+              readOnly={readOnly}
               drawingId={selectedDrawing.drawing_id}
               revision={revision}
               point={activeOcrPoint}

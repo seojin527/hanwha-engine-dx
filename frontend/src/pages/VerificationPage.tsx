@@ -1,7 +1,8 @@
 /**
- * 검증 작업 페이지.
+ * 검증 작업자 페이지.
  * 도면 뷰어 · 마커 · 하단 측정표 · 오른쪽 패널을 이 파일에서 직접 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
+ * 검증 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
 import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";
@@ -10,7 +11,7 @@ import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
 import { ResizablePanels } from "../components/ResizablePanels";
 import { VerificationPanel } from "../components/VerificationPanel";
 import { reviewInfoOf } from "../lib/ocr";
-import { PositionPickBanner, WorkerBlockedNotice } from "./WorkspaceShared";
+import { WorkerBlockedNotice } from "./WorkspaceShared";
 import type { WorkspacePageProps } from "./workspaceTypes";
 
 export function VerificationPage(props: WorkspacePageProps) {
@@ -31,27 +32,16 @@ export function VerificationPage(props: WorkspacePageProps) {
     onNavigateOcr,
     onMeasurementSaved,
     demo,
-    reviewOpen,
-    pickingPosition,
-    onCancelPositionPick,
-    onPlaceAt,
-    reviewPreviewMarkers,
-    reviewPane,
+    readOnly,
     workerBlocked,
-    canOpenReview,
-    onOpenReview,
   } = props;
 
   if (workerBlocked) {
-    return <WorkerBlockedNotice canOpenReview={canOpenReview} onOpenReview={onOpenReview} />;
+    return <WorkerBlockedNotice />;
   }
 
   return (
     <ResizablePanels left={<>
-      {!demoMode && reviewOpen && pickingPosition && (
-        <PositionPickBanner onCancel={onCancelPositionPick} />
-      )}
-
       <DrawingViewer
         key={
           demoMode
@@ -72,14 +62,6 @@ export function VerificationPage(props: WorkspacePageProps) {
         isAnalyzing={!demoMode && ocrStatus === "applying"}
         analyzingStep={0}
         analyzingStage={ocrStage}
-        previewMarkers={
-          !demoMode && reviewOpen ? reviewPreviewMarkers : []
-        }
-        onPlaceAt={
-          !demoMode && reviewOpen && pickingPosition
-            ? onPlaceAt
-            : undefined
-        }
       />
 
       {demoMode ? (
@@ -113,9 +95,7 @@ export function VerificationPage(props: WorkspacePageProps) {
         </section>
       )}
     </>} right={<>
-      {!demoMode && reviewOpen ? (
-        reviewPane
-      ) : demoMode ? (
+      {demoMode ? (
         <MeasurementPanel
           currentPoint={demo.currentPoint}
           totalPointsCount={demo.total}
@@ -129,6 +109,7 @@ export function VerificationPage(props: WorkspacePageProps) {
         <div className="flex h-full min-h-0 flex-col bg-white">
           <div className="min-h-0 flex-1 overflow-y-auto">
             <VerificationPanel
+              readOnly={readOnly}
               drawingId={selectedDrawing.drawing_id}
               revision={revision}
               point={activeOcrPoint}

@@ -60,11 +60,25 @@ def search(store: PurposeStore, collection, model, *, query_text: str, part_fami
     candidates = collection.get(where=where, include=["metadatas"])
     if not candidates["ids"]:
         return []
+    return query_active(store, collection, model, query_text=query_text, where=where,
+                        candidate_ids=candidates["ids"], top_k=top_k)
+
+
+def query_active(store: PurposeStore, collection, model, *, query_text: str, where: dict,
+                 candidate_ids: list[str], top_k: int) -> list[dict]:
+    """활성 사례만 돌려준다.
+
+    비활성 여부는 원문 테이블(active)로 판단한다. 비활성화 뒤 벡터가 남아 있거나 벡터 반영에 실패해도
+    검색 결과에 나오지 않는다. 비활성 사례만큼 더 받아서 거르므로 top_k 개수가 줄지 않는다.
+    """
+    active = case_store.active_case_ids(store, list(candidate_ids))
+    if not active:
+        return []
     vector = model.encode(["query: " + query_text], normalize_embeddings=True)
     result = collection.query(
         query_embeddings=vector.tolist(),
         where=where,
-        n_results=min(top_k, len(candidates["ids"])),
+        n_results=min(top_k + len(candidate_ids) - len(active), len(candidate_ids)),
         include=["metadatas", "distances"],
     )
     return [
@@ -72,4 +86,5 @@ def search(store: PurposeStore, collection, model, *, query_text: str, part_fami
         for case_id, metadata, distance in zip(
             result["ids"][0], result["metadatas"][0], result["distances"][0]
         )
-    ]
+        if case_id in active
+    ][:top_k]

@@ -18,6 +18,9 @@ import {
   formatNumber,
   formatRange,
   isValidGdtValue,
+  normalizeDecimalText,
+  normalizeGdtValueText,
+  parseDecimal,
   parseDimension,
   type ParsedDimension,
   type ToleranceSource,
@@ -44,16 +47,23 @@ interface Props {
   selectedItemId?: string | null;
   /** OCR 결과 이미지 (항목 부분을 잘라서 보여줌) */
   imageUrl?: string | null;
+  /** 검토자 칸의 처음 값 (시작 화면에서 입력한 이름. 인증된 사용자 아님, 수정 가능) */
+  defaultReviewer?: string;
 }
 
 interface Draft {
   mode: "numeric" | "gauge";
   feature: string;
-  toleranceSource: ToleranceSource;
+  /** "" = 정할 근거가 없어 관리자가 골라야 함 (설정 필요) */
+  toleranceSource: ToleranceSource | "";
   upper: string;
   lower: string;
   unit: string;
   instrument: string;
+  /** true면 추천 규칙으로 채운 측정기 (형상을 바꾸면 추천도 따라 바뀐다). 관리자가 고르면 false */
+  instrumentAuto: boolean;
+  /** 시스템 기본값이 그대로 들어 있는 설정 필드 (서버 이름). 관리자가 바꾸면 빠진다. */
+  defaults: string[];
   criteria: string;
   /** false면 기하공차·나사 판정 기준 문구를 확정 값으로 자동 작성 */
   criteriaEdited: boolean;
@@ -64,10 +74,28 @@ interface AddedDimension {
   text: string;
   x: string;
   y: string;
-  positionConfirmed?: boolean;
 }
 
-type Filter = "all" | "DIMENSION" | "GDT" | "unconfirmed" | "invalid" | "edited";
+type Filter = "all" | "DIMENSION" | "GDT" | "needs" | "unconfirmed" | "invalid" | "edited";
+
+/**
+ * 항목 상태. 기본값 적용과 사람의 검토 확정을 구분한다.
+ * - needs: 저장을 막는 문제가 있음 (설정 필요·형식 오류)
+ * - default: 인식값·추천 규칙으로 채운 기본값 그대로 (아직 사람이 확정하지 않음)
+ * - edited: 관리자가 이번에 고침
+ * - saved: 이전에 저장한 관리자 설정 그대로
+ * 검토 확정은 「검토 완료 및 서버 저장」이 성공했을 때 전체 항목에 한 번에 일어난다.
+ */
+type ItemStatus = "needs" | "default" | "edited" | "saved";
+
+const STATUS_LABEL: Record<ItemStatus, string> = {
+  needs: "설정 필요",
+  default: "기본값 적용",
+  edited: "관리자 수정",
+  saved: "저장된 설정",
+};
+
+const STATUS_TONE = { needs: "warn", default: "neutral", edited: "info", saved: "ok" } as const;
 
 const inputClass = "field text-[13px]";
 /** 관리자가 고칠 수 있는 값: 왼쪽 강조선으로 편집 대상임을 구분한다. */
@@ -91,19 +119,54 @@ function characteristicName(item: OcrItem) {
   return names[item.measurement_characteristic ?? ""] ?? (item.category === "GDT" ? "기하공차" : "치수");
 }
 
-/** 고를 수 있는 형상이 하나뿐이면 그것으로 채운다 (C·R·M 치수, 평면도). 저장된 형상이 맞으면 유지. */
-function defaultFeature(item: OcrItem, allowed: string[]): string {
-  if (item.feature_type && item.feature_type !== "UNKNOWN" && allowed.includes(item.feature_type)) {
-    return item.feature_type;
-  }
-  return allowed.length === 1 ? allowed[0] : "";
+// ---------------------------------------------------------------- 프로젝트 기본값
+// 새 도면을 열면 모든 항목을 바로 저장할 수 있게 채운다. 관리자는 언제든 바꿀 수 있고,
+// 저장된 관리자 설정은 덮어쓰지 않는다. 기본값으로 채웠다고 승인되지는 않는다 (저장 버튼이 확정).
+
+/** 표기로 형상을 하나로 정할 수 없을 때의 프로젝트 기본 형상 (숫자만 → 평면·길이, ⌀ → 축·외경) */
+const PROJECT_FEATURE: Record<string, string> = { LINEAR_DIMENSION: "PLANE", DIAMETER: "SHAFT" };
+/** 추천 규칙으로 측정기를 정할 수 없을 때의 프로젝트 기본 측정기 */
+const PROJECT_INSTRUMENT = "CMM";
+/** 일반공차 표 범위 밖이라 실측 판정 기준을 만들 수 없는 치수의 프로젝트 기본 판정 문구 */
+function projectGaugeCriteria(text: string) {
+  return `${text} — ${GENERAL_LABEL} 표 범위 밖이라 허용 범위를 계산할 수 없음: 도면 치수 기준으로 합격·불합격 기록 (프로젝트 기본값)`;
 }
 
-function defaultToleranceSource(parsed: ParsedDimension): ToleranceSource {
+/** 형상 기본값. OCR이 읽은 형상·표기로 정해지는 형상이 우선이고, 아니면 프로젝트 기본 형상(isDefault). */
+function defaultFeature(item: OcrItem, allowed: string[], kind: string | null): { feature: string; isDefault: boolean } {
+  if (item.feature_type && item.feature_type !== "UNKNOWN" && allowed.includes(item.feature_type)) {
+    return { feature: item.feature_type, isDefault: false };
+  }
+  if (allowed.length === 1) return { feature: allowed[0], isDefault: false };
+  const fallback = PROJECT_FEATURE[kind ?? ""];
+  return { feature: fallback && allowed.includes(fallback) ? fallback : allowed[0] ?? "", isDefault: true };
+}
+
+/**
+ * 공차 종류 기본값: 도면에 적힌 공차가 우선. 없으면 프로젝트 기본 정책인 일반공차 ISO 2768-m.
+ * 일반공차 표 범위 밖이면 "" (실측 판정 불가 → 합격·불합격 기록으로 기본 설정한다).
+ */
+function defaultToleranceSource(parsed: ParsedDimension): ToleranceSource | "" {
   if (parsed.drawing) return "drawing";
   if (parsed.general !== null) return "general";
-  return "special";
+  return "";
 }
+
+/** 측정기 기본값: 기존 추천 규칙의 첫 번째, 추천이 없으면 프로젝트 기본 측정기. */
+function defaultInstrument(feature: string, gdtSymbols: string[]): string {
+  return recommendedInstruments({ feature, gdtSymbols })[0] ?? PROJECT_INSTRUMENT;
+}
+
+/** 관리자가 바꾼 Draft 필드 → 기본값 목록에서 뺄 서버 필드 */
+const DRAFT_FIELD: Partial<Record<keyof Draft, string>> = {
+  mode: "measurement_mode",
+  feature: "feature_type",
+  toleranceSource: "tolerance_source",
+  upper: "tolerance_source",
+  lower: "tolerance_source",
+  instrument: "instrument",
+  criteria: "gauge_criteria",
+};
 
 function formatReviewedAt(value?: string) {
   if (!value) return "";
@@ -121,6 +184,7 @@ export default function DrawingReviewPanel({
   onPickPosition,
   onPreviewChange,
   imageUrl,
+  defaultReviewer = "",
 }: Props) {
   const points = source.result.items;
   const documentUnit = source.result.unit || "mm";
@@ -128,7 +192,14 @@ export default function DrawingReviewPanel({
   const [dimensions, setDimensions] = useState<Record<string, string>>({});
   const [gdtValues, setGdtValues] = useState<Record<string, string>>({});
   const [gdtSymbols, setGdtSymbols] = useState<Record<string, string>>({});
+  // 이번 검토에서 관리자가 손댄 항목 (기본값 그대로인 항목과 구분)
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  // 관리자가 항목별로 확인한 상태 (화면 안에서만. 서버 확정은 「검토 완료 및 서버 저장」 때 전체를 한 번에)
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
+  // 「확인 후 다음」을 눌렀는데 입력 오류가 있어 확인하지 못한 항목의 안내
+  const [confirmBlocked, setConfirmBlocked] = useState<{ itemId: string; issues: string[] } | null>(null);
+  // 저장을 눌렀는데 문제가 있으면 문제 목록을 보여준다 (그 뒤로는 고칠 때마다 목록이 갱신된다)
+  const [showProblems, setShowProblems] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [added, setAdded] = useState<AddedDimension[]>([]);
   const [reviewer, setReviewer] = useState("");
@@ -170,7 +241,10 @@ export default function DrawingReviewPanel({
     };
   }, [source.result]);
 
+  const generalEvidence = source.general_tolerance;
+
   // 도면·OCR 버전이 바뀌면 편집 상태를 새로 만든다. 저장된 검토가 있으면 그 상태를 이어서 보여준다.
+  // 저장된 관리자 설정(inspection_approved)은 기본값으로 덮어쓰지 않는다.
   useEffect(() => {
     const reviewed = source.result.review_status === "reviewed";
     // 표제란 범례(R1 = Ra 0.8)로 거칠기로 읽은 항목은 확정 표기를 "Ra 0.8"로 시작한다. OCR 원문(R1)은 되돌리기로 복원.
@@ -186,7 +260,6 @@ export default function DrawingReviewPanel({
     setGdtSymbols(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.symbol])));
 
     const nextDrafts: Record<string, Draft> = {};
-    const nextConfirmed: Record<string, boolean> = {};
     for (const item of source.result.items) {
       const approved = reviewed && item.inspection_approved === true;
       const parsed = parseDimension(item.surface_roughness ?? item.raw_text);
@@ -196,28 +269,58 @@ export default function DrawingReviewPanel({
         .filter((entry) => item.category === "GDT" && entry.entry_no === itemNumber(item))
         .map((entry) => entry.symbol);
       const allowed = allowedFeatures({ dimensionKind: parsed.kind, gdtSymbols: rowSymbols });
+      const savedInstrument = item.instrument ?? "";
+      const unit = item.unit || source.result.unit || "mm";
+      if (approved) {
+        // 저장된 관리자 설정은 그대로 이어서 보여준다 (기본값으로 덮어쓰지 않음).
+        nextDrafts[item.id] = {
+          mode: item.measurement_mode ?? (isGauge ? "gauge" : "numeric"),
+          feature: defaultFeature(item, allowed, parsed.kind).feature,
+          toleranceSource: savedSource ?? "",
+          upper: item.tolerance_source === "SPECIAL" && typeof item.upper_deviation === "number" ? String(item.upper_deviation) : "",
+          lower: item.tolerance_source === "SPECIAL" && typeof item.lower_deviation === "number" ? String(item.lower_deviation) : "",
+          unit,
+          instrument: savedInstrument,
+          instrumentAuto: false,
+          defaults: item.defaults_applied ?? [],
+          criteria: item.gauge_criteria ?? "",
+          criteriaEdited: !!item.gauge_criteria,
+        };
+        continue;
+      }
+      // 새 항목: 바로 저장할 수 있게 기본값을 채우고, 어떤 필드가 시스템 기본값인지 기록한다.
+      const defaults: string[] = [];
+      const { feature, isDefault } = defaultFeature(item, allowed, parsed.kind);
+      if (isDefault) defaults.push("feature_type");
+      const toleranceSource = isGauge ? "" : defaultToleranceSource(parsed);
+      if (toleranceSource === "general") defaults.push("tolerance_source");
+      // 해석은 됐지만 일반공차 표 범위 밖인 치수: 실측 판정 기준이 없으므로 합격·불합격 기록으로 기본 설정
+      const gaugeFallback = !isGauge && parsed.valid && toleranceSource === "";
+      if (gaugeFallback) defaults.push("measurement_mode", "gauge_criteria");
+      if (!savedInstrument) defaults.push("instrument");
       nextDrafts[item.id] = {
-        mode: approved && item.measurement_mode ? item.measurement_mode : isGauge ? "gauge" : "numeric",
-        feature: defaultFeature(item, allowed),
-        toleranceSource: approved && savedSource ? savedSource : defaultToleranceSource(parsed),
-        upper:
-          approved && item.tolerance_source === "SPECIAL" && typeof item.upper_deviation === "number"
-            ? String(item.upper_deviation)
-            : "",
-        lower:
-          approved && item.tolerance_source === "SPECIAL" && typeof item.lower_deviation === "number"
-            ? String(item.lower_deviation)
-            : "",
-        unit: item.unit || source.result.unit || "mm",
-        instrument: item.instrument ?? "",
-        criteria: item.gauge_criteria ?? "",
-        criteriaEdited: approved && !!item.gauge_criteria,
+        mode: isGauge || gaugeFallback ? "gauge" : "numeric",
+        feature,
+        toleranceSource,
+        upper: "",
+        lower: "",
+        unit,
+        instrument: savedInstrument || defaultInstrument(feature, rowSymbols),
+        instrumentAuto: !savedInstrument,
+        defaults,
+        criteria: gaugeFallback ? projectGaugeCriteria(item.raw_text) : item.gauge_criteria ?? "",
+        criteriaEdited: gaugeFallback,
       };
-      nextConfirmed[item.id] = approved;
     }
     setDrafts(nextDrafts);
-    setConfirmed(nextConfirmed);
-    setReviewer(source.result.reviewer ?? "");
+    setTouched({});
+    // 저장된 검토의 승인 항목은 확인된 상태로 이어서 보여준다. 새 항목은 미확인.
+    setConfirmed(Object.fromEntries(
+      source.result.items.map((item) => [item.id, reviewed && item.inspection_approved === true]),
+    ));
+    setConfirmBlocked(null);
+    setShowProblems(false);
+    setReviewer(source.result.reviewer || defaultReviewer);
     setAdded([]);
     setError("");
   }, [source]);
@@ -296,7 +399,7 @@ export default function DrawingReviewPanel({
     return !parseDimension(dimensionText(item)).valid;
   }
 
-  /** 확인 버튼을 막는 이유 목록. 비어 있으면 확인 가능. */
+  /** 저장을 막는 문제 목록 (실제로 검증할 수 있는 것만). 비어 있으면 저장할 수 있다. */
   function issuesFor(item: OcrItem): string[] {
     const issues: string[] = [];
     const draft = drafts[item.id];
@@ -327,17 +430,22 @@ export default function DrawingReviewPanel({
           issues.push("나사는 합격·불합격 기록 방식(게이지)으로 지정해주세요.");
         } else if (parsed.kind === "SURFACE_ROUGHNESS") {
           issues.push("표면 거칠기는 합격·불합격 기록 방식으로 지정해주세요.");
+        } else if (draft.toleranceSource === "") {
+          issues.push(`허용 공차를 정해주세요. 도면에 개별 공차가 없고 ${GENERAL_LABEL} 표 범위 밖입니다 (특별 공차 또는 합격·불합격 기록).`);
         } else if (draft.toleranceSource === "drawing" && !parsed.drawing) {
           issues.push("도면 표기에 공차가 없습니다. 일반공차나 특별 공차를 선택해주세요.");
         } else if (draft.toleranceSource === "general" && parsed.general === null) {
           issues.push(`${GENERAL_LABEL} 적용 범위 밖입니다. 특별 공차를 입력해주세요.`);
         } else if (draft.toleranceSource === "special") {
-          const upper = Number(draft.upper);
-          const lower = Number(draft.lower);
-          if (!draft.upper.trim() || !draft.lower.trim() || !Number.isFinite(upper) || !Number.isFinite(lower)) {
-            issues.push("특별 공차의 상한·하한 편차를 숫자로 입력해주세요.");
+          const upper = parseDecimal(draft.upper);
+          const lower = parseDecimal(draft.lower);
+          if (!draft.upper.trim() || !draft.lower.trim()) {
+            issues.push("특별 공차의 상한·하한 편차를 입력해주세요.");
+          } else if (upper === null || lower === null) {
+            const bad = [upper === null ? `상한 ${draft.upper.trim()}` : "", lower === null ? `하한 ${draft.lower.trim()}` : ""];
+            issues.push(`특별 공차 편차가 숫자 형식이 아닙니다 (${bad.filter(Boolean).join(", ")}). 예: +0.05, -.02`);
           } else if (lower > upper) {
-            issues.push("하한 편차가 상한 편차보다 큽니다.");
+            issues.push("하한 편차가 상한 편차보다 큽니다 (허용 범위 역전).");
           }
         }
       }
@@ -347,9 +455,43 @@ export default function DrawingReviewPanel({
     return issues;
   }
 
-  const confirmedCount = points.filter((item) => confirmed[item.id]).length;
+  function statusOf(item: OcrItem): ItemStatus {
+    if (issuesFor(item).length) return "needs";
+    if (touched[item.id]) return "edited";
+    const approved = source.result.review_status === "reviewed" && item.inspection_approved === true;
+    return approved ? "saved" : "default";
+  }
+
   const invalidItems = points.filter((item) => hasInvalidValue(item));
+  const needsItems = points.filter((item) => issuesFor(item).length > 0);
+  const confirmedCount = points.filter((item) => confirmed[item.id]).length;
   const unconfirmedItems = points.filter((item) => !confirmed[item.id]);
+  const allConfirmed = points.length > 0 && unconfirmedItems.length === 0;
+
+  /** 저장 전 자동 검증 결과: 항목·추가 치수·검토자. 항목 문제는 눌러서 그 항목으로 이동한다. */
+  function collectProblems() {
+    const problems: { key: string; label: string; message: string; itemId?: string }[] = [];
+    points.forEach((item, index) => {
+      const issues = issuesFor(item);
+      if (issues.length) {
+        const text = item.category === "GDT" ? gdtText(item).replace(/\n/g, "  ") : dimensionText(item);
+        problems.push({ key: item.id, itemId: item.id, label: `${index + 1}. ${text || item.id}`, message: issues.join(" · ") });
+      } else if (!confirmed[item.id]) {
+        const text = item.category === "GDT" ? gdtText(item).replace(/\n/g, "  ") : dimensionText(item);
+        problems.push({ key: item.id, itemId: item.id, label: `${index + 1}. ${text || item.id}`, message: "아직 확인하지 않았습니다 (「확인 후 다음」)." });
+      }
+    });
+    added.forEach((item, index) => {
+      const issue = addedIssue(item);
+      if (issue) {
+        problems.push({ key: item.id, label: `추가 치수 ${index + 1}${item.text.trim() ? ` (${item.text.trim()})` : ""}`, message: issue });
+      }
+    });
+    if (!reviewer.trim()) problems.push({ key: "reviewer", label: "검토자", message: "검토자 이름을 입력해주세요." });
+    return problems;
+  }
+
+  const problems = showProblems ? collectProblems() : [];
 
   // ---------------------------------------------------------------- 상태 변경
   function selectItem(itemId: string) {
@@ -363,14 +505,66 @@ export default function DrawingReviewPanel({
     selectItem(points[(index + delta + points.length) % points.length].id);
   }
 
-  function unconfirm(itemId: string) {
-    setConfirmed((previous) => ({ ...previous, [itemId]: false }));
+  /** 관리자가 이 항목의 값·기준을 고쳤다고 표시한다. 확인한 항목이었다면 미확인으로 되돌린다. */
+  function markTouched(itemId: string) {
+    setTouched((previous) => (previous[itemId] ? previous : { ...previous, [itemId]: true }));
+    setConfirmed((previous) => (previous[itemId] ? { ...previous, [itemId]: false } : previous));
+    setConfirmBlocked((previous) => (previous?.itemId === itemId ? null : previous));
     setError("");
   }
 
+  /**
+   * 「확인 후 다음」: 오류가 없으면 이 항목을 확인하고 다음 미확인 항목으로 이동한다.
+   * 오류가 있으면 확인하지 않고 오류를 안내한다. 서버에는 아무것도 저장하지 않는다.
+   * (이전/다음 버튼으로 단순 이동하는 것은 확인이 아니다.)
+   */
+  function confirmAndNext(item: OcrItem) {
+    const issues = issuesFor(item);
+    if (issues.length) {
+      setConfirmBlocked({ itemId: item.id, issues });
+      return;
+    }
+    setConfirmBlocked(null);
+    const next = { ...confirmed, [item.id]: true };
+    setConfirmed(next);
+    const index = points.findIndex((entry) => entry.id === item.id);
+    for (let step = 1; step < points.length; step += 1) {
+      const candidate = points[(index + step) % points.length];
+      if (!next[candidate.id]) {
+        selectItem(candidate.id);
+        return;
+      }
+    }
+  }
+
+  function itemSymbols(itemId: string) {
+    return rowsByItem[itemId].map((row) => gdtSymbol(row));
+  }
+
+  /** 형상을 바꿀 때, 측정기가 추천 기본값이면 새 형상의 추천으로 함께 바꾼다. */
+  function withFeature(draft: Draft, feature: string, symbols: string[]): Draft {
+    return {
+      ...draft,
+      feature,
+      instrument: draft.instrumentAuto ? defaultInstrument(feature, symbols) : draft.instrument,
+    };
+  }
+
   function updateDraft(itemId: string, patch: Partial<Draft>) {
-    setDrafts((previous) => ({ ...previous, [itemId]: { ...previous[itemId], ...patch } }));
-    unconfirm(itemId);
+    setDrafts((previous) => {
+      let next = { ...previous[itemId], ...patch };
+      // 관리자가 바꾼 필드는 더 이상 시스템 기본값이 아니다.
+      const changed = new Set(
+        (Object.keys(patch) as (keyof Draft)[]).map((key) => DRAFT_FIELD[key]).filter(Boolean) as string[],
+      );
+      next.defaults = next.defaults.filter((field) => !changed.has(field));
+      if (patch.instrument !== undefined) next.instrumentAuto = false;
+      if (patch.feature !== undefined && previous[itemId]?.feature !== patch.feature) {
+        next = withFeature(next, patch.feature, itemSymbols(itemId));
+      }
+      return { ...previous, [itemId]: next };
+    });
+    markTouched(itemId);
   }
 
   function updateDimension(item: OcrItem, dim: ReviewDimension, text: string) {
@@ -398,60 +592,32 @@ export default function DrawingReviewPanel({
         }));
       }
     }
-    unconfirm(item.id);
+    markTouched(item.id);
   }
 
   function updateGdtValue(itemId: string, rowId: string, value: string) {
     setGdtValues((previous) => ({ ...previous, [rowId]: value }));
-    unconfirm(itemId);
+    markTouched(itemId);
   }
 
   /** 기호·표기가 바뀌어 지금 형상을 고를 수 없게 되면 형상을 다시 맞춘다. */
-  function syncFeature(itemId: string, allowed: string[]) {
+  function syncFeature(itemId: string, allowed: string[], symbols: string[] = itemSymbols(itemId)) {
     setDrafts((previous) => {
       const draft = previous[itemId];
       if (!draft || allowed.includes(draft.feature)) return previous;
-      return { ...previous, [itemId]: { ...draft, feature: allowed.length === 1 ? allowed[0] : "" } };
+      return { ...previous, [itemId]: withFeature(draft, allowed.length === 1 ? allowed[0] : "", symbols) };
     });
   }
 
   function updateGdtSymbol(item: OcrItem, rowId: string, symbol: string) {
     setGdtSymbols((previous) => ({ ...previous, [rowId]: symbol }));
     const symbols = rowsByItem[item.id].map((row) => (row.item_id === rowId ? symbol : gdtSymbol(row)));
-    syncFeature(item.id, allowedFeatures({ gdtSymbols: symbols }));
-    unconfirm(item.id);
-  }
-
-  function confirmAndNext(item: OcrItem) {
-    if (issuesFor(item).length) return;
-    const next = { ...confirmed, [item.id]: true };
-    setConfirmed(next);
-    setError("");
-    const index = points.findIndex((entry) => entry.id === item.id);
-    for (let step = 1; step <= points.length; step += 1) {
-      const candidate = points[(index + step) % points.length];
-      if (!next[candidate.id]) {
-        selectItem(candidate.id);
-        return;
-      }
-    }
+    syncFeature(item.id, allowedFeatures({ gdtSymbols: symbols }), symbols);
+    markTouched(item.id);
   }
 
   function updateAdded(id: string, patch: Partial<AddedDimension>) {
-    setAdded((previous) =>
-      previous.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              ...patch,
-              positionConfirmed:
-                patch.x !== undefined || patch.y !== undefined || patch.text !== undefined
-                  ? false
-                  : patch.positionConfirmed ?? item.positionConfirmed,
-            }
-          : item,
-      ),
-    );
+    setAdded((previous) => previous.map((item) => (item.id === id ? { ...item, ...patch } : item)));
     setError("");
   }
 
@@ -485,6 +651,12 @@ export default function DrawingReviewPanel({
     }
   }
 
+  /**
+   * 「검토 완료 및 서버 저장」: 전체 항목을 한 번에 검토 확정한다.
+   * 저장 전에 실제로 검증할 수 있는 문제(형식 오류·필수값 누락·허용 범위 역전 등)를 모두 확인하고,
+   * 문제가 있으면 저장하지 않고 목록을 보여준다. 문제가 없으면 추가 확인 없이 바로 저장한다.
+   * 서버도 같은 내용을 다시 검증하며, 저장이 성공해야 검토 완료가 된다.
+   */
   async function save() {
     setError("");
     if (saving) return;
@@ -492,20 +664,15 @@ export default function DrawingReviewPanel({
       setError("도면 위치 선택을 완료하거나 취소해주세요.");
       return;
     }
-    if (unconfirmedItems.length) {
-      setError(`미확인 항목이 ${unconfirmedItems.length}개 있습니다. 모든 항목을 확인해주세요.`);
-      selectItem(unconfirmedItems[0].id);
+    // 모든 항목을 확인해야 저장한다 (확인 자체는 서버에 저장되지 않는다).
+    const found = collectProblems();
+    if (found.length) {
+      setShowProblems(true);
+      const first = found.find((problem) => problem.itemId);
+      if (first?.itemId) selectItem(first.itemId);
       return;
     }
-    if (!reviewer.trim()) {
-      setError("검토자 이름을 입력해주세요.");
-      return;
-    }
-    const pendingAdded = added.find((item) => !item.positionConfirmed || addedIssue(item));
-    if (pendingAdded) {
-      setError(addedIssue(pendingAdded) || "추가한 치수의 「측정 위치 확정」을 먼저 눌러주세요.");
-      return;
-    }
+    setShowProblems(false);
 
     const inspectionSettings: Record<string, InspectionSetting> = {};
     for (const item of points) {
@@ -518,11 +685,20 @@ export default function DrawingReviewPanel({
         gauge_criteria: draft.mode === "gauge" ? effectiveCriteria(item, draft).trim() : "",
         position_confirmed: true,
       };
-      if (draft.mode === "numeric") {
+      setting.defaults_applied = draft.defaults;
+      if (draft.mode === "numeric" && draft.toleranceSource) {
         setting.tolerance_source = draft.toleranceSource;
+        // 도면에서 확인한 공차와 시스템 기본 정책으로 적용한 공차를 구분해 저장한다.
+        setting.tolerance_basis =
+          draft.toleranceSource === "drawing"
+            ? "drawing"
+            : draft.toleranceSource === "general" && draft.defaults.includes("tolerance_source")
+              ? generalEvidence?.applies ? "drawing_note" : "project_default"
+              : "admin";
         if (draft.toleranceSource === "special") {
-          setting.upper_deviation = Number(draft.upper);
-          setting.lower_deviation = Number(draft.lower);
+          // 검증을 통과한 값만 온다 ('.3' → 0.3).
+          setting.upper_deviation = parseDecimal(draft.upper)!;
+          setting.lower_deviation = parseDecimal(draft.lower)!;
         }
       }
       inspectionSettings[item.id] = setting;
@@ -533,7 +709,8 @@ export default function DrawingReviewPanel({
       const result = await saveDrawingReview(source.drawing_id, {
         revision: source.revision,
         reviewer: reviewer.trim(),
-        confirmed_item_ids: points.map((item) => item.id),
+        // 모두 확인한 뒤에만 여기까지 온다. 서버는 이 저장 요청으로 검토를 확정한다.
+        confirmed_item_ids: points.filter((item) => confirmed[item.id]).map((item) => item.id),
         inspection_settings: inspectionSettings,
         edits: {
           // 데이텀은 OCR 그대로 둔다. 기호·값은 관리자가 확정한 것.
@@ -564,6 +741,8 @@ export default function DrawingReviewPanel({
   // ---------------------------------------------------------------- 화면
   const selectedIndex = points.findIndex((item) => item.id === selectedId);
   const selected = selectedIndex >= 0 ? points[selectedIndex] : null;
+  const selectedIssues = selected ? issuesFor(selected) : [];
+  const blocked = selected && confirmBlocked?.itemId === selected.id ? selectedIssues : [];
 
   return (
     <section className="flex min-h-full flex-col bg-slate-50 text-slate-900">
@@ -578,21 +757,52 @@ export default function DrawingReviewPanel({
             onNavigate={navigate}
             chips={
               <>
-                <Chip tone="info">관리자 검토</Chip>
-                {confirmed[selected.id] ? (
-                  <Chip tone="ok">검토: 확인 완료</Chip>
-                ) : hasInvalidValue(selected) ? (
-                  <Chip tone="error">검토: 형식 오류</Chip>
+                {confirmed[selected.id] ? <Chip tone="ok">✓ 확인 완료</Chip> : <Chip tone="warn">미확인</Chip>}
+                {hasInvalidValue(selected) ? (
+                  <Chip tone="error">형식 오류</Chip>
                 ) : (
-                  <Chip tone="warn">검토: 미확인</Chip>
+                  <Chip tone={STATUS_TONE[statusOf(selected)]}>{STATUS_LABEL[statusOf(selected)]}</Chip>
                 )}
-                {isEdited(selected) && <Chip tone="neutral">수정됨</Chip>}
+                {isEdited(selected) && <Chip tone="neutral">OCR 값 수정됨</Chip>}
               </>
             }
           />
         )}
+        {/* 확인 동작: 스크롤 없이 「확인 후 다음」을 반복할 수 있게 상단에 고정 */}
+        {selected && (
+          <div className="border-b border-slate-200 bg-white px-3 pb-2">
+            {allConfirmed ? (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-xs font-semibold text-emerald-700">✓ 전체 {points.length}개 항목 확인 완료</span>
+                <button type="button" disabled={saving || picking} onClick={() => void save()} className="btn btn-primary btn-lg">
+                  {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-[11px] text-slate-500">
+                  {confirmed[selected.id] ? "이 항목은 확인했습니다. 값을 바꾸면 다시 확인해야 합니다." : "값이 맞으면 확인하고 다음 미확인 항목으로 넘어갑니다."}
+                </span>
+                <button
+                  type="button"
+                  disabled={saving || picking}
+                  onClick={() => confirmAndNext(selected)}
+                  className="btn btn-primary btn-lg"
+                >
+                  {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
+                </button>
+              </div>
+            )}
+            {blocked.length > 0 && (
+              <ul role="alert" className="note note-error mt-2 space-y-0.5 text-[11px]">
+                <li className="font-semibold">입력 오류가 있어 확인하지 않았습니다. 고친 뒤 다시 눌러주세요.</li>
+                {blocked.map((issue) => <li key={issue}>• {issue}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
         <ProgressBar
-          label="검토 확인"
+          label="확인"
           done={confirmedCount}
           total={points.length}
           chips={
@@ -602,9 +812,14 @@ export default function DrawingReviewPanel({
                   형식 오류 {invalidItems.length} → 이동
                 </Chip>
               )}
+              {needsItems.length > 0 && (
+                <Chip tone="warn" onClick={() => selectItem(needsItems[0].id)}>
+                  설정 필요 {needsItems.length} → 이동
+                </Chip>
+              )}
               {unconfirmedItems.length > 0 && (
-                <Chip tone="warn" onClick={() => selectItem(unconfirmedItems[0].id)}>
-                  미확인 {unconfirmedItems.length}
+                <Chip tone="neutral" onClick={() => selectItem(unconfirmedItems[0].id)}>
+                  미확인 {unconfirmedItems.length} → 이동
                 </Chip>
               )}
             </>
@@ -613,7 +828,7 @@ export default function DrawingReviewPanel({
         {reviewedInfo && (
           <p className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
             저장된 검토 · {reviewedInfo.reviewer || "검토자 미기록"}
-            {reviewedInfo.at ? ` · ${reviewedInfo.at}` : ""} — 값이나 기준을 바꾸면 그 항목은 다시 확인해야 합니다.
+            {reviewedInfo.at ? ` · ${reviewedInfo.at}` : ""} — 값이나 기준을 바꾼 항목은 다시 확인해야 합니다.
           </p>
         )}
       </div>
@@ -624,6 +839,22 @@ export default function DrawingReviewPanel({
             {warning}
           </p>
         ))}
+
+        <p className="note note-info">
+          {generalEvidence?.applies ? (
+            <>
+              개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
+            </>
+          ) : (
+            <>
+              개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
+              {generalEvidence?.found && (
+                <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
+              )}
+            </>
+          )}{" "}
+          측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
+        </p>
 
         {selected && (
           <SelectedItem
@@ -638,7 +869,9 @@ export default function DrawingReviewPanel({
             features={featuresFor(selected)}
             criteria={drafts[selected.id] ? effectiveCriteria(selected, drafts[selected.id]) : ""}
             issues={issuesFor(selected)}
+            status={statusOf(selected)}
             confirmed={!!confirmed[selected.id]}
+            generalBasis={generalEvidence?.applies ? "도면 주석 근거" : "프로젝트 기본 정책 · 도면 표기 아님"}
             imageUrl={imageUrl ?? null}
             imageWidth={source.result.image.width_px}
             imageHeight={source.result.image.height_px}
@@ -649,14 +882,12 @@ export default function DrawingReviewPanel({
             onGdtValue={(rowId, value) => updateGdtValue(selected.id, rowId, value)}
             onGdtSymbol={(rowId, symbol) => updateGdtSymbol(selected, rowId, symbol)}
             onDraft={(patch) => updateDraft(selected.id, patch)}
-            onConfirm={() => confirmAndNext(selected)}
-            onUnconfirm={() => unconfirm(selected.id)}
           />
         )}
 
         <details className="card">
           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
-            전체 항목 목록 ({points.length}) · 확인 {confirmedCount}
+            전체 항목 목록 ({points.length}) · 확인 {confirmedCount} · 설정 필요 {needsItems.length}
           </summary>
           <div className="space-y-2 border-t border-slate-100 p-3">
             <div role="group" aria-label="검토 항목 필터" className="flex flex-wrap gap-1.5">
@@ -664,6 +895,7 @@ export default function DrawingReviewPanel({
                 ["all", "전체"],
                 ["DIMENSION", "치수"],
                 ["GDT", "기하공차"],
+                ["needs", "설정 필요"],
                 ["unconfirmed", "미확인"],
                 ["invalid", "형식 오류"],
                 ["edited", "수정됨"],
@@ -687,9 +919,11 @@ export default function DrawingReviewPanel({
               {points.map((item, index) => {
                 const invalid = hasInvalidValue(item);
                 const edited = isEdited(item);
+                const status = statusOf(item);
                 if (filter === "DIMENSION" || filter === "GDT") {
                   if (item.category !== filter) return null;
                 }
+                if (filter === "needs" && status !== "needs") return null;
                 if (filter === "unconfirmed" && confirmed[item.id]) return null;
                 if (filter === "invalid" && !invalid) return null;
                 if (filter === "edited" && !edited) return null;
@@ -705,18 +939,17 @@ export default function DrawingReviewPanel({
                       <span
                         aria-hidden="true"
                         className={`w-4 text-center font-bold ${
-                          confirmed[item.id] ? "text-emerald-600" : invalid ? "text-rose-600" : "text-amber-500"
+                          invalid ? "text-rose-600" : confirmed[item.id] ? "text-emerald-600" : "text-amber-500"
                         }`}
                       >
-                        {confirmed[item.id] ? "✓" : invalid ? "!" : "•"}
+                        {invalid ? "!" : confirmed[item.id] ? "✓" : "•"}
                       </span>
                       <span className="w-6 text-slate-500">{index + 1}</span>
                       <span className="min-w-0 flex-1 truncate font-mono font-semibold">
                         {item.category === "GDT" ? gdtText(item).replace(/\n/g, "  ") : dimensionText(item)}
                       </span>
                       <span className="text-[10px] text-slate-400">
-                        {item.category === "GDT" ? "기하공차" : "치수"}
-                        {edited ? " · 수정" : ""}
+                        {item.category === "GDT" ? "기하공차" : "치수"} · {STATUS_LABEL[status]}
                       </span>
                     </button>
                   </li>
@@ -733,7 +966,7 @@ export default function DrawingReviewPanel({
           </summary>
           <div className="space-y-3 border-t border-slate-100 p-3">
             <p className="text-[11px] text-slate-600">
-              표기를 입력하고 도면에서 위치를 고른 뒤 확정해주세요. 추가한 치수의 검사 기준은 저장 후 다시 열어 지정합니다.
+              표기를 입력하고 도면에서 위치를 골라주세요. 저장할 때 함께 검증합니다. 추가한 치수의 검사 기준은 저장 후 다시 열어 지정합니다.
             </p>
             {added.map((item) => {
               const issue = addedIssue(item);
@@ -757,19 +990,9 @@ export default function DrawingReviewPanel({
                         onClick={() => void pickPosition(item.id)}
                         className="btn btn-secondary"
                       >
-                        ① 도면에서 위치 선택
+                        도면에서 위치 선택
                       </button>
                     )}
-                    <button
-                      type="button"
-                      disabled={!!issue}
-                      onClick={() => updateAdded(item.id, { positionConfirmed: true })}
-                      className={`btn ${
-                        item.positionConfirmed ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "btn-primary"
-                      }`}
-                    >
-                      {item.positionConfirmed ? "✓ 위치 확정됨" : "② 위치 확정"}
-                    </button>
                     <button
                       type="button"
                       onClick={() => setAdded((previous) => previous.filter((entry) => entry.id !== item.id))}
@@ -795,6 +1018,24 @@ export default function DrawingReviewPanel({
       </fieldset>
 
       <footer className="sticky bottom-0 z-10 space-y-2 border-t border-slate-300 bg-white px-3 py-2.5">
+        {problems.length > 0 && (
+          <div role="alert" className="note note-error space-y-1">
+            <p className="font-semibold">저장하지 않았습니다 — 아래 {problems.length}건을 고쳐주세요. 항목을 누르면 이동합니다.</p>
+            <ul aria-label="저장 전 검증 문제" className="max-h-40 space-y-0.5 overflow-y-auto text-[11px]">
+              {problems.map((problem) => (
+                <li key={problem.key}>
+                  {problem.itemId ? (
+                    <button type="button" onClick={() => selectItem(problem.itemId!)} className="text-left underline-offset-2 hover:underline">
+                      <b className="font-mono">{problem.label}</b> — {problem.message}
+                    </button>
+                  ) : (
+                    <span><b>{problem.label}</b> — {problem.message}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {error && (
           <p role="alert" className="note note-error whitespace-pre-wrap font-medium">
             {error}
@@ -823,9 +1064,11 @@ export default function DrawingReviewPanel({
             {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
           </button>
         </div>
-        {unconfirmedItems.length > 0 && (
-          <p className="text-[11px] text-slate-500">모든 항목을 확인해야 저장할 수 있습니다 · 남은 항목 {unconfirmedItems.length}개</p>
-        )}
+        <p className="text-[11px] text-slate-500">
+          {allConfirmed
+            ? `전체 ${points.length}개 항목을 확인했습니다. 저장해야 검토 완료가 되고 작업자에게 공개됩니다.`
+            : `모든 항목을 확인해야 저장할 수 있습니다 · 미확인 ${unconfirmedItems.length}개 (확인은 서버에 저장되지 않습니다)`}
+        </p>
       </footer>
     </section>
   );
@@ -844,7 +1087,10 @@ interface SelectedProps {
   features: string[];
   criteria: string;
   issues: string[];
+  status: ItemStatus;
   confirmed: boolean;
+  /** 기본 적용한 일반공차의 근거 표시 */
+  generalBasis: string;
   imageUrl: string | null;
   imageWidth: number;
   imageHeight: number;
@@ -852,13 +1098,11 @@ interface SelectedProps {
   onGdtValue: (rowId: string, value: string) => void;
   onGdtSymbol: (rowId: string, symbol: string) => void;
   onDraft: (patch: Partial<Draft>) => void;
-  onConfirm: () => void;
-  onUnconfirm: () => void;
 }
 
 function SelectedItem({
-  item, dim, rows, draft, dimText, gdtValue, gdtSymbol, features, criteria, issues, confirmed,
-  imageUrl, imageWidth, imageHeight, onDimension, onGdtValue, onGdtSymbol, onDraft, onConfirm, onUnconfirm,
+  item, dim, rows, draft, dimText, gdtValue, gdtSymbol, features, criteria, issues, status, confirmed, generalBasis,
+  imageUrl, imageWidth, imageHeight, onDimension, onGdtValue, onGdtSymbol, onDraft,
 }: SelectedProps) {
   const parsed = parseDimension(dimText);
   const isGdt = item.category === "GDT";
@@ -923,6 +1167,10 @@ function SelectedItem({
                       className={`${editClass} font-mono ${valid ? "" : "border-rose-400 bg-rose-50"}`}
                       value={value}
                       onChange={(event) => onGdtValue(row.item_id, event.target.value)}
+                      onBlur={(event) => {
+                        const normalized = normalizeGdtValueText(event.target.value);
+                        if (normalized !== event.target.value) onGdtValue(row.item_id, normalized);
+                      }}
                     />
                   </label>
                 </div>
@@ -1057,6 +1305,11 @@ function SelectedItem({
               );
             })}
           </div>
+          {draft.defaults.includes("measurement_mode") && (
+            <p className="text-[10px] text-amber-700">
+              {GENERAL_LABEL} 표 범위 밖이라 실측 허용 범위를 계산할 수 없어 합격·불합격 기록으로 기본 설정했습니다. 특별 공차를 입력하면 실측값 방식으로 바꿀 수 있습니다.
+            </p>
+          )}
           {(isGdt || parsed.kind === "THREAD_SPEC") && (
             <p className="text-[10px] text-slate-500">
               {isGdt ? "기하공차" : "나사"}는 게이지·CMM 결과를 합격/불합격으로 기록합니다.
@@ -1071,6 +1324,7 @@ function SelectedItem({
           <label className="block space-y-1 text-xs">
             <span className="text-slate-600">
               측정 형상{" "}
+              {draft.defaults.includes("feature_type") && <span className="tag bg-slate-100 text-slate-600">프로젝트 기본값</span>}{" "}
               <span className="text-[10px] text-slate-400">
                 {features.length === 1
                   ? "· 표기·기호로 정해짐"
@@ -1127,40 +1381,46 @@ function SelectedItem({
                     }
                   />
                   <span className="font-semibold">{label}</span>
+                  {value === "general" && draft.toleranceSource === "general" && draft.defaults.includes("tolerance_source") && (
+                    <span className="tag bg-amber-50 text-amber-800">{generalBasis}</span>
+                  )}
+                  {value === "drawing" && <span className="text-[10px] text-slate-400">도면 표기에서 읽음</span>}
                   <span className="flex-1 text-right font-mono text-slate-600">{detail}</span>
                 </label>
               ))}
-              {/* 도면에서 읽은 편차를 채워 보여주고, 고치면 특별 공차로 저장한다. */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <label className="space-y-1 text-xs">
-                  <span className="text-slate-600">상한 편차 (부호 포함)</span>
-                  <input
-                    className={`${editClass} font-mono`}
-                    inputMode="decimal"
-                    placeholder="예: +0.05"
-                    value={shownDeviation(draft, parsed).upper}
-                    onChange={(event) =>
-                      onDraft({ toleranceSource: "special", upper: event.target.value, lower: shownDeviation(draft, parsed).lower })
-                    }
-                  />
-                </label>
-                <label className="space-y-1 text-xs">
-                  <span className="text-slate-600">하한 편차 (부호 포함)</span>
-                  <input
-                    className={`${editClass} font-mono`}
-                    inputMode="decimal"
-                    placeholder="예: -0.02"
-                    value={shownDeviation(draft, parsed).lower}
-                    onChange={(event) =>
-                      onDraft({ toleranceSource: "special", upper: shownDeviation(draft, parsed).upper, lower: event.target.value })
-                    }
-                  />
-                </label>
-              </div>
-              {draft.toleranceSource !== "special" && (parsed.drawing || parsed.general !== null) && (
-                <p className="text-[11px] text-slate-500">
-                  {draft.toleranceSource === "drawing" ? "도면에서 읽은 값입니다." : "일반공차 값입니다."} 고치면 특별 공차로 저장됩니다.
-                </p>
+              {draft.toleranceSource === "special" && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <label className="space-y-1 text-xs">
+                    <span className="text-slate-600">상한 편차 (부호 포함)</span>
+                    <input
+                      className={`${editClass} font-mono`}
+                      inputMode="decimal"
+                      placeholder="예: +0.05"
+                      value={draft.upper}
+                      aria-invalid={!!draft.upper.trim() && parseDecimal(draft.upper) === null}
+                      onChange={(event) => onDraft({ upper: event.target.value })}
+                      onBlur={(event) => {
+                        const normalized = normalizeDecimalText(event.target.value);
+                        if (normalized !== event.target.value) onDraft({ upper: normalized });
+                      }}
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs">
+                    <span className="text-slate-600">하한 편차 (부호 포함)</span>
+                    <input
+                      className={`${editClass} font-mono`}
+                      inputMode="decimal"
+                      placeholder="예: -0.02"
+                      value={draft.lower}
+                      aria-invalid={!!draft.lower.trim() && parseDecimal(draft.lower) === null}
+                      onChange={(event) => onDraft({ lower: event.target.value })}
+                      onBlur={(event) => {
+                        const normalized = normalizeDecimalText(event.target.value);
+                        if (normalized !== event.target.value) onDraft({ lower: normalized });
+                      }}
+                    />
+                  </label>
+                </div>
               )}
               <RangePreview parsed={parsed} draft={draft} unit={unit} />
             </fieldset>
@@ -1187,7 +1447,10 @@ function SelectedItem({
           )}
 
           <label className="block space-y-1 text-xs">
-            <span className="text-slate-600">측정기</span>
+            <span className="text-slate-600">
+              측정기{" "}
+              {draft.defaults.includes("instrument") && <span className="tag bg-slate-100 text-slate-600">추천 기본값</span>}
+            </span>
             <InstrumentSelect
               className={editClass}
               value={draft.instrument}
@@ -1202,33 +1465,23 @@ function SelectedItem({
         </div>
       )}
 
-      {/* ③ 확인 */}
-      {confirmed ? (
-        <div className="flex flex-wrap items-center gap-2 rounded border border-emerald-200 border-l-[3px] border-l-emerald-500 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-          <span className="font-semibold">확인 완료</span>
-          <span className="flex-1">값이나 기준을 바꾸면 다시 확인해야 합니다.</span>
-          <button type="button" onClick={onUnconfirm} className="btn btn-secondary h-6">
-            확인 취소
-          </button>
-        </div>
+      {/* ③ 저장 전 검증 결과 (항목별 확인 버튼은 없다. 저장할 때 전체를 한 번에 확정한다) */}
+      {issues.length > 0 ? (
+        <ul className="note note-warn space-y-0.5 text-[11px]">
+          {issues.map((issue) => (
+            <li key={issue}>• {issue}</li>
+          ))}
+        </ul>
       ) : (
-        <div className="space-y-2">
-          {issues.length > 0 && (
-            <ul className="note note-warn space-y-0.5 text-[11px]">
-              {issues.map((issue) => (
-                <li key={issue}>• {issue}</li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            disabled={issues.length > 0}
-            onClick={onConfirm}
-            className="btn btn-primary btn-lg w-full"
-          >
-            이 항목 확인하고 다음 미확인으로
-          </button>
-        </div>
+        <p className="text-[11px] text-slate-500">
+          {confirmed
+            ? "확인한 항목입니다. 값·기준을 바꾸면 미확인으로 돌아갑니다."
+            : status === "default"
+              ? "인식값과 추천 규칙으로 채운 기본값입니다. 맞으면 위의 「확인 후 다음」을, 틀리면 고친 뒤 확인해주세요."
+              : status === "saved"
+                ? "이전에 저장한 관리자 설정입니다. 위의 「확인 후 다음」으로 확인해주세요."
+                : "수정한 내용을 위의 「확인 후 다음」으로 확인해주세요."}
+        </p>
       )}
     </div>
   );
@@ -1253,9 +1506,9 @@ function RangePreview({ parsed, draft, unit }: { parsed: ParsedDimension; draft:
     deviation = { upper: parsed.general, lower: -parsed.general };
   }
   if (draft.toleranceSource === "special") {
-    const upper = Number(draft.upper);
-    const lower = Number(draft.lower);
-    if (draft.upper.trim() && draft.lower.trim() && Number.isFinite(upper) && Number.isFinite(lower) && lower <= upper) {
+    const upper = parseDecimal(draft.upper);
+    const lower = parseDecimal(draft.lower);
+    if (upper !== null && lower !== null && lower <= upper) {
       deviation = { upper, lower };
     }
   }

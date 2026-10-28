@@ -108,6 +108,32 @@ export function parseDimension(text: string): ParsedDimension {
   };
 }
 
+/**
+ * 숫자 입력칸(특별 공차 편차 등) 값 해석. OCR 원문 표기에는 쓰지 않는다.
+ * '.3' → 0.3, '-.3' → -0.3, '+0.05' → 0.05. ',3'·'1e3'·'0x1'·빈 값처럼 소수 표기가 아니면 null (임의로 바꾸지 않는다).
+ */
+export function parseDecimal(text: string): number | null {
+  const value = text.trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** 숫자 입력칸을 벗어날 때 보기 좋게 정규화한다 ('.3' → '0.3', '-.3' → '-0.3', '1.' → '1'). 형식이 틀리면 그대로 둔다. */
+export function normalizeDecimalText(text: string): string {
+  const value = text.trim();
+  if (parseDecimal(value) === null) return text;
+  return value.replace(/^([+-]?)\./, "$10.").replace(/\.$/, "");
+}
+
+/** 기하공차 공차값 입력칸: 지름 기호를 둔 채 숫자 부분만 정규화 ('⌀.2' → '⌀0.2'). */
+export function normalizeGdtValueText(text: string): string {
+  const match = text.trim().match(/^([Ø⌀∅]?)(.*)$/);
+  if (!match) return text;
+  const normalized = normalizeDecimalText(match[2]);
+  return normalized === match[2] && parseDecimal(match[2]) === null ? text : `${match[1]}${normalized.replace(/^\+/, "")}`;
+}
+
 export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, ⌀680(+0.08/0), R5, C0.5, M16, Ra 0.8";
 
 /** 기하공차 공차값: 숫자만 (0.01, 1). 쉼표·글자가 섞이면 무효. */

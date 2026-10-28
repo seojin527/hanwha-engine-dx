@@ -1,6 +1,7 @@
 """단일 CPU 작업자 + SQLite 영속 작업 대기열. 웹 요청에서 OCR을 기다리지 않는다."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -16,6 +17,35 @@ from ocr_metadata import convert
 ROOT = BASE_DIR.parent
 from paths import OCR_JOB_DIR as JOB_DIR, ORIGIN_DIR
 ACTIVE = ('queued','running')
+
+# Windows 비정상 종료 코드 (NTSTATUS). 파이썬 예외 없이 프로세스가 끝나면 이 코드로만 원인을 알 수 있다.
+WINDOWS_EXIT_CODES = {
+    0xC0000409: '비정상 종료 — 네이티브 코드가 abort/즉시 종료(fail-fast)를 호출함 (STATUS_STACK_BUFFER_OVERRUN)',
+    0xC0000005: '비정상 종료 — 잘못된 메모리 접근 (ACCESS_VIOLATION)',
+    0xC00000FD: '비정상 종료 — 스택 오버플로 (STACK_OVERFLOW)',
+    0xC0000017: '비정상 종료 — 메모리 부족 (NO_MEMORY)',
+    0xC000013A: '사용자·시스템이 중단함 (CONTROL_C_EXIT)',
+}
+# Keras 진행률 줄 (예: "1/1 [=====] - 0s 150ms/step"). 오류 요약에서 뺀다.
+PROGRESS_LINE = re.compile(r'^\s*\d+/\d+\s*\[[=>.\s]*\]')
+
+
+def describe_exit(code):
+    """하위 프로세스 종료 코드를 사람이 읽을 수 있게 바꾼다."""
+    if code < 0 and os.name != 'nt':
+        return f'신호 {-code} 로 종료됨'
+    unsigned = code & 0xFFFFFFFF
+    known = WINDOWS_EXIT_CODES.get(unsigned)
+    if known:
+        return f'0x{unsigned:08X}: {known}'
+    return f'{code}' + (f' (0x{unsigned:08X})' if unsigned > 0xFFFF else '')
+
+
+def meaningful_lines(text, limit):
+    """진행률·빈 줄을 뺀 마지막 limit 줄."""
+    lines = [line.rstrip() for line in text.replace('\r', '\n').split('\n')]
+    lines = [line for line in lines if line.strip() and not PROGRESS_LINE.match(line)]
+    return lines[-limit:]
 
 
 def init_jobs():
@@ -116,6 +146,25 @@ class OcrWorker:
                         db.execute("UPDATE drawings SET ocr_status='failed' WHERE drawing_id=? AND drawing_id NOT IN (SELECT drawing_id FROM ocr_results)",(row['drawing_id'],))
             else:self.stop_event.wait(0.5)
 
+    @staticmethod
+    def failure_message(code,stage,log_path,err_path):
+        """종료 코드 · 마지막 단계 · stderr 의 의미 있는 줄을 앞에 두고, 진행률은 짧게 덧붙인다.
+
+        저장할 때 뒤 2500자만 남으므로 전체 길이를 그 안으로 맞춘다.
+        """
+        errors=meaningful_lines(err_path.read_bytes()[-20000:].decode('utf-8',errors='replace') if err_path.is_file() else '',25)
+        progress=meaningful_lines(log_path.read_bytes()[-8000:].decode('utf-8',errors='replace') if log_path.is_file() else '',4)
+        parts=[f'OCR 실행 실패 (종료 코드 {describe_exit(code)})',
+               f'마지막 단계: {stage.removeprefix("[STAGE]").strip() or "시작 전"}']
+        if errors:
+            parts.append('오류 출력(stderr):\n'+'\n'.join(errors)[-1400:])
+        else:
+            parts.append('오류 출력(stderr): 없음 — 파이썬 예외 없이 프로세스가 종료됨')
+        if progress:
+            parts.append('마지막 일반 출력:\n'+'\n'.join(progress)[-300:])
+        parts.append(f'로그: {err_path} , {log_path}')
+        return '\n'.join(parts)[-2400:]
+
     def run(self,job):
         drawing=drawing_exists(job['drawing_id'])
         input_path=(UPLOAD_DIR/drawing['stored_filename']).resolve()
@@ -125,6 +174,8 @@ class OcrWorker:
         if not python.is_file():raise ValueError(f'OCR Python이 없습니다: {python}')
         if not runner.is_file():raise ValueError(f'CPU 실행기가 없습니다: {runner}')
         env=os.environ.copy();env['PYTHONUNBUFFERED']='1';env['PYTHONIOENCODING']='utf-8';env['CUDA_VISIBLE_DEVICES']='-1'
+        # 네이티브 abort 같은 비정상 종료 때도 파이썬 호출 위치를 stderr 에 남긴다.
+        env['PYTHONFAULTHANDLER']='1'
         tessdata=env.get('OCR_TESSDATA')
         if not tessdata:
             local=Path(env.get('LOCALAPPDATA',str(Path.home())))/'Tesseract'/'tessdata'
@@ -150,9 +201,11 @@ class OcrWorker:
         if poppler:command+=['--poppler',poppler]
         started=time.monotonic()
         # Stream to disk, not PIPE: long prediction logs cannot block a child process.
+        # run.log 는 진행률(stdout), stderr.log 는 실제 경고·오류만 받는다 (오류가 진행률에 묻히지 않게).
         log_path=output/'run.log'
-        with log_path.open('wb') as log:
-            self.process=subprocess.Popen(command,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT)
+        err_path=output/'stderr.log'
+        with log_path.open('wb') as log, err_path.open('wb') as err:
+            self.process=subprocess.Popen(command,cwd=ROOT,env=env,stdout=log,stderr=err)
             previous=''
             while self.process.poll() is None:
                 if self.stop_event.wait(0.5):
@@ -165,8 +218,7 @@ class OcrWorker:
                     previous=stages[-1];self.update(job['job_id'],stage=previous.removeprefix('[STAGE]').strip())
             code=self.process.returncode;self.process=None
         if code:
-            tail=log_path.read_bytes()[-4000:].decode('utf-8',errors='replace')
-            raise RuntimeError('OCR 실행 실패. 로그: '+str(log_path)+'\n'+tail[-2200:])
+            raise RuntimeError(self.failure_message(code,previous,log_path,err_path))
         if self.stop_event.is_set():raise RuntimeError('결과 저장 전 작업이 중단됐습니다.')
         self.update(job['job_id'],stage='JSON 변환·좌표 검증 중')
         txt=output/f'{input_path.stem}_origin.txt';jpg=output/f'{input_path.stem}_result.jpg'
