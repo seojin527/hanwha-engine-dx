@@ -84,9 +84,12 @@ if [[ ! -f $AUTH_FILE ]]; then
 fi
 
 # Caddy 가 두 env 파일의 값을 Caddyfile 의 {$이름} 으로 읽게 한다.
+# 패키지 기본 ExecStart 의 --environ 은 시작할 때 환경변수(ADMIN_TOKEN 등)를 저널에 그대로 찍으므로 뺀다.
 mkdir -p /etc/systemd/system/caddy.service.d
 cat > /etc/systemd/system/caddy.service.d/hanwha-dx.conf <<'EOF'
 [Service]
+ExecStart=
+ExecStart=/usr/bin/caddy run --config /etc/caddy/Caddyfile
 EnvironmentFile=/etc/hanwha-dx/hanwha-dx.env
 EnvironmentFile=/etc/hanwha-dx/admin-auth.env
 EOF

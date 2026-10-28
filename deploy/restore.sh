@@ -10,10 +10,13 @@ DATA=/srv/hanwha-dx
 [[ -f $ARCHIVE ]] || { echo "파일 없음: $ARCHIVE"; exit 1; }
 
 # 압축 안의 경로가 storage/ vector_db/ data/ logs/ manifest.json 뿐인지 확인한다.
-if tar -tzf "$ARCHIVE" | grep -vqE '^(\./)?(storage|vector_db|data|logs)(/|$)|^(\./)?manifest\.json$'; then
-  echo "예상하지 않은 경로가 들어 있습니다. 중단합니다."; tar -tzf "$ARCHIVE" | grep -vE '^(\./)?(storage|vector_db|data|logs)(/|$)' | head; exit 1
+# 목록을 먼저 받아 둔다 (tar | grep -q 는 grep 이 먼저 끝나 tar 가 SIGPIPE 로 실패하고 pipefail 이 결과를 뒤집는다).
+LISTING=$(tar -tzf "$ARCHIVE")
+UNEXPECTED=$(grep -vE '^(\./)?(storage|vector_db|data|logs)(/|$)|^(\./)?manifest\.json$' <<<"$LISTING" || true)
+if [[ -n $UNEXPECTED ]]; then
+  echo "예상하지 않은 경로가 들어 있습니다. 중단합니다."; head <<<"$UNEXPECTED"; exit 1
 fi
-tar -tzf "$ARCHIVE" | grep -qE '^(\./)?storage/library\.sqlite3$' || { echo "storage/library.sqlite3 가 없습니다. 중단합니다."; exit 1; }
+grep -qE '^(\./)?storage/library\.sqlite3$' <<<"$LISTING" || { echo "storage/library.sqlite3 가 없습니다. 중단합니다."; exit 1; }
 
 if [[ -f $DATA/storage/library.sqlite3 ]]; then
   bash "$(dirname "$0")/backup.sh" pre-restore

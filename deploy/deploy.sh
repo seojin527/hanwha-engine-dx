@@ -84,6 +84,8 @@ systemctl daemon-reload
 export ADMIN_USER=$(grep -m1 '^ADMIN_USER=' /etc/hanwha-dx/admin-auth.env | cut -d= -f2-)
 export ADMIN_PASS_HASH=$(grep -m1 '^ADMIN_PASS_HASH=' /etc/hanwha-dx/admin-auth.env | cut -d= -f2-)
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# validate 가 root 로 로그 파일을 먼저 만들면 caddy 사용자가 열지 못해 시작에 실패한다.
+chown -R caddy:caddy /var/log/caddy
 systemctl enable --now caddy hanwha-dx-backup.timer
 systemctl reload caddy || systemctl restart caddy
 
