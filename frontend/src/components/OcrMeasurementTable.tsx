@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useCompactLayout } from '../hooks/useCompactLayout';
 import { ChevronDown } from 'lucide-react';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
 import {
@@ -32,7 +33,9 @@ export function OcrMeasurementTable({
   records?: Record<string, MeasurementRecord>;
   reviewed?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // 휴대폰은 도면을 넓게 보도록 접어서 시작한다 (항목 상세는 작업 패널에서도 본다)
+  const compact = useCompactLayout();
+  const [collapsed, setCollapsed] = useState(compact);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   useEffect(() => {
     bodyRef.current?.querySelector(`[data-point="${selectedId}"]`)?.scrollIntoView({ block: 'nearest' });

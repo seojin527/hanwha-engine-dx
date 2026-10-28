@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* 휴대폰 화면 (hooks/useCompactLayout.ts 와 같은 조건): 세로 768px 미만 또는 가로(높이 500px 이하) */
+@custom-variant compact {
+  @media (max-width: 767px) { @slot; }
+  @media (max-height: 500px) and (max-width: 1023px) { @slot; }
+}
+
 @layer base {
   body {
     /* Pretendard 를 못 불러와도 비슷한 폭의 한글 시스템 글꼴로 이어지도록 순서를 둔다 */
@@ -202,6 +208,9 @@
     @apply relative flex h-10 w-10 items-center justify-center rounded text-dx-muted transition-colors hover:bg-white/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-30;
   }
   .dx-rail-btn[aria-current="page"] { @apply bg-dx-accent/10 text-dx-accent before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded before:bg-dx-accent before:content-['']; }
+  /* 휴대폰 상단 바 안의 가로 메뉴: 현재 항목 표시를 아래쪽 막대로 */
+  .dx-rail-row .dx-rail-btn { width: 2.25rem; height: 2.25rem; }
+  .dx-rail-row .dx-rail-btn[aria-current="page"]::before { top: auto; bottom: -0.25rem; left: 0.5rem; right: 0.5rem; width: auto; height: 2px; }
 
   /* 로그인 배경: 은은한 도면 격자 (선 굵기 1px, 낮은 대비) */
   .dx-blueprint-grid {

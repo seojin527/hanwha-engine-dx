@@ -32,7 +32,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
   const role = ROLE_OPTIONS.find((entry) => entry.key === roleKey)?.role ?? null;
 
   return (
-    <main className="dx-shell relative h-screen w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#132235_0%,#0b1522_60%,#08111b_100%)] text-[14px] leading-normal">
+    <main className="dx-shell relative h-dvh w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#132235_0%,#0b1522_60%,#08111b_100%)] text-[14px] leading-normal">
       <EngineeringBackdrop strength={1.25} shapes={false} />
       {/*
         왼쪽: 구동부 선화 — 기존 3D 자산(크랭크 축·커넥팅 로드·크로스헤드·피스톤 로드·피스톤 헤드 6기통)을
@@ -68,7 +68,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
       */}
       <div className="relative h-full overflow-y-auto overflow-x-hidden">
       <div className="flex min-h-full items-center justify-center px-4 py-10 [@media(max-height:820px)]:py-4">
-      <div className="relative w-full max-w-[400px]">
+      <div className="relative w-full max-w-[400px] max-md:pb-14 [@media(max-height:500px)]:pb-14">
         <div className="break-keep rounded-xl border border-white/10 bg-[#17263a]/85 px-8 pb-8 pt-9 [@media(max-height:820px)]:pb-6 [@media(max-height:820px)]:pt-6 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.75)] backdrop-blur-[3px]">
           {/* 제품명 · 제목 · 설명 */}
           <header>

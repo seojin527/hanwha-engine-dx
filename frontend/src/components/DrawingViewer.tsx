@@ -53,6 +53,11 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
     initialY: number;
   } | null>(null);
 
+  // 터치: 한 손가락 이동(선택 모드에서는 8px 넘게 움직일 때만), 두 손가락 확대·축소
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const touchPan = useRef<{ pointerId: number; startX: number; startY: number; initialX: number; initialY: number; active: boolean } | null>(null);
+  const pinch = useRef<{ distance: number; midX: number; midY: number; scale: number; offsetX: number; offsetY: number } | null>(null);
+
   const isPdf = mediaType === "application/pdf";
   const fitScale = imageSize.width && imageSize.height && viewport.width && viewport.height
     ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-76)/imageSize.height)) : 1;
@@ -80,7 +85,72 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
     dragRef.current = null;
   }, [drawingUrl]);
 
+  function capture(element: HTMLElement, pointerId: number) {
+    // 손가락이 영역 밖으로 나가도 이동이 이어지게. 이미 끝난 포인터면 무시한다.
+    try { element.setPointerCapture(pointerId); } catch { /* 포인터가 이미 사라짐 */ }
+  }
+
+  function pinchState(rect: DOMRect) {
+    const [a, b] = [...touches.current.values()];
+    return {
+      distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      // 화면 중앙 기준 좌표 (도면은 가운데 정렬 + offset 이동)
+      midX: (a.x + b.x) / 2 - (rect.left + rect.width / 2),
+      midY: (a.y + b.y) / 2 - (rect.top + rect.height / 2),
+    };
+  }
+
+  function touchDown(event: React.PointerEvent<HTMLDivElement>) {
+    touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.current.size === 2) {
+      touchPan.current = null;
+      setManualScale(displayScale);
+      setFitMode(false);
+      pinch.current = { ...pinchState(event.currentTarget.getBoundingClientRect()), scale: displayScale, offsetX: offset.x, offsetY: offset.y };
+    } else if (touches.current.size === 1) {
+      touchPan.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, initialX: offset.x, initialY: offset.y, active: panMode };
+      if (panMode) capture(event.currentTarget, event.pointerId);
+    }
+  }
+
+  function touchMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!touches.current.has(event.pointerId)) return;
+    touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const start = pinch.current;
+    if (start && touches.current.size >= 2) {
+      const now = pinchState(event.currentTarget.getBoundingClientRect());
+      const scale = Math.max(0.02, Math.min(4, start.scale * now.distance / start.distance));
+      const factor = scale / start.scale;
+      // 손가락 사이 지점이 가리키는 도면 위치를 그대로 두고 확대한다.
+      setManualScale(scale);
+      setOffset({ x: now.midX - (start.midX - start.offsetX) * factor, y: now.midY - (start.midY - start.offsetY) * factor });
+      return;
+    }
+    const pan = touchPan.current;
+    if (!pan || pan.pointerId !== event.pointerId) return;
+    const dx = event.clientX - pan.startX;
+    const dy = event.clientY - pan.startY;
+    if (!pan.active) {
+      if (Math.hypot(dx, dy) < 8) return;
+      pan.active = true;
+      capture(event.currentTarget, event.pointerId);
+    }
+    if (fitMode) {
+      setManualScale(displayScale);
+      setFitMode(false);
+    }
+    setOffset({ x: pan.initialX + dx, y: pan.initialY + dy });
+  }
+
+  function touchUp(event: React.PointerEvent<HTMLDivElement>) {
+    touches.current.delete(event.pointerId);
+    if (touches.current.size < 2) pinch.current = null;
+    if (touchPan.current?.pointerId === event.pointerId) touchPan.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
   function stopDragging(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "touch") return touchUp(event);
     if (dragRef.current?.pointerId !== event.pointerId) return;
 
     dragRef.current = null;
@@ -154,7 +224,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           className="btn btn-dark-ghost h-6"
         >
           <Maximize aria-hidden="true" className="h-3.5 w-3.5" />
-          화면에 맞춤
+          <span className="compact:sr-only">화면에 맞춤</span>
         </button>
 
         {isPdf && (
@@ -189,6 +259,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
 
           onPointerDown={(event) => {
             if (onPlaceAt) return;
+            if (event.pointerType === "touch") return touchDown(event);
             if (!panMode || event.button !== 0) return;
 
             event.preventDefault();
@@ -207,6 +278,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             setDragging(true);
           }}
           onPointerMove={(event) => {
+            if (event.pointerType === "touch") return touchMove(event);
             const drag = dragRef.current;
             if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -217,7 +289,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           }}
           onPointerUp={stopDragging}
           onPointerCancel={stopDragging}
-          onLostPointerCapture={() => {
+          onLostPointerCapture={(event) => {
+            if (event.pointerType === "touch") return;
             dragRef.current = null;
             setDragging(false);
           }}

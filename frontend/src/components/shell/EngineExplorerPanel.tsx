@@ -80,6 +80,7 @@ export function EngineExplorerPanel({
   onUploaded,
   onPartsLoaded,
   onDrawingMoved,
+  layout = "side",
 }: {
   model: EngineModelInfo | null;
   selection: EngineSelection;
@@ -91,6 +92,8 @@ export function EngineExplorerPanel({
   onPartsLoaded?: (parts: Part[]) => void;
   /** 도면 소속 부품을 바꾼 뒤 (App 이 열린 도면·경로를 갱신) */
   onDrawingMoved?: (drawing: Drawing, fromPartId: string) => void;
+  /** side: 데스크톱 왼쪽 패널 / sheet: 휴대폰 하단 시트 안 (폭 전체, 트리는 접어서 시작) */
+  layout?: "side" | "sheet";
 }) {
   const confirmDiscard = useConfirmDiscard();
   const [parts, setParts] = useState<Part[] | null>(null);
@@ -100,7 +103,7 @@ export function EngineExplorerPanel({
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["engine"]));
   const [tab, setTab] = useState<DetailTab>("info");
   const [registerPartId, setRegisterPartId] = useState<string | null>(null);
-  const [treeOpen, setTreeOpen] = useState(true);
+  const [treeOpen, setTreeOpen] = useState(layout === "side");
   const [actionError, setActionError] = useState("");
   const treeRef = useRef<HTMLDivElement>(null);
   // 도면 소속 변경: 드래그 상태 · 확인 창 · 결과 안내
@@ -393,7 +396,7 @@ export function EngineExplorerPanel({
   const nothingSelected = !selection.engineKey && !selection.partId;
 
   return (
-    <aside aria-label="엔진 탐색" className="flex w-[360px] shrink-0 flex-col border-r border-dx-line bg-dx-panel">
+    <aside aria-label="엔진 탐색" className={layout === "sheet" ? "flex min-h-0 w-full flex-1 flex-col bg-dx-panel" : "flex w-[360px] shrink-0 flex-col border-r border-dx-line bg-dx-panel"}>
       {/* ---------------------------------------------- 탐색 */}
       <section aria-label="부품 탐색" className={`flex min-h-0 flex-col border-b border-dx-line ${treeOpen ? "max-h-[45%]" : ""}`}>
         <button type="button" onClick={() => setTreeOpen((v) => !v)} aria-expanded={treeOpen} className="flex h-9 shrink-0 items-center gap-1.5 px-3 text-left">

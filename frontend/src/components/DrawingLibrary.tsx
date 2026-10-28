@@ -399,14 +399,15 @@ export function DrawingLibrary({
 
   return (
     <section className="shrink-0 border-b border-slate-800 bg-slate-900 text-white">
-      <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5">
+      {/* 휴대폰: 줄바꿈 대신 한 줄 가로 스크롤 (도면 영역을 넓게) */}
+      <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5 compact:flex-nowrap compact:overflow-x-auto">
         <button
           type="button"
           aria-expanded={libraryOpen}
           aria-controls="drawing-library-controls"
           onClick={() => setLibraryOpen((previous) => !previous)}
           title="부품·도면 변경 및 등록"
-          className={`flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] ${
+          className={`flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] compact:max-w-[200px] compact:shrink-0 ${
             libraryOpen
               ? "border-slate-500 bg-slate-800"
               : "border-slate-700 hover:border-slate-500 hover:bg-slate-800"
@@ -428,10 +429,10 @@ export function DrawingLibrary({
           />
         </button>
 
-        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400">{status}</div>}
+        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400 compact:shrink-0 compact:whitespace-nowrap">{status}</div>}
 
         {actions && (
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 compact:shrink-0 compact:flex-nowrap">{actions}</div>
         )}
       </div>
 

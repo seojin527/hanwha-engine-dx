@@ -23,18 +23,26 @@ export function ShellRail({
   drawingAvailable,
   onNavigate,
   onLogout,
+  compact = false,
 }: {
   view: ShellView;
   isAdmin: boolean;
   drawingAvailable: boolean;
   onNavigate: (view: ShellView) => void;
   onLogout: () => void;
+  /** 휴대폰: 상단 바 안에 가로로 아이콘만 둔다 */
+  compact?: boolean;
 }) {
   return (
-    <nav aria-label="주요 기능" className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-dx-line bg-dx-bg py-2">
-      <span aria-hidden="true" className="mb-2 flex h-9 w-9 items-center justify-center rounded bg-dx-accent-strong text-white">
-        <Ruler className="h-4 w-4" />
-      </span>
+    <nav
+      aria-label="주요 기능"
+      className={compact ? "dx-rail-row flex shrink-0 items-center gap-0.5" : "flex w-14 shrink-0 flex-col items-center gap-1 border-r border-dx-line bg-dx-bg py-2"}
+    >
+      {!compact && (
+        <span aria-hidden="true" className="mb-2 flex h-9 w-9 items-center justify-center rounded bg-dx-accent-strong text-white">
+          <Ruler className="h-4 w-4" />
+        </span>
+      )}
       {ITEMS.filter((item) => !item.adminOnly || isAdmin).map(({ view: key, label, icon: Icon }) => (
         <button
           key={key}
@@ -49,7 +57,7 @@ export function ShellRail({
           <Icon aria-hidden="true" className="h-[18px] w-[18px]" />
         </button>
       ))}
-      <span className="flex-1" />
+      {!compact && <span className="flex-1" />}
       <button type="button" title="로그아웃 (처음 화면)" aria-label="로그아웃" onClick={onLogout} className="dx-rail-btn">
         <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />
       </button>
@@ -62,6 +70,7 @@ export function ShellTopBar({
   userLabel,
   roleLabel,
   search,
+  nav,
 }: {
   /** 현재 대상 경로 (엔진 › 부품 › 도면) */
   path: { label: string; onClick?: () => void }[];
@@ -69,7 +78,28 @@ export function ShellTopBar({
   roleLabel: string;
   /** 도면 작업 중 측정항목 검색 (다른 화면에서는 없음) */
   search?: { value: string; onChange: (value: string) => void };
+  /** 휴대폰: 메뉴 레일 대신 상단 바에 넣는 아이콘 메뉴. 있으면 경로는 마지막 항목만, 사용자 표시는 줄인다 */
+  nav?: ReactNode;
 }) {
+  if (nav) {
+    const current = path[path.length - 1];
+    const back = [...path].reverse().find((entry) => entry.onClick);
+    return (
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-dx-line bg-dx-panel pl-3 pr-1" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="min-w-0 flex-1">
+          {back && back !== current ? (
+            <button type="button" onClick={back.onClick} className="block max-w-full truncate text-[11px] text-dx-muted">
+              ‹ {back.label}
+            </button>
+          ) : (
+            <p className="text-[11px] font-semibold tracking-tight text-dx-muted">ENGINE DX · {roleLabel}</p>
+          )}
+          <p className="truncate text-[13px] font-semibold text-white">{current?.label}</p>
+        </div>
+        {nav}
+      </header>
+    );
+  }
   return (
     <header className="flex h-12 shrink-0 items-center gap-4 border-b border-dx-line bg-dx-panel px-4">
       <p className="shrink-0 text-[13px] font-semibold tracking-tight text-white">

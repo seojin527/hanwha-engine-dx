@@ -34,11 +34,14 @@ export function EngineViewer3D({
   selectedKey,
   onSelect,
   onReady,
+  compact = false,
 }: {
   visible: boolean;
   selectedKey: string | null;
   onSelect: (key: string | null) => void;
   onReady: (info: EngineModelInfo) => void;
+  /** 휴대폰: 도구 막대를 왼쪽 위에 아이콘만, 조작 안내는 하단 시트가 대신한다 */
+  compact?: boolean;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [attempt, setAttempt] = useState(0);
@@ -120,7 +123,7 @@ export function EngineViewer3D({
       />
 
       {/* 보기 도구 (뷰어가 지원하는 기능만) */}
-      <div role="toolbar" aria-label="3D 보기 도구" className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-0.5 rounded border border-dx-line bg-dx-panel/95 p-1 shadow-lg">
+      <div role="toolbar" aria-label="3D 보기 도구" className={`absolute flex items-center gap-0.5 rounded border border-dx-line bg-dx-panel/95 p-1 shadow-lg ${compact ? "left-2 top-2" : "left-1/2 top-3 -translate-x-1/2"}`}>
         <ToolButton label="시점 초기화" disabled={disabled} onClick={() => send({ type: "dx:reset" })}>
           <RotateCcw className="h-4 w-4" />
         </ToolButton>
@@ -133,26 +136,28 @@ export function EngineViewer3D({
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-dx-line" />
         <ToolButton label={exploded ? "조립" : "분해"} pressed={exploded} disabled={disabled} onClick={() => send({ type: "dx:explode", on: !exploded })}>
           <Boxes className="h-4 w-4" />
-          <span className="text-[11px]">{exploded ? "조립" : "분해"}</span>
+          {!compact && <span className="text-[11px]">{exploded ? "조립" : "분해"}</span>}
         </ToolButton>
         <ToolButton label={running ? "작동 정지" : "작동 (크랭크 회전 시뮬레이션)"} pressed={running} disabled={disabled} onClick={() => send({ type: "dx:run", on: !running })}>
           {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          <span className="text-[11px]">작동</span>
+          {!compact && <span className="text-[11px]">작동</span>}
         </ToolButton>
         {selectedKey && (
           <>
             <span aria-hidden="true" className="mx-1 h-5 w-px bg-dx-line" />
             <ToolButton label="선택 해제" disabled={disabled} onClick={() => onSelect(null)}>
               <X className="h-4 w-4" />
-              <span className="text-[11px]">선택 해제</span>
+              {!compact && <span className="text-[11px]">선택 해제</span>}
             </ToolButton>
           </>
         )}
       </div>
 
-      <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-dx-bg/80 px-2 py-1 text-[11px] text-dx-muted">
-        드래그 회전 · 휠 확대 · 우클릭 이동 · 부품을 클릭해 선택
-      </p>
+      {!compact && (
+        <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-dx-bg/80 px-2 py-1 text-[11px] text-dx-muted">
+          드래그 회전 · 휠 확대 · 우클릭 이동 · 부품을 클릭해 선택
+        </p>
+      )}
 
       {status === "loading" && (
         <div role="status" className="absolute inset-0 flex items-center justify-center bg-dx-bg/70">
