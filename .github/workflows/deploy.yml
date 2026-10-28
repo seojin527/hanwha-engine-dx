@@ -106,8 +106,14 @@ jobs:
           [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "::error::Variable DEPLOY_KNOWN_HOSTS 가 없습니다"; exit 1; }
           [ -n "$DEPLOY_HOST" ] || { echo "::error::Variable DEPLOY_HOST 가 없습니다"; exit 1; }
           install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          # Windows 메모장에서 붙여 넣으면 줄 끝이 CRLF 라 OpenSSH 가 키를 읽지 못한다. \r 을 지우고 마지막 줄바꿈을 보장한다.
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # 키가 읽히는지 확인하고, 비밀이 아닌 공개키 지문만 남긴다 (서버에 등록된 Actions 키와 비교용).
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub 2>/dev/null; then
+            echo "::error::DEPLOY_SSH_KEY 를 개인키로 읽을 수 없습니다 (-----BEGIN OPENSSH PRIVATE KEY----- 부터 END 줄까지 전체를 넣었는지 확인)"; exit 1
+          fi
+          echo "Actions 키 지문: $(ssh-keygen -lf ~/.ssh/deploy_key.pub | cut -d' ' -f2)"
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           {
             echo "Host deploy-target"
