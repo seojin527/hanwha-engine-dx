@@ -1,4 +1,8 @@
+import os
+import shutil
 import sqlite3
+import subprocess
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -7,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 
-from paths import BACKEND_DIR as BASE_DIR, LIBRARY_DB, UPLOAD_DIR as _UPLOAD_DIR
+from paths import BACKEND_DIR as BASE_DIR, LIBRARY_DB, THUMBNAIL_DIR, UPLOAD_DIR as _UPLOAD_DIR
 
 DB_PATH = LIBRARY_DB
 
@@ -478,6 +482,105 @@ def get_drawing_file(drawing_id: str):
         filename=row["original_filename"],
         content_disposition_type="inline",
     )
+
+# --------------------------------------------------------------------------- 미리보기 (썸네일)
+# 저장된 원본의 첫 페이지를 작은 PNG 로 만들어 캐시한다. OCR 은 실행하지 않는다.
+# PDF 는 poppler 의 pdftoppm, 이미지는 Pillow 로 줄인다. 원본은 바뀌지 않으므로(도면 ID 별 파일) 한 번 만들면 다시 쓴다.
+THUMBNAIL_WIDTH = {"sm": 360, "lg": 1400}
+_thumbnail_slots = threading.BoundedSemaphore(2)  # 2GB 서버: 동시에 렌더링하는 수를 제한
+
+
+def _pdftoppm() -> str | None:
+    poppler = os.environ.get("OCR_POPPLER")
+    if poppler:
+        for name in ("pdftoppm", "pdftoppm.exe"):
+            candidate = Path(poppler) / name
+            if candidate.is_file():
+                return str(candidate)
+    return shutil.which("pdftoppm")
+
+
+def _render_thumbnail(source: Path, media_type: str, width: int, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f"{target.stem}.{uuid4().hex}.tmp.png")
+    try:
+        if media_type == "application/pdf":
+            tool = _pdftoppm()
+            if not tool:
+                raise HTTPException(503, "PDF 미리보기 도구(poppler)가 없어 미리보기를 만들 수 없습니다.")
+            subprocess.run(
+                [tool, "-png", "-f", "1", "-l", "1", "-singlefile", "-scale-to-x", str(width), "-scale-to-y", "-1",
+                 str(source), str(temporary.with_suffix(""))],
+                check=True, capture_output=True, timeout=60,
+            )
+        else:
+            from PIL import Image
+
+            with Image.open(source) as image:
+                image.thumbnail((width, width * 4))
+                image.convert("RGB").save(temporary, "PNG")
+        temporary.replace(target)
+    except subprocess.CalledProcessError as error:
+        raise HTTPException(422, "도면 첫 페이지를 미리보기로 만들지 못했습니다.") from error
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+@router.get("/drawings/{drawing_id}/thumbnail")
+def get_drawing_thumbnail(drawing_id: str, size: str = "sm"):
+    if size not in THUMBNAIL_WIDTH:
+        raise HTTPException(422, "size 는 sm 또는 lg 입니다.")
+    with database() as db:
+        row = db.execute(
+            "SELECT * FROM drawings WHERE drawing_id = ? AND deleted_at IS NULL", (drawing_id,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(404, "도면을 찾을 수 없습니다.")
+    source = UPLOAD_DIR / row["stored_filename"]
+    if not source.is_file():
+        raise HTTPException(404, "도면 파일이 없습니다.")
+    target = THUMBNAIL_DIR / f"{drawing_id}_{size}.png"
+    if not target.is_file():
+        with _thumbnail_slots:
+            if not target.is_file():
+                _render_thumbnail(source, row["media_type"], THUMBNAIL_WIDTH[size], target)
+    return FileResponse(target, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@router.get("/drawings/{drawing_id}/delete-impact")
+def drawing_delete_impact(drawing_id: str):
+    """삭제 확인창에 보여줄 영향. 삭제는 목록에서 숨기는 소프트 삭제이고 기록은 지우지 않는다."""
+    with database() as db:
+        row = db.execute(
+            "SELECT * FROM drawings WHERE drawing_id = ? AND deleted_at IS NULL", (drawing_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "도면을 찾을 수 없습니다.")
+        review = None
+        if _table_exists(db, "ocr_results"):
+            result = db.execute(
+                "SELECT json_extract(metadata_json, '$.review_status') FROM ocr_results WHERE drawing_id = ?",
+                (drawing_id,),
+            ).fetchone()
+            review = None if result is None else (result[0] or "unreviewed")
+        links = sum(
+            _count(db, table, drawing_id, "AND unlinked_at IS NULL")
+            for table in ("manufacturing_case_links", "assembly_case_links", "verification_case_links")
+        )
+        measurements = _count(db, "measurement_records", drawing_id) + _count(db, "machining_stage_records", drawing_id)
+        active = db.execute(
+            "SELECT 1 FROM ocr_jobs WHERE drawing_id = ? AND status IN ('queued','running')", (drawing_id,)
+        ).fetchone() if _table_exists(db, "ocr_jobs") else None
+    return {
+        "drawing_id": drawing_id,
+        "filename": row["original_filename"] or row["name"],
+        "has_ocr": review is not None,
+        "review_status": review,
+        "measurement_records": measurements,
+        "case_links": links,
+        "ocr_active": bool(active),
+    }
+
 
 def ensure_no_active_ocr(db, drawing_ids):
     if not drawing_ids:

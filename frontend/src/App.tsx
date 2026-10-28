@@ -1094,8 +1094,9 @@ export function App() {
       refreshKey={libraryVersion}
       onOpenDrawing={openDrawingFromExplorer}
       onUploaded={(drawing) => {
+        // 등록한 도면을 3D 화면의 미리보기로 보여준다 (작업 화면으로 바로 들어가지 않는다).
         setLibraryVersion((value) => value + 1);
-        startWorkspace(drawing);
+        setEngineSelection((current) => ({ ...current, drawingId: drawing.drawing_id }));
       }}
       onPartsLoaded={setAllParts}
       onDrawingMoved={handleDrawingMoved}
@@ -1126,6 +1127,7 @@ export function App() {
           {stage === "select" && adminView === "drawings" && (
             <DrawingSelectScreen
               embedded
+              canManage={isAdmin}
               userLabel={userDisplay}
               initialPartId={activePartId}
               initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}

@@ -17,8 +17,9 @@
 - **서버 측 보호**: `DEPLOY_MODE=public` 이면 `backend/deploy_guard.py` 가 GET 외 요청을 403 으로 막는다.
   관리자 주소에서 Basic 인증을 통과한 요청만 Caddy 가 붙인 `X-Admin-Token` 으로 변경이 허용된다.
   로그인 화면의 역할 선택은 여전히 화면 표시용이며 인증이 아니다. 관람객이 '관리자' 역할을 골라도 저장·업로드는 서버가 막는다.
-- **서버 OCR 차단 (발표 구성)**: `OCR_ENABLED=0` 이면 관리자 요청이어도 도면 업로드·OCR 실행·샘플 OCR 저장
-  (`POST /api/parts/{id}/drawings`, `/api/drawings/{id}/ocr/run`, `/api/drawings/{id}/ocr/sample`)을 403 으로 막는다.
+- **서버 OCR 차단 (발표 구성)**: `OCR_ENABLED=0` 이면 관리자 요청이어도 OCR 실행·샘플 OCR 저장
+  (`/api/drawings/{id}/ocr/run`, `/api/drawings/{id}/ocr/sample`)을 403 으로 막는다.
+  도면 파일 등록(`POST /api/parts/{id}/drawings`)은 관리자 주소에서 OCR 없이 저장되고 'OCR 미실행' 으로 표시된다 (관람객 주소는 403).
   `APP_MODULE=app:app` 이라 OCR 작업자도 없고, `deploy.sh` 는 `OCR_ENABLED=0` 에서 `app_auto:app`·`WITH_OCR=1` 을 거부한다.
   화면의 OCR 결과는 노트북에서 미리 만든 것을 데이터 사본으로 올린 것이다.
 - **변경 요청 제한**: 관리자 변경 요청 IP 당 분당 60, 요청 본문 관람객 1MB·관리자 30MB. (OCR 을 켜는 구성이면 동시 1건·시간당 10건)
@@ -151,8 +152,9 @@ ssh -i $HOME\.ssh\hanwha_dx_do root@<IP> "bash /opt/hanwha-dx/app/deploy/restore
 
 ### 새 도면 추가 (서버 OCR 이 꺼진 상태)
 
-서버는 `OCR_ENABLED=0` 이라 관리자 주소에서도 도면 업로드·OCR 실행이 403 이다 (2GB 서버에서 OCR 1건이 약 2.1GB).
-도면은 노트북에서 실제 OCR 까지 끝낸 뒤 데이터째 서버로 옮긴다. 서버 DB 가 그 사이에 바뀌지 않았는지 확인하고 반영한다.
+서버는 `OCR_ENABLED=0` 이라 관리자 주소에서도 OCR 실행이 403 이다 (2GB 서버에서 OCR 1건이 약 2.1GB).
+관리자 주소에서 PDF 를 등록할 수는 있지만 'OCR 미실행' 으로 남는다. OCR·검토 결과가 필요한 도면은
+노트북에서 실제 OCR 까지 끝낸 뒤 데이터째 서버로 옮긴다. 서버 DB 가 그 사이에 바뀌지 않았는지 확인하고 반영한다.
 
 1. `bash deploy/pull_backup.sh <IP>` → 최신 서버 데이터를 노트북으로 받고, 서버 `library.sqlite3` 의 sha256 을 적어 둔다.
 2. 받은 tar.gz 를 빈 폴더에 풀고, 그 폴더를 `DX_STORAGE_DIR`·`DX_VECTOR_DB_DIR`·`DX_DATA_DIR`·`DX_LOG_DIR` 로 지정해

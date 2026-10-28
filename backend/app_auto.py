@@ -38,6 +38,9 @@ def active_ocr_count():
 
 @router.post('/api/parts/{part_id}/drawings',status_code=201)
 def upload_and_start(part_id: str, file: UploadFile=File(...)):
+    # OCR 이 꺼진 서버: 파일만 저장하고 'OCR 미실행' 으로 둔다 (OCR 은 노트북에서 처리).
+    if not ocr_enabled():
+        return upload_drawing(part_id,file)
     # 공개 배포에서는 업로드 전에 OCR 한도를 확인한다 (로컬 실행은 제한 없음)
     check_ocr_capacity(active_ocr_count())
     drawing=upload_drawing(part_id,file)

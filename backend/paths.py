@@ -25,6 +25,7 @@ STORAGE_DIR = _env_dir("DX_STORAGE_DIR", BACKEND_DIR / "storage")
 LIBRARY_DB = STORAGE_DIR / "library.sqlite3"          # 공통 SQLite (부품·도면·OCR·측정·검토·오류 원문)
 UPLOAD_DIR = STORAGE_DIR / "uploads"                  # 업로드한 도면 원본 (DB 에는 파일명만 저장)
 OCR_JOB_DIR = STORAGE_DIR / "ocr_jobs"                # CPU OCR 작업 폴더 (작업 ID 별)
+THUMBNAIL_DIR = STORAGE_DIR / "thumbnails"            # 도면 미리보기 PNG 캐시 (원본에서 다시 만들 수 있다)
 OCR_RESULT_DIR = STORAGE_DIR / "ocr_results"          # 화면에 띄우는 OCR 결과 이미지 (DB 에는 파일명만 저장)
 VECTOR_DB_DIR = _env_dir("DX_VECTOR_DB_DIR", BACKEND_DIR / "vector_db")          # Chroma (목적별 컬렉션 + 기존 공통 컬렉션)
 REVIEW_DRY_RUN_LOG_DIR = _env_dir("DX_LOG_DIR", BACKEND_DIR / "logs")       # 저장 없이(save=false) 검수할 때만 쓰는 누적 기록

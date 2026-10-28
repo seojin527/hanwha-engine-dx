@@ -10,7 +10,8 @@
     OCR_MAX_ACTIVE       동시에 대기·실행 중일 수 있는 OCR 작업 수 (기본 2)
     OCR_MAX_PER_HOUR     시간당 OCR·업로드 시작 상한 (기본 20)
     OCR_ENABLED          0 이면 서버에서 OCR 을 만들지 않는다 (기본 1). 관리자 요청이어도
-                         도면 업로드·OCR 실행·샘플 OCR 저장을 403 으로 막고, app_auto 의 OCR 작업자도 시작하지 않는다.
+                         OCR 실행·샘플 OCR 저장을 403 으로 막고, app_auto 의 OCR 작업자도 시작하지 않는다.
+                         도면 파일 등록은 막지 않는다 (OCR 없이 저장되고 'OCR 미실행' 으로 남는다).
                          발표 서버(2GB)는 0 으로 두고 노트북에서 만든 OCR 결과를 데이터 사본으로 올린다.
 
 로그인 화면의 역할 선택은 서버 인증이 아니다. 공개 배포에서는 이 미들웨어가 실제 보호선이다.
@@ -26,9 +27,9 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-# OCR 을 새로 만드는 요청: 도면 업로드(app_auto 에서 자동 OCR), OCR 실행, 샘플 OCR 저장
-OCR_PATHS = re.compile(r"^/api/(parts/[^/]+/drawings|drawings/[^/]+/ocr/(run|sample))/?$")
-OCR_DISABLED_MESSAGE = "이 서버에서는 OCR 을 실행하지 않습니다. 도면 업로드·OCR 은 노트북에서 처리한 뒤 데이터 사본으로 올립니다."
+# OCR 을 새로 만드는 요청: OCR 실행, 샘플 OCR 저장. 도면 등록은 app_auto 가 OCR 없이 저장한다.
+OCR_PATHS = re.compile(r"^/api/drawings/[^/]+/ocr/(run|sample)/?$")
+OCR_DISABLED_MESSAGE = "이 서버에서는 OCR 을 실행하지 않습니다. OCR 은 노트북에서 처리한 뒤 데이터 사본으로 올립니다."
 
 
 def deploy_mode() -> str:

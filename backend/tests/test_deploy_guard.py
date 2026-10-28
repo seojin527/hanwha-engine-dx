@@ -91,8 +91,11 @@ class DeployGuardTests(unittest.TestCase):
         env = {"DEPLOY_MODE": "public", "ADMIN_TOKEN": "secret", "OCR_ENABLED": "0"}
         with mock.patch.dict(os.environ, env), mock.patch.object(deploy_guard, "_writes", deploy_guard._Window()):
             admin = {"X-Admin-Token": "secret"}
-            for path in ("/api/parts/p1/drawings", "/api/drawings/d1/ocr/run", "/api/drawings/d1/ocr/sample"):
+            for path in ("/api/drawings/d1/ocr/run", "/api/drawings/d1/ocr/sample"):
                 self.assertEqual(self.client.post(path, headers=admin).status_code, 403, path)
+            # 도면 파일 등록은 OCR 과 분리: 관리자는 저장할 수 있고(OCR 미실행), 관람객은 여전히 막힌다
+            self.assertEqual(self.client.post("/api/parts/p1/drawings", headers=admin).status_code, 200)
+            self.assertEqual(self.client.post("/api/parts/p1/drawings").status_code, 403)
             # OCR 과 무관한 관리자 변경은 그대로 허용
             self.assertEqual(self.client.post("/api/parts", headers=admin).status_code, 200)
             self.assertFalse(self.client.get("/api/deploy-mode").json()["ocr_enabled"])

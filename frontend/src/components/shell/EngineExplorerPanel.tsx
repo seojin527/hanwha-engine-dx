@@ -20,7 +20,9 @@ import {
   Loader2,
   Package,
   Plus,
+  Trash2,
   Unlink,
+  X,
 } from "lucide-react";
 import { createPart, fetchDrawings, fetchParts, linkEnginePart, moveDrawingToPart, type Drawing, type Part } from "../../lib/drawingAPI";
 import { ENGINE_PART_LABEL, toEnginePartKey, type EnginePartKey } from "../../lib/engineParts";
@@ -28,6 +30,7 @@ import { useConfirmDiscard } from "../../lib/unsavedChanges";
 import type { EngineModelInfo } from "./EngineViewer3D";
 import { RegisterDrawingPanel } from "./RegisterDrawingPanel";
 import { MoveDrawingDialog } from "./MoveDrawingDialog";
+import { DeleteDrawingDialog, DrawingMenu, DrawingPreview, DrawingThumb, StatusBadges, ocrState, reviewState, type MenuItem } from "../drawings/DrawingParts";
 
 /** 접힌 노드 위에 이만큼 머물면 펼친다 (드래그 중 하위 부품을 고를 수 있게) */
 const EXPAND_ON_HOVER_MS = 600;
@@ -45,18 +48,10 @@ type DetailTab = "info" | "drawings" | "relation" | "register";
 
 type DrawingLoad = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; drawings: Drawing[] };
 
-const OCR_LABEL: Record<string, string> = {
-  not_started: "OCR 전",
-  queued: "OCR 대기",
-  running: "OCR 중",
-  completed: "OCR 완료",
-  failed: "OCR 실패",
-};
-
+/** 관리자 검토 상태 문구 (도면 탐색 배지와 같은 기준: 검토 완료 / 검토 전) */
 export function reviewLabel(drawing: Pick<Drawing, "review_status" | "ocr_status">) {
-  if (drawing.review_status === "reviewed") return { text: "검토 완료", tone: "ok" as const };
-  if (drawing.ocr_status === "completed" || drawing.review_status) return { text: "검토 전", tone: "warn" as const };
-  return { text: "OCR 필요", tone: "muted" as const };
+  const review = reviewState(drawing);
+  return { text: review.label, tone: review.tone === "ok" ? ("ok" as const) : review.tone === "warn" ? ("warn" as const) : ("muted" as const) };
 }
 
 export function StatusText({ tone, children }: { tone: "ok" | "warn" | "bad" | "muted"; children: ReactNode }) {
@@ -111,6 +106,10 @@ export function EngineExplorerPanel({
   const [moveRequest, setMoveRequest] = useState<{ drawing: Drawing; target: Part | null } | null>(null);
   const [moveNotice, setMoveNotice] = useState<{ tone: "ok" | "warn" | "bad"; text: string } | null>(null);
   const hoverTimer = useRef<{ id: string; timer: number } | null>(null);
+  // 3D 화면 위 도면 미리보기 패널: 하나만 두고 선택이 바뀌면 내용만 바꾼다.
+  const [previewClosed, setPreviewClosed] = useState(false);
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Drawing | null>(null);
 
   // ---------------------------------------------------------------- 데이터
   useEffect(() => {
@@ -180,6 +179,10 @@ export function EngineExplorerPanel({
     const row = treeRef.current?.querySelector('[aria-current="true"]');
     row?.scrollIntoView({ block: "nearest" });
   }, [selection.engineKey, selection.partId, selection.drawingId, expanded]);
+
+  useEffect(() => {
+    setPreviewClosed(false);
+  }, [selection.engineKey, selection.partId, selection.drawingId]);
 
   // 3D에서 부품을 고르면 연결 도면 탭을 먼저 보여준다 (연결 부품이 없으면 정보 탭).
   useEffect(() => {
@@ -316,6 +319,32 @@ export function EngineExplorerPanel({
     };
   }
 
+  /** 삭제 후: 그 부품의 목록·개수를 서버 기준으로 다시 불러오고, 보던 도면이면 미리보기를 비운다. */
+  function afterDelete(drawing: Drawing) {
+    setDeleteTarget(null);
+    setDrawingLoads((previous) => { const next = { ...previous }; delete next[drawing.part_id]; return next; });
+    setPartsVersion((value) => value + 1);
+    loadDrawingsFresh(drawing.part_id);
+    setMoveNotice({ tone: "ok", text: `삭제했습니다: ${drawing.original_filename || drawing.name} (파일·기록은 서버에 보관)` });
+    if (selection.drawingId === drawing.drawing_id) onSelect({ ...selection, drawingId: null });
+  }
+
+  function loadDrawingsFresh(partId: string) {
+    setDrawingLoads((previous) => ({ ...previous, [partId]: { status: "loading" } }));
+    fetchDrawings(partId)
+      .then((data) => setDrawingLoads((previous) => ({ ...previous, [partId]: { status: "ready", drawings: data.drawings } })))
+      .catch((cause: unknown) => setDrawingLoads((previous) => ({ ...previous, [partId]: { status: "error", message: cause instanceof Error ? cause.message : "도면 조회 실패" } })));
+  }
+
+  /** 도면 ⋯ 메뉴: 관리자만 소속 변경·삭제 */
+  function drawingMenuItems(drawing: Drawing): MenuItem[] {
+    if (!canManage) return [];
+    return [
+      { label: "소속 부품 변경", icon: <MoveRight className="h-3.5 w-3.5" />, onSelect: () => setMoveRequest({ drawing, target: null }) },
+      { label: "삭제", icon: <Trash2 className="h-3.5 w-3.5" />, danger: true, onSelect: () => setDeleteTarget(drawing) },
+    ];
+  }
+
   function startRegister(partId: string) {
     setRegisterPartId(partId);
     setTab("register");
@@ -357,7 +386,7 @@ export function EngineExplorerPanel({
         dragging={drag?.drawing.drawing_id === drawing.drawing_id}
         icon={<FileText className="h-3.5 w-3.5 text-dx-faint" />}
         label={drawing.original_filename || drawing.name}
-        meta={reviewLabel(drawing).text}
+        meta={`${ocrState(drawing).label} · ${reviewState(drawing).label}`}
         onClick={() => select({ engineKey: part.engine_part_key && modelKeys.has(part.engine_part_key) ? part.engine_part_key : null, partId: part.part_id, drawingId: drawing.drawing_id })}
         onDoubleClick={() => onOpenDrawing(drawing)}
         title="두 번 클릭하면 도면을 엽니다"
@@ -485,6 +514,26 @@ export function EngineExplorerPanel({
         />
       )}
 
+      {deleteTarget && <DeleteDrawingDialog drawing={deleteTarget} onCancel={() => setDeleteTarget(null)} onDeleted={afterDelete} />}
+
+      {/* 3D 화면 오른쪽 아래: 고른 부품의 도면 썸네일 + 고른 도면 미리보기 (패널 하나, 내용만 교체) */}
+      {layout === "side" && !previewClosed && (selection.engineKey || selection.partId) && (
+        <PreviewDock
+          title={selectedModelPart?.name ?? selectedPart?.name ?? ""}
+          parts={targetParts}
+          loads={drawingLoads}
+          selectedDrawingId={selection.drawingId}
+          canManage={canManage}
+          collapsed={previewCollapsed}
+          onToggle={() => setPreviewCollapsed((value) => !value)}
+          onClose={() => setPreviewClosed(true)}
+          onPick={(part, drawing) => select({ engineKey: selection.engineKey, partId: selection.partId ?? (targetParts.length === 1 ? part.part_id : null), drawingId: drawing.drawing_id })}
+          onOpen={onOpenDrawing}
+          onRegister={startRegister}
+          menuItems={drawingMenuItems}
+        />
+      )}
+
       {/* ---------------------------------------------- 선택 대상 · 작업 */}
       <section aria-label="선택 대상" className="flex min-h-0 flex-1 flex-col">
         <div className="shrink-0 px-3 pt-2.5">
@@ -525,7 +574,7 @@ export function EngineExplorerPanel({
               selectedDrawingId={selection.drawingId}
               canManage={canManage}
               dragProps={dragProps}
-              onMove={(drawing) => setMoveRequest({ drawing, target: null })}
+              menuItems={drawingMenuItems}
               onPick={(part, drawing) => select({ engineKey: selection.engineKey, partId: selection.partId ?? (targetParts.length === 1 ? part.part_id : null), drawingId: drawing.drawing_id })}
               onOpen={onOpenDrawing}
               onRegister={startRegister}
@@ -548,6 +597,7 @@ export function EngineExplorerPanel({
               part={(parts ?? []).find((p) => p.part_id === registerPartId)!}
               onClose={() => setTab(targetParts.length ? "drawings" : "info")}
               onUploaded={(drawing) => {
+                setTab("drawings");
                 setDrawingLoads((previous) => { const next = { ...previous }; delete next[drawing.part_id]; return next; });
                 setPartsVersion((value) => value + 1);
                 onUploaded(drawing);
@@ -732,14 +782,14 @@ function DrawingsTab({
   onOpen,
   onRegister,
   dragProps,
-  onMove,
+  menuItems,
 }: {
   parts: Part[];
   loads: Record<string, DrawingLoad>;
   selectedDrawingId: string | null;
   canManage: boolean;
   dragProps: (drawing: Drawing) => Record<string, unknown>;
-  onMove: (drawing: Drawing) => void;
+  menuItems: (drawing: Drawing) => MenuItem[];
   onPick: (part: Part, drawing: Drawing) => void;
   onOpen: (drawing: Drawing) => void;
   onRegister: (partId: string) => void;
@@ -752,6 +802,7 @@ function DrawingsTab({
           <section key={part.part_id} aria-label={`${part.name} 도면`} className="space-y-2">
             <header className="flex items-center gap-2">
               <h3 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{part.name}</h3>
+              <span className="text-[11px] text-dx-faint">도면 {part.drawing_count}</span>
               {canManage && (
                 <button type="button" className="dx-btn" onClick={() => onRegister(part.part_id)}>
                   <Plus className="h-3.5 w-3.5" />도면 추가
@@ -773,42 +824,37 @@ function DrawingsTab({
                 )}
               </div>
             ) : (
-              <ul className="space-y-1" aria-label="도면 비교">
+              <ul className="space-y-1.5" aria-label={`${part.name} 도면 목록`}>
                 {load.drawings.map((drawing) => {
                   const active = drawing.drawing_id === selectedDrawingId;
-                  const review = reviewLabel(drawing);
+                  const name = drawing.original_filename || drawing.name;
                   return (
                     <li key={drawing.drawing_id}>
                       <div
                         {...dragProps(drawing)}
-                        className={`flex items-center gap-2 rounded border px-2.5 py-2 transition-colors ${active ? "border-dx-accent bg-dx-accent/10" : "border-dx-line bg-dx-raised hover:border-dx-line-strong"}`}
+                        className={`flex items-center gap-2 rounded border p-1.5 transition-colors ${active ? "border-dx-accent bg-dx-accent/10" : "border-dx-line bg-dx-raised hover:border-dx-line-strong"}`}
                       >
                         {canManage && (
-                          <span title="끌어서 트리의 다른 부품으로 옮기기" className="-ml-1 cursor-grab text-dx-faint active:cursor-grabbing">
+                          <span title="끌어서 트리의 다른 부품으로 옮기기" className="cursor-grab text-dx-faint active:cursor-grabbing">
                             <GripVertical aria-hidden="true" className="h-3.5 w-3.5" />
                           </span>
                         )}
                         <button
                           type="button"
                           aria-current={active || undefined}
+                          title="한 번 클릭: 미리보기 · 두 번 클릭: 작업 시작"
                           onClick={() => onPick(part, drawing)}
                           onDoubleClick={() => onOpen(drawing)}
-                          className="min-w-0 flex-1 text-left focus-visible:outline-2 focus-visible:outline-dx-accent"
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-dx-accent"
                         >
-                          <span className="block truncate font-medium text-dx-text">{drawing.original_filename || drawing.name}</span>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-dx-muted">
-                            <span className="font-mono">{drawing.created_at?.slice(0, 16)}</span>
-                            <span>{OCR_LABEL[drawing.ocr_status] ?? drawing.ocr_status}</span>
-                            {drawing.ocr_revision && <span className="font-mono" title="OCR 결과 버전 (도면 개정 번호가 아님)">OCR v.{drawing.ocr_revision.slice(0, 6)}</span>}
-                            <StatusText tone={review.tone}>{review.text}</StatusText>
+                          <DrawingThumb drawing={drawing} className="h-[46px] w-[64px] shrink-0 rounded-sm border border-dx-line" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium text-dx-text">{name}</span>
+                            <span className="mt-1 block"><StatusBadges drawing={drawing} /></span>
                           </span>
                         </button>
-                        {canManage && (
-                          <button type="button" className="dx-btn dx-btn-ghost dx-icon-btn" title="소속 부품 변경" aria-label={`${drawing.original_filename || drawing.name} 소속 부품 변경`} onClick={() => onMove(drawing)}>
-                            <MoveRight className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <button type="button" className={`dx-btn ${active ? "dx-btn-primary" : ""}`} onClick={() => onOpen(drawing)}>
+                        <DrawingMenu label={name} items={menuItems(drawing)} />
+                        <button type="button" className={`dx-btn shrink-0 ${active ? "dx-btn-primary" : ""}`} onClick={() => onOpen(drawing)}>
                           열기
                         </button>
                       </div>
@@ -820,8 +866,128 @@ function DrawingsTab({
           </section>
         );
       })}
-      <p className="text-[11px] text-dx-faint">도면 개정 번호는 현재 데이터에 없어 OCR 결과 버전으로 변경을 구분합니다. 도면을 열기 전까지 3D 화면이 유지됩니다.</p>
+      <p className="text-[11px] text-dx-faint">한 번 클릭하면 3D 화면 오른쪽 아래에 미리보기가 열리고, 두 번 클릭하거나 「열기」를 누르면 작업 화면으로 들어갑니다.</p>
     </div>
+  );
+}
+
+/** 3D 화면 위 미리보기 패널. 3D 조작 버튼(위 가운데)·크랭크각(오른쪽 위)·아래쪽 안내 줄을 가리지 않게 오른쪽 아래에 띄운다. */
+function PreviewDock({
+  title,
+  parts,
+  loads,
+  selectedDrawingId,
+  canManage,
+  collapsed,
+  onToggle,
+  onClose,
+  onPick,
+  onOpen,
+  onRegister,
+  menuItems,
+}: {
+  title: string;
+  parts: Part[];
+  loads: Record<string, DrawingLoad>;
+  selectedDrawingId: string | null;
+  canManage: boolean;
+  collapsed: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onPick: (part: Part, drawing: Drawing) => void;
+  onOpen: (drawing: Drawing) => void;
+  onRegister: (partId: string) => void;
+  menuItems: (drawing: Drawing) => MenuItem[];
+}) {
+  const entries = parts.flatMap((part) => {
+    const load = loads[part.part_id];
+    return load?.status === "ready" ? load.drawings.map((drawing) => ({ part, drawing })) : [];
+  });
+  const loading = parts.some((part) => !loads[part.part_id] || loads[part.part_id].status === "loading");
+  const failed = parts.map((part) => loads[part.part_id]).find((load) => load?.status === "error");
+  const selected = entries.find((entry) => entry.drawing.drawing_id === selectedDrawingId);
+  return (
+    <section
+      aria-label="도면 미리보기"
+      className="absolute bottom-11 right-3 z-20 flex max-h-[calc(100%-10rem)] w-[min(320px,calc(100%-24px))] flex-col overflow-hidden rounded-md border border-dx-line-strong bg-dx-panel/95 text-xs shadow-2xl backdrop-blur"
+    >
+      <header className="flex h-9 shrink-0 items-center gap-1.5 border-b border-dx-line pl-3 pr-1">
+        <FileText aria-hidden="true" className="h-3.5 w-3.5 text-dx-accent" />
+        <h2 className="min-w-0 flex-1 truncate font-semibold text-white">{title} 도면{entries.length ? ` ${entries.length}` : ""}</h2>
+        {canManage && parts.length === 1 && (
+          <button type="button" className="dx-btn dx-btn-ghost h-7 px-1.5" title="이 부품에 도면 추가" onClick={() => onRegister(parts[0].part_id)}>
+            <Plus className="h-3.5 w-3.5" />추가
+          </button>
+        )}
+        <button type="button" className="dx-btn dx-btn-ghost dx-icon-btn h-7" aria-expanded={!collapsed} aria-label={collapsed ? "미리보기 펼치기" : "미리보기 접기"} onClick={onToggle}>
+          {collapsed ? <ChevronRight className="h-4 w-4 -rotate-90" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        <button type="button" className="dx-btn dx-btn-ghost dx-icon-btn h-7" aria-label="미리보기 닫기" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </button>
+      </header>
+      {!collapsed && (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+          {parts.length === 0 ? (
+            <p className="rounded border border-dashed border-dx-line-strong px-3 py-4 text-center text-dx-muted">
+              이 3D 부품에 연결된 등록 부품이 없어 볼 도면이 없습니다.
+              {canManage ? " 왼쪽 정보 탭에서 등록 부품을 연결하세요." : ""}
+            </p>
+          ) : failed?.status === "error" ? (
+            <p role="alert" className="text-rose-300">{failed.message}</p>
+          ) : loading && !entries.length ? (
+            <p role="status" className="flex items-center gap-1.5 text-dx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" />도면 불러오는 중…</p>
+          ) : entries.length === 0 ? (
+            <div className="rounded border border-dashed border-dx-line-strong px-3 py-4 text-center text-dx-muted">
+              <FileText aria-hidden="true" className="mx-auto mb-1.5 h-5 w-5 text-dx-faint" />
+              연결된 도면이 없습니다.
+              {canManage && parts.length === 1 ? (
+                <div className="mt-2"><button type="button" className="dx-btn dx-btn-primary" onClick={() => onRegister(parts[0].part_id)}><Plus className="h-3.5 w-3.5" />도면 추가</button></div>
+              ) : (
+                <p className="mt-1 text-[11px]">관리자에게 도면 등록을 요청하세요.</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <ul aria-label="연결 도면 썸네일" className="flex gap-2 overflow-x-auto pb-1">
+                {entries.map(({ part, drawing }) => {
+                  const active = drawing.drawing_id === selectedDrawingId;
+                  const name = drawing.original_filename || drawing.name;
+                  return (
+                    <li key={drawing.drawing_id} className="shrink-0">
+                      <button
+                        type="button"
+                        aria-current={active || undefined}
+                        title={`${name}
+한 번 클릭: 미리보기 · 두 번 클릭: 작업 시작`}
+                        onClick={() => onPick(part, drawing)}
+                        onDoubleClick={() => onOpen(drawing)}
+                        className={`flex w-[92px] flex-col gap-1 rounded border p-1 text-left ${active ? "border-dx-accent bg-dx-accent/10" : "border-dx-line hover:border-dx-line-strong"}`}
+                      >
+                        <DrawingThumb drawing={drawing} className="h-[62px] w-full rounded-sm" />
+                        <span className="block truncate text-[10.5px] text-dx-text">{name}</span>
+                        <span className={`block truncate text-[10px] ${drawing.review_status === "reviewed" ? "text-emerald-300" : "text-dx-muted"}`}>{reviewState(drawing).label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {selected ? (
+                <DrawingPreview
+                  key={selected.drawing.drawing_id}
+                  drawing={selected.drawing}
+                  partName={parts.length > 1 ? selected.part.name : undefined}
+                  onStart={onOpen}
+                  menu={<DrawingMenu label={selected.drawing.original_filename || selected.drawing.name} items={menuItems(selected.drawing)} />}
+                />
+              ) : (
+                <p className="rounded border border-dashed border-dx-line px-3 py-3 text-center text-dx-muted">도면을 한 번 누르면 여기에서 미리 봅니다. 두 번 누르면 작업 화면으로 들어갑니다.</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

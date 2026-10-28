@@ -231,3 +231,31 @@ export async function fetchItemErrors(purpose: WorkPurpose, drawingId: string, i
     `${API_BASE}/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}/items/${encodeURIComponent(itemId)}/errors`, { signal }
   ));
 }
+
+/** 도면 첫 페이지 미리보기 PNG (서버가 원본에서 만들어 캐시한다. OCR 은 실행하지 않는다). sm: 목록·카드, lg: 미리보기 */
+export function drawingThumbnailUrl(drawing: Pick<Drawing, "drawing_id">, size: "sm" | "lg" = "sm") {
+  return apiUrl(`/api/drawings/${encodeURIComponent(drawing.drawing_id)}/thumbnail?size=${size}`);
+}
+
+export interface DrawingDeleteImpact {
+  drawing_id: string;
+  filename: string;
+  has_ocr: boolean;
+  review_status: string | null;
+  measurement_records: number;
+  case_links: number;
+  ocr_active: boolean;
+}
+
+export async function fetchDeleteImpact(drawingId: string, signal?: AbortSignal) {
+  return readResponse<DrawingDeleteImpact>(await fetch(
+    `${API_BASE}/api/drawings/${encodeURIComponent(drawingId)}/delete-impact`, { signal }
+  ));
+}
+
+/** 도면 삭제 (소프트 삭제: 목록에서 숨기고 파일·OCR·측정 기록은 서버에 남긴다). 관람객 주소에서는 서버가 403 으로 막는다. */
+export async function deleteDrawing(drawingId: string) {
+  return readResponse<{ deleted: boolean; drawing_id: string; part_id: string }>(await fetch(
+    `${API_BASE}/api/drawings/${encodeURIComponent(drawingId)}`, { method: "DELETE" }
+  ));
+}
