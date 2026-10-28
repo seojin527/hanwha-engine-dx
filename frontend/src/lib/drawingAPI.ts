@@ -8,6 +8,8 @@ export interface Part {
   name: string;
   created_at: string;
   drawing_count: number;
+  /** 3D 엔진 모델의 부품 종류 (CS·CR·CH·PR·PH). 관리자가 연결하지 않았으면 null */
+  engine_part_key?: string | null;
 }
 
 export interface Drawing {
@@ -20,6 +22,10 @@ export interface Drawing {
   ocr_status: string;
   created_at: string;
   file_url: string;
+  /** 현재 OCR 결과 버전 (OCR 결과가 없으면 null). 도면 개정 번호가 아니다. */
+  ocr_revision?: string | null;
+  /** 관리자 검토 상태 ('reviewed' 면 검토 완료, 그 밖은 검토 전). OCR 결과가 없으면 null */
+  review_status?: string | null;
 }
 
 // 서버 오류 메시지를 화면에서 사용할 수 있게 처리
@@ -59,15 +65,91 @@ export async function fetchParts(signal?: AbortSignal) {
   return readResponse<{ parts: Part[] }>(response);
 }
 
-// 부품 추가
-export async function createPart(name: string) {
+// 부품 추가 (3D 부품 종류에 바로 연결할 수 있다)
+export async function createPart(name: string, enginePartKey?: string | null) {
   const response = await fetch(`${API_BASE}/api/parts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(enginePartKey ? { name, engine_part_key: enginePartKey } : { name }),
   });
 
   return readResponse<Part>(response);
+}
+
+/** 등록 부품을 3D 엔진 부품 종류에 연결하거나(null 이면) 해제한다. */
+export async function linkEnginePart(partId: string, enginePartKey: string | null) {
+  const response = await fetch(`${API_BASE}/api/parts/${encodeURIComponent(partId)}/engine-part`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ engine_part_key: enginePartKey }),
+  });
+  return readResponse<Part>(response);
+}
+
+export interface PartMoveImpact {
+  drawing_id: string;
+  from_part: { part_id: string; name: string | null };
+  to_part: { part_id: string; name: string };
+  same_part: boolean;
+  review_status: string | null;
+  /** drawing_id 로 연결돼 이동 뒤에도 그대로인 기록 수 */
+  kept: { measurements: number; machining_records: number; error_case_links: number };
+  /** 부품 이름을 쓰는 기능 중 이동으로 의미가 달라지는 것 */
+  changes: string[];
+  needs_confirmation: boolean;
+}
+
+/** 소속 부품을 바꾸면 무엇이 유지·변경되는지 미리 본다 (서버 데이터는 바꾸지 않음). */
+export async function fetchPartMoveImpact(drawingId: string, toPartId: string, signal?: AbortSignal) {
+  const response = await fetch(
+    `${API_BASE}/api/drawings/${encodeURIComponent(drawingId)}/part-move-impact?to_part_id=${encodeURIComponent(toPartId)}`,
+    { signal },
+  );
+  return readResponse<PartMoveImpact>(response);
+}
+
+/** 도면의 소속 부품을 바꾼다 (drawings.part_id). expectedPartId 가 서버의 현재 값과 다르면 409 로 거부된다. */
+export async function moveDrawingToPart(drawingId: string, partId: string, expectedPartId: string) {
+  const response = await fetch(`${API_BASE}/api/drawings/${encodeURIComponent(drawingId)}/part`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ part_id: partId, expected_part_id: expectedPartId }),
+  });
+  return readResponse<{ changed: boolean; from_part_id?: string; drawing: Drawing }>(response);
+}
+
+/**
+ * 진행률을 알 수 있는 도면 업로드 (기존 업로드 API와 같은 주소). abort() 로 취소할 수 있다.
+ * 자동 OCR 서버(app_auto)로 실행 중이면 업로드 직후 OCR 작업이 시작된다.
+ */
+export function uploadDrawingWithProgress(
+  partId: string,
+  file: File,
+  onProgress: (loaded: number, total: number) => void,
+): { promise: Promise<Drawing>; abort: () => void } {
+  const request = new XMLHttpRequest();
+  const promise = new Promise<Drawing>((resolve, reject) => {
+    request.open("POST", `${API_BASE}/api/parts/${encodeURIComponent(partId)}/drawings`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    };
+    request.onload = () => {
+      let body: any = null;
+      try {
+        body = JSON.parse(request.responseText);
+      } catch {
+        // JSON 이 아니면 기본 문구
+      }
+      if (request.status >= 200 && request.status < 300 && body) resolve(body as Drawing);
+      else reject(new Error(typeof body?.detail === "string" ? body.detail : `업로드 실패 (${request.status})`));
+    };
+    request.onerror = () => reject(new Error("서버에 연결할 수 없습니다. 네트워크와 서버 실행 상태를 확인해주세요."));
+    request.onabort = () => reject(new DOMException("업로드를 취소했습니다.", "AbortError"));
+    const form = new FormData();
+    form.append("file", file);
+    request.send(form);
+  });
+  return { promise, abort: () => request.abort() };
 }
 
 // 선택한 부품의 도면 목록 조회

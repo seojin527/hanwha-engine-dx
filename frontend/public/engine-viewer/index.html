@@ -106,7 +106,28 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 </style>
 
-<style>body{margin:0} [hidden]{display:none!important}</style>
+<style>body{margin:0} [hidden]{display:none!important}
+/* 앱 안에 넣어 쓸 때 (?embed=1): 뷰어 자체 제목줄·조작 패널을 숨기고 3D 화면만 쓴다 */
+body.embed .top, body.embed .side, body.embed .stagehint { display: none; }
+body.embed { overflow: hidden !important; }
+/* 앱 안에서는 iframe 폭이 좁아도(760px 이하) 휴대폰용 세로 배치를 쓰지 않고 3D 화면이 전체를 채운다 */
+body.embed .main { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; }
+/* 바탕은 투명: 앱의 엔지니어링 배경이 그대로 비쳐 뷰어가 사각형으로 따로 붙어 보이지 않게 한다 */
+html:has(body.embed), body.embed, body.embed .main, body.embed .stage { background: transparent !important; }
+html:has(body.embed) { color-scheme: normal !important; }
+
+body.embed .hud { left: auto; right: 12px; top: 12px; }
+body.embed .hud .tag { background: rgba(10, 20, 31, 0.85); border-color: #22364a; color: #8ea3b8; }
+body.embed .hud .tag b { color: #dbe6f0; }
+body.embed .toast { background: #dbe6f0; color: #0b1520; }
+</style>
+<script>
+/* 앱 안에서 쓸 때 스크립트 오류(WebGL 미지원 등)를 부모에 알린다 */
+window.addEventListener('error', function (e) {
+  if (!/[?&]embed=1\b/.test(location.search)) return;
+  try { window.parent.postMessage({ type: 'dx:error', message: String(e.message || '3D 뷰어 오류') }, location.origin); } catch (x) {}
+});
+</script>
 </head>
 <body>
 <header class="top">
@@ -641,11 +662,136 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 resize();
-assemble().then(() => {
+const assembled = assemble();
+assembled.then(() => {
   if (hilitePart) document.getElementById('srcNote').insertAdjacentHTML('beforeend',
     '<br><b style="color:#' + HILITE_RED.toString(16) + '">빨간색</b>: 현재 도면의 부품 (<b>' + hilitePart.name + '</b>) · 나머지 부품은 흐리게 표시 (슬라이더로 조절)');
   pose(); requestAnimationFrame(frame);
 });
+</script>
+<script>
+/* ================================================================
+   앱 안에 넣어 쓰기 (?embed=1) — 메인 화면(App)이 iframe 으로 열고 postMessage 로 조작한다.
+   부모 → 뷰어: dx:select {key|null} · dx:reset · dx:zoom {factor} · dx:explode {on} · dx:run {on}
+   뷰어 → 부모: dx:ready {parts, source} · dx:selected {key} · dx:state {exploded, running} · dx:error {message}
+   선택 강조는 절제된 시안 윤곽선 + 약한 발광. 단독 실행(embed 아님)일 때는 기존 동작 그대로.
+   ================================================================ */
+(function () {
+  if (!/[?&]embed=1\b/.test(location.search)) return;
+  document.body.classList.add('embed');
+  const post = msg => { try { window.parent.postMessage(msg, location.origin); } catch (e) {} };
+
+  // 메인 화면에서는 시뮬레이션 회전을 멈춘 상태로 시작한다 (작동은 부모의 버튼으로).
+  setRun(false);
+
+  // ---------- 강조 규칙 ----------
+  // 선택: 시안 얇은 윤곽선 + 아주 약한 시안 발광 (표면 색은 그대로 보인다)
+  // 마우스를 올림: 회청색 얇은 윤곽선만 (발광 없음) → 선택과 구별
+  // 선택이 있을 때 나머지 부품은 밝기만 조금 낮춘다 (불투명 유지 → 전체 구조가 보인다)
+  const EDGE_SELECTED = new THREE.LineBasicMaterial({ color: 0x45d6ec, transparent: true, opacity: 0.95 });
+  const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x9db4cb, transparent: true, opacity: 0.6 });
+  const BASE_COLOR = {};
+  PARTS.forEach(p => { BASE_COLOR[p.key] = MAT[p.key].color.clone(); });
+  const DIM = 0.62;
+  let hoverKey = null;
+  const edgesBuilt = new Set();
+  function ensureEdges(key) {
+    if (!key || edgesBuilt.has(key)) return;
+    edgesBuilt.add(key);
+    inst[key].forEach(obj => obj.traverse(o => {
+      if (!o.isMesh || o.userData.edge) return;
+      const line = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 30), EDGE_SELECTED);
+      line.userData.edge = key;
+      line.raycast = () => {};
+      line.visible = false;
+      o.add(line);
+    }));
+  }
+  function refreshLook() {
+    ensureEdges(selKey);
+    ensureEdges(hoverKey);
+    PARTS.forEach(p => {
+      const m = MAT[p.key];
+      m.color.copy(BASE_COLOR[p.key]);
+      if (selKey && p.key !== selKey) m.color.multiplyScalar(DIM);
+      m.emissive.setHex(p.key === selKey ? 0x06343e : 0x000000);
+      inst[p.key].forEach(obj => obj.traverse(o => {
+        if (!o.userData.edge) return;
+        const sel = o.userData.edge === selKey, hov = o.userData.edge === hoverKey && !sel;
+        o.visible = sel || hov;
+        o.material = sel ? EDGE_SELECTED : EDGE_HOVER;
+      }));
+    });
+  }
+  glow = function () { refreshLook(); };
+  const baseSelect = select;
+  select = function (key) {
+    baseSelect(key);
+    refreshLook();
+    post({ type: 'dx:selected', key: selKey });
+  };
+
+  // 마우스를 올린 부품 (3D 화면에서만; 한 프레임에 한 번만 계산)
+  let hoverPending = null;
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (e.buttons) return;
+    hoverPending = e;
+    requestAnimationFrame(() => {
+      const ev = hoverPending; hoverPending = null;
+      if (!ev) return;
+      const r = renderer.domElement.getBoundingClientRect();
+      mouse.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(mouse, camera);
+      const hit = ray.intersectObjects(pickables.filter(m => isShown(m)), false)[0];
+      const key = hit ? hit.object.userData.key : null;
+      renderer.domElement.style.cursor = key ? 'pointer' : '';
+      if (key !== hoverKey) { hoverKey = key; refreshLook(); }
+    });
+  });
+  renderer.domElement.addEventListener('pointerleave', () => {
+    if (hoverKey) { hoverKey = null; refreshLook(); }
+    renderer.domElement.style.cursor = '';
+  });
+  function selectExact(key) {
+    if (key === selKey) return;
+    if (key) select(key); else if (selKey) select(selKey);
+  }
+  const state = () => post({ type: 'dx:state', exploded: expT > 0 || expTarget === 1, running });
+
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== window.parent) return;
+    const m = event.data || {};
+    if (m.type === 'dx:select') selectExact(PARTS.some(p => p.key === m.key) ? m.key : null);
+    else if (m.type === 'dx:reset') { userMoved = false; fitCamera(); }
+    else if (m.type === 'dx:zoom') {
+      const f = Math.min(2, Math.max(0.5, Number(m.factor) || 1));
+      const offset = camera.position.clone().sub(controls.target).multiplyScalar(f);
+      camera.position.copy(controls.target).add(offset);
+      userMoved = true; controls.update();
+    }
+    else if (m.type === 'dx:explode') { setRun(false); expTarget = m.on ? 1 : 0; setTimeout(state, 50); }
+    else if (m.type === 'dx:run') { if (m.on && expT > 0) expTarget = 0; setRun(!!m.on); state(); }
+    else if (m.type === 'dx:state?') state();
+  });
+
+  // 로그인 배경용 선화 내보내기 (일회성 도구, ?lineart=1 일 때만)
+  if (/[?&]lineart=1\b/.test(location.search)) {
+    const s = document.createElement('script'); s.src = './lineart-export.js'; document.body.appendChild(s);
+  }
+  // 바닥 격자는 배경보다 조금만 밝게
+  document.documentElement.style.setProperty("--grid", "#2f4258");
+  makeGrid();
+  grid.material.opacity = 0.4;
+  assembled.then(() => {
+    post({
+      type: 'dx:ready',
+      parts: PARTS.map(p => ({ key: p.key, name: p.name, pn: p.pn, qty: p.qty, spec: p.spec })),
+      source: document.getElementById('srcNote').textContent,
+      title: document.querySelector('.top h1').textContent,
+      pn: document.querySelector('.top .pn').textContent,
+    });
+  });
+})();
 </script>
 
 </body>

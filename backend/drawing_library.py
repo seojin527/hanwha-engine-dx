@@ -69,6 +69,23 @@ def init_library():
                     f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT"
                 )
 
+        # 3D 엔진 모델의 부품 종류(engine-viewer PARTS 의 key)와 등록 부품의 연결.
+        # 관리자가 명시적으로 지정한 값만 쓴다. 기존 부품은 비어 있다 (이름으로 추정해 채우지 않음).
+        part_columns = {row["name"] for row in db.execute("PRAGMA table_info(parts)").fetchall()}
+        if "engine_part_key" not in part_columns:
+            db.execute("ALTER TABLE parts ADD COLUMN engine_part_key TEXT")
+
+        # 도면 소속 부품 변경 기록 (누가 했는지는 서버 인증이 없어 남기지 않는다)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS drawing_part_moves (
+                move_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                drawing_id TEXT NOT NULL REFERENCES drawings(drawing_id),
+                from_part_id TEXT NOT NULL,
+                to_part_id TEXT NOT NULL,
+                moved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # 처음 시작할 때 기본 부품만 등록
         db.execute(
             "INSERT OR IGNORE INTO parts (part_id, name) VALUES (?, ?)",
@@ -78,13 +95,28 @@ def init_library():
 
 class PartCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
+    engine_part_key: str | None = None
+
+
+# 3D 엔진 모델(frontend/public/engine-viewer/index.html 의 PARTS)에 있는 부품 종류
+ENGINE_PART_KEYS = {"CS", "CR", "CH", "PR", "PH"}
+
+
+def _check_engine_key(value):
+    if value is not None and value not in ENGINE_PART_KEYS:
+        raise HTTPException(422, f"3D 모델에 없는 부품 종류입니다: {value}")
+    return value
+
+
+class EnginePartLink(BaseModel):
+    engine_part_key: str | None = None
 
 
 @router.get("/parts")
 def list_parts():
     with database() as db:
         rows = db.execute("""
-            SELECT p.part_id, p.name, p.created_at,
+            SELECT p.part_id, p.name, p.created_at, p.engine_part_key,
                    COUNT(d.drawing_id) AS drawing_count
             FROM parts p
             LEFT JOIN drawings d
@@ -104,12 +136,13 @@ def create_part(payload: PartCreate):
         raise HTTPException(422, "부품명을 입력해주세요.")
 
     part_id = str(uuid4())
+    engine_key = _check_engine_key(payload.engine_part_key)
 
     try:
         with database() as db:
             db.execute(
-                "INSERT INTO parts (part_id, name) VALUES (?, ?)",
-                (part_id, name),
+                "INSERT INTO parts (part_id, name, engine_part_key) VALUES (?, ?, ?)",
+                (part_id, name, engine_key),
             )
             row = db.execute(
                 "SELECT * FROM parts WHERE part_id = ?",
@@ -119,6 +152,28 @@ def create_part(payload: PartCreate):
         raise HTTPException(409, "이미 등록된 부품명입니다.")
 
     return {**dict(row), "drawing_count": 0}
+
+
+@router.put("/parts/{part_id}/engine-part")
+def link_engine_part(part_id: str, payload: EnginePartLink):
+    """등록 부품을 3D 모델의 부품 종류에 연결하거나(null 이면) 연결을 해제한다. 화면에서는 관리자만 쓴다."""
+    engine_key = _check_engine_key(payload.engine_part_key)
+    with database() as db:
+        row = db.execute(
+            "SELECT part_id FROM parts WHERE part_id = ? AND deleted_at IS NULL", (part_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "부품을 찾을 수 없습니다.")
+        db.execute("UPDATE parts SET engine_part_key = ? WHERE part_id = ?", (engine_key, part_id))
+        row = db.execute(
+            """
+            SELECT p.part_id, p.name, p.created_at, p.engine_part_key,
+                   (SELECT COUNT(*) FROM drawings d WHERE d.part_id = p.part_id AND d.deleted_at IS NULL) AS drawing_count
+            FROM parts p WHERE p.part_id = ?
+            """,
+            (part_id,),
+        ).fetchone()
+    return dict(row)
 
 
 from fastapi import UploadFile, File
@@ -147,11 +202,21 @@ def list_drawings(part_id: str):
         if part is None:
             raise HTTPException(404, "부품을 찾을 수 없습니다.")
 
+        # 도면 비교용: OCR 결과 버전과 관리자 검토 상태 (OCR 결과가 없으면 null)
+        has_ocr = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocr_results'"
+        ).fetchone()
+        review_columns = (
+            ", o.revision AS ocr_revision, json_extract(o.metadata_json, '$.review_status') AS review_status"
+            if has_ocr else ", NULL AS ocr_revision, NULL AS review_status"
+        )
+        review_join = "LEFT JOIN ocr_results o ON o.drawing_id = d.drawing_id" if has_ocr else ""
         rows = db.execute(
-            """
-            SELECT * FROM drawings
-            WHERE part_id = ? AND deleted_at IS NULL
-            ORDER BY created_at DESC, drawing_id
+            f"""
+            SELECT d.*{review_columns} FROM drawings d
+            {review_join}
+            WHERE d.part_id = ? AND d.deleted_at IS NULL
+            ORDER BY d.created_at DESC, d.drawing_id
             """,
             (part_id,),
         ).fetchall()
@@ -275,6 +340,118 @@ def upload_drawing(
 
     finally:
         file.file.close()
+
+
+# --------------------------------------------------------------------------- 도면 소속 부품 변경
+# 도면은 drawings.part_id 한 열로 부품에 속한다. 파일은 drawing_id 이름으로 한 폴더에 있어 옮길 필요가 없고,
+# OCR 결과·관리자 검토·측정·가공 단계 기록·오류사례 연결은 모두 drawing_id 로 연결돼 그대로 남는다.
+# 부품 '이름'을 쓰는 기능(가공 단계 템플릿, 오류사례 추천 범위, 새 오류사례의 부품명)은 이동 뒤 새 부품 기준이 된다.
+
+def _table_exists(db, name):
+    return db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def _count(db, table, drawing_id, extra=""):
+    if not _table_exists(db, table):
+        return 0
+    return db.execute(f"SELECT COUNT(*) FROM {table} WHERE drawing_id=? {extra}", (drawing_id,)).fetchone()[0]
+
+
+def _move_target(db, drawing_id, part_id):
+    drawing = db.execute(
+        "SELECT * FROM drawings WHERE drawing_id = ? AND deleted_at IS NULL", (drawing_id,)
+    ).fetchone()
+    if drawing is None:
+        raise HTTPException(404, "도면을 찾을 수 없습니다.")
+    target = db.execute(
+        "SELECT * FROM parts WHERE part_id = ? AND deleted_at IS NULL", (part_id,)
+    ).fetchone()
+    if target is None:
+        raise HTTPException(404, "옮길 부품을 찾을 수 없습니다.")
+    source = db.execute("SELECT * FROM parts WHERE part_id = ?", (drawing["part_id"],)).fetchone()
+    return drawing, source, target
+
+
+@router.get("/drawings/{drawing_id}/part-move-impact")
+def part_move_impact(drawing_id: str, to_part_id: str):
+    """소속 부품을 바꾸면 무엇이 그대로이고 무엇이 달라지는지. 아무것도 바꾸지 않는다."""
+    from machining_templates import TEMPLATES, part_key_for
+
+    with database() as db:
+        drawing, source, target = _move_target(db, drawing_id, to_part_id)
+        title_name = ""
+        review_status = None
+        if _table_exists(db, "ocr_results"):
+            row = db.execute(
+                "SELECT json_extract(metadata_json, '$.part_name') AS part_name, "
+                "json_extract(metadata_json, '$.review_status') AS review_status FROM ocr_results WHERE drawing_id=?",
+                (drawing_id,),
+            ).fetchone()
+            if row:
+                title_name, review_status = row["part_name"] or "", row["review_status"]
+        kept = {
+            "measurements": _count(db, "measurement_records", drawing_id),
+            "machining_records": _count(db, "machining_stage_records", drawing_id),
+            "error_case_links": sum(
+                _count(db, f"{purpose}_case_links", drawing_id, "AND unlinked_at IS NULL")
+                for purpose in ("manufacturing", "assembly", "verification")
+            ),
+        }
+
+    old_key = part_key_for(source["name"] if source else "", title_name)
+    new_key = part_key_for(target["name"], title_name)
+    template_label = lambda key: TEMPLATES[key]["label"] if key in TEMPLATES else "템플릿 없음 (모든 항목 정삭 측정)"  # noqa: E731
+    changes = []
+    if old_key != new_key:
+        changes.append(
+            f"가공 단계(황삭·중삭·정삭) 기준이 바뀝니다: {template_label(old_key)} → {template_label(new_key)}. "
+            f"이미 저장된 단계 기록 {kept['machining_records']}건은 남지만 단계 구분이 새 기준으로 다시 계산됩니다."
+        )
+    if (source["name"] if source else "") != target["name"]:
+        changes.append(
+            f"오류사례 자동 추천의 부품 범위가 '{source['name'] if source else '-'}' 대신 '{target['name']}' 기준이 됩니다. "
+            "이미 등록된 오류사례의 부품명은 바뀌지 않습니다."
+        )
+    return {
+        "drawing_id": drawing_id,
+        "from_part": {"part_id": drawing["part_id"], "name": source["name"] if source else None},
+        "to_part": {"part_id": target["part_id"], "name": target["name"]},
+        "same_part": drawing["part_id"] == target["part_id"],
+        "review_status": review_status,
+        "kept": kept,
+        "changes": changes,
+        "needs_confirmation": bool(changes),
+    }
+
+
+class DrawingMove(BaseModel):
+    part_id: str = Field(min_length=1)
+    # 화면이 보고 있던 현재 소속. 그 사이 다른 곳에서 바뀌었으면 거부한다.
+    expected_part_id: str = Field(min_length=1)
+
+
+@router.put("/drawings/{drawing_id}/part")
+def move_drawing(drawing_id: str, payload: DrawingMove):
+    """도면의 소속 부품을 바꾼다 (drawings.part_id). 측정·검토·OCR·오류사례 기록은 drawing_id 로 그대로 연결된다.
+    작업 상태(OCR·검토·측정 진행)는 바꾸지 않는다. 화면에서는 관리자만 쓴다 (서버 인증은 없음)."""
+    with database() as db:
+        db.execute("BEGIN IMMEDIATE")
+        drawing, source, target = _move_target(db, drawing_id, payload.part_id)
+        if drawing["part_id"] != payload.expected_part_id:
+            raise HTTPException(409, "다른 곳에서 이 도면의 소속이 이미 바뀌었습니다. 목록을 새로 고친 뒤 다시 시도해주세요.")
+        if drawing["part_id"] == target["part_id"]:
+            return {"changed": False, "drawing": {**dict(drawing), "file_url": f"/api/drawings/{drawing_id}/file"}}
+        db.execute("UPDATE drawings SET part_id = ? WHERE drawing_id = ?", (target["part_id"], drawing_id))
+        db.execute(
+            "INSERT INTO drawing_part_moves (drawing_id, from_part_id, to_part_id) VALUES (?, ?, ?)",
+            (drawing_id, drawing["part_id"], target["part_id"]),
+        )
+        row = db.execute("SELECT * FROM drawings WHERE drawing_id = ?", (drawing_id,)).fetchone()
+    return {
+        "changed": True,
+        "from_part_id": drawing["part_id"],
+        "drawing": {**dict(row), "file_url": f"/api/drawings/{drawing_id}/file"},
+    }
 
 
 @router.get("/drawings/{drawing_id}/file")

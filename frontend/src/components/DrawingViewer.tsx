@@ -92,7 +92,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   }
 
   return (
-    <div ref={viewportRef} aria-busy={isAnalyzing} className="relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
+    <div ref={viewportRef} aria-busy={isAnalyzing} className="dx-drawing-surround relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
       <div className="z-20 flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800 bg-slate-900 px-3 text-xs text-slate-200">
         <div role="group" aria-label="도면 조작 모드" className="seg-dark">
           <button

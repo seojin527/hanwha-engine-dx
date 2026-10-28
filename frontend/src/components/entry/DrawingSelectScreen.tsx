@@ -29,6 +29,8 @@ interface DrawingSelectScreenProps {
   adminContent?: ReactNode;
   /** 선택한 부품·도면이 바뀔 때 (관리자 작업 현황에서 같은 대상을 쓴다) */
   onSelectionChange?: (partId: string, drawing: Drawing | null) => void;
+  /** ENGINE DX 셸 안에 넣을 때: 자체 머리글(이름·처음 화면)을 숨긴다. 셸의 상단 바가 같은 정보를 보여준다. */
+  embedded?: boolean;
 }
 
 const OCR_STATUS_LABEL: Record<string, { label: string; className: string }> = {
@@ -62,6 +64,7 @@ export function DrawingSelectScreen({
   onDemo,
   onExit,
   adminMenu,
+  embedded = false,
   adminContent,
   onSelectionChange,
 }: DrawingSelectScreenProps) {
@@ -130,8 +133,8 @@ export function DrawingSelectScreen({
   }
 
   return (
-    <div className="entry-gray flex h-screen break-keep w-screen flex-col overflow-hidden">
-      <header className="flex h-11 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 text-white">
+    <div className={`entry-gray flex break-keep flex-col overflow-hidden ${embedded ? "min-h-0 min-w-0 flex-1" : "h-screen w-screen"}`}>
+      {!embedded && <header className="flex h-11 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 text-white">
         <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded bg-cyan-700 text-white">
           <Ruler className="h-3.5 w-3.5" />
         </span>
@@ -146,7 +149,7 @@ export function DrawingSelectScreen({
             처음 화면
           </button>
         </div>
-      </header>
+      </header>}
 
       {adminMenu && (
         <nav aria-label="관리자 메뉴" className="flex shrink-0 items-center gap-3 border-b border-neutral-700 bg-neutral-900/40 px-4 lg:px-6">

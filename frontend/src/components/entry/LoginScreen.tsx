@@ -1,200 +1,220 @@
-import { useState } from "react";
-import { BookOpenCheck, ClipboardCheck, Info, MapPin, PlayCircle, Ruler, ScanText } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, Lock, PlayCircle, User, Users } from "lucide-react";
 import { ROLE_OPTIONS, type UserRole } from "../../lib/role";
+import { EngineeringBackdrop } from "../shell/EngineeringBackdrop";
 
 interface LoginScreenProps {
-  /** 계정 이름·역할로 도면 선택 화면에 들어간다. 이름은 화면 표시용으로 메모리에만 둔다. */
+  /** 계정 이름·역할로 전체 엔진 3D 화면에 들어간다. 이름은 화면 표시용으로 메모리에만 둔다. */
   onLogin: (account: string, role: UserRole) => void;
   /** 고른 역할로 샘플 도면 화면을 바로 연다. */
   onDemo: (role: UserRole) => void;
 }
 
-/** 저장소 README 의 Scope 표와 같은 내용 (실제 제공 기능만 적는다) */
-const CAPABILITIES = [
-  { icon: ScanText, title: "도면 분석", text: "치수·공차·기하공차 추출 및 항목화" },
-  { icon: MapPin, title: "측정 가이드", text: "도면 마커와 측정항목 연동" },
-  { icon: BookOpenCheck, title: "품질 지식", text: "항목별 오류사례 및 주의사항 조회" },
-  { icon: ClipboardCheck, title: "검사 기록", text: "측정값 입력·판정·이력 관리" },
-];
-
-const WORKFLOW = ["부품 조회", "도면 분석", "측정 기준 확인", "검사 수행", "결과 기록"];
-
 /**
  * 시연용 진입 화면.
- * 현재 서버에는 인증·권한 API 가 없으므로 계정 확인을 하지 않는다.
- * 비밀번호 입력란은 형태만 보여주며 값을 받거나 저장하지 않는다.
+ * 현재 서버에는 인증·권한 API 가 없으므로 계정 확인을 하지 않는다 (작은 안내 문구로 표시).
+ * 비밀번호 입력란은 형태만 보여주며 값을 받거나 저장하지 않는다. 비밀번호 찾기·로그인 유지는 기능이 없어 두지 않는다.
+ * 역할은 lib/role.ts 의 실제 역할(관리자 · 부품제작/조립/검증 작업자)을 그대로 쓴다.
+ *
+ * 글자 체계 (Pretendard Variable · 4px 간격 기준)
+ *   제품명  HANWHA ENGINE 13px/600 자간 +0.04em · DX 같은 기준선, 시안
+ *   제목    20px/600 행간 1.3 자간 -0.01em
+ *   설명    13px/400 행간 1.5 흰색 60%
+ *   라벨    13px/500 흰색 85% · 입력값 14px/400 흰색 · placeholder 는 예시만 (라벨이 항상 보인다)
+ *   보조    12px/400 행간 1.5 흰색 50%
+ *   버튼    14px/600 높이 44px
  */
 export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
   const [account, setAccount] = useState("");
   const [roleKey, setRoleKey] = useState("");
+  const [fullEngineArt, setFullEngineArt] = useState(true);
   const trimmed = account.trim();
-  const role = ROLE_OPTIONS.find((option) => option.key === roleKey)?.role ?? null;
+  const role = ROLE_OPTIONS.find((entry) => entry.key === roleKey)?.role ?? null;
 
   return (
-    <main className="entry-gray grid h-screen break-keep w-screen overflow-y-auto lg:grid-cols-[minmax(420px,5fr)_7fr]">
-      {/* 왼쪽: 서비스 소개 (넓은 화면에서만) */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-neutral-700 bg-neutral-900/40 p-10 lg:flex">
-        <div
+    <main className="dx-shell relative h-screen w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#132235_0%,#0b1522_60%,#08111b_100%)] text-[14px] leading-normal">
+      <EngineeringBackdrop strength={1.25} shapes={false} />
+      {/*
+        왼쪽: 구동부 선화 — 기존 3D 자산(크랭크 축·커넥팅 로드·크로스헤드·피스톤 로드·피스톤 헤드 6기통)을
+        engine-viewer/lineart-export.js 로 그린 정적 투명 PNG. 로그인 카드 쪽으로 갈수록 흐려진다.
+      */}
+      <img
+        src={`${import.meta.env.BASE_URL}images/login-engine-lineart.png`}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="pointer-events-none absolute left-[-30vw] top-1/2 h-[min(92vh,980px)] w-auto max-w-none -translate-y-1/2 select-none opacity-20 [mask-image:linear-gradient(to_right,black_25%,transparent_80%)] sm:left-[-14vw] sm:opacity-35 lg:left-[-4vw] lg:opacity-50 xl:left-[3vw] xl:opacity-60"
+      />
+      {/*
+        오른쪽 아래: 전체 엔진 외형 선화 (장식용, 3D 모델과 별개).
+        참고 이미지의 엔진 부분만 밝은 선으로 추출해 투명 PNG 로 만든 것이다 (GLB 에는 엔진 외형이 없다).
+        파일이 없으면 아무것도 그리지 않는다. 카드와 겹치지 않도록 넓은 화면(1280px 이상)에서만 보인다.
+      */}
+      {fullEngineArt && (
+        <img
+          src={`${import.meta.env.BASE_URL}images/login-engine-full-lineart.png`}
+          alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_70%)]"
+          draggable={false}
+          onError={() => setFullEngineArt(false)}
+          className="pointer-events-none absolute bottom-[5vh] right-[3vw] hidden w-[min(26vw,440px)] select-none opacity-35 [mask-image:linear-gradient(to_left,black_55%,transparent_100%)] xl:block"
         />
+      )}
 
-        <div className="relative flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded bg-cyan-700 text-white">
-            <Ruler aria-hidden="true" className="h-4 w-4" />
-          </span>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-white">도면 측정 가이드</p>
-            <p className="text-[11px] text-neutral-400">엔진 부품 품질검사</p>
-          </div>
-        </div>
-
-        <div className="relative max-w-md space-y-8">
-          <div>
-            <h2 className="text-[28px] font-light leading-snug tracking-tight text-white">
-              도면의 측정 정보를
-              <br />
-              검사 기준과 오류사례에 연결합니다.
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-neutral-300">
-              설계도면에서 치수와 공차를 구조화하고, 측정 위치·검사 기준·과거 오류사례를 한 화면에서 확인합니다.
+      {/*
+        카드는 별도 스크롤 영역 안에 둔다. 높이가 남으면 가운데, 모자라면 위에서부터 놓이고 세로로 스크롤된다
+        (스크롤 영역 자체를 flex 가운데 정렬하면 넘친 위쪽이 스크롤로도 닿지 않는다). 배경 장식은 스크롤되지 않는다.
+        낮은 화면(높이 820px 이하)에서는 위아래 여백을 줄인다.
+      */}
+      <div className="relative h-full overflow-y-auto overflow-x-hidden">
+      <div className="flex min-h-full items-center justify-center px-4 py-10 [@media(max-height:820px)]:py-4">
+      <div className="relative w-full max-w-[400px]">
+        <div className="break-keep rounded-xl border border-white/10 bg-[#17263a]/85 px-8 pb-8 pt-9 [@media(max-height:820px)]:pb-6 [@media(max-height:820px)]:pt-6 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.75)] backdrop-blur-[3px]">
+          {/* 제품명 · 제목 · 설명 */}
+          <header>
+            <p className="flex items-baseline gap-1.5 text-[13px] font-semibold leading-none tracking-[0.04em] text-white/90" aria-label="HANWHA ENGINE DX">
+              <span>HANWHA ENGINE</span>
+              <span className="text-dx-accent">DX</span>
             </p>
-          </div>
-
-          <ul className="grid gap-px overflow-hidden rounded border border-neutral-700 bg-neutral-700 sm:grid-cols-2">
-            {CAPABILITIES.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="space-y-1.5 bg-neutral-800 p-4">
-                <Icon aria-hidden="true" className="h-4 w-4 text-cyan-400" />
-                <p className="text-[13px] font-medium text-neutral-100">{title}</p>
-                <p className="text-xs leading-relaxed text-neutral-400">{text}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <ol aria-label="업무 흐름" className="relative flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-neutral-400">
-          {WORKFLOW.map((step, index) => (
-            <li key={step} className="flex items-center gap-2">
-              {index > 0 && <span aria-hidden="true" className="text-neutral-600">→</span>}
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-      </aside>
-
-      {/* 오른쪽: 시연용 로그인 */}
-      <section className="flex min-h-full items-center justify-center px-4 py-10">
-        <div className="w-full max-w-[360px]">
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded bg-cyan-700 text-white">
-              <Ruler aria-hidden="true" className="h-4 w-4" />
-            </span>
-            <p className="text-sm font-semibold tracking-tight text-white">도면 측정 가이드</p>
-          </div>
-
-          <div className="mb-6 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight text-white">로그인</h1>
-              <span className="tag bg-amber-400/15 text-amber-200">시연용</span>
-            </div>
-            <p className="text-[13px] text-neutral-400">계정 이름을 입력하면 부품·도면 선택 화면으로 이동합니다.</p>
-          </div>
+            <h1 className="mt-5 [@media(max-height:820px)]:mt-3 text-[20px] font-semibold leading-[1.3] tracking-[-0.01em] text-white">로그인</h1>
+            <p className="mt-1.5 text-[13px] leading-[1.5] text-white/60">도면 측정 가이드 · 엔진 부품 품질검사</p>
+            <p className="mt-3 inline-flex items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-medium leading-[1.4] text-amber-100/90">
+              시연용 로그인 · 서버 인증 미연결
+            </p>
+          </header>
 
           <form
-            className="space-y-4"
+            className="mt-7 space-y-[18px] [@media(max-height:820px)]:mt-5 [@media(max-height:820px)]:space-y-3.5"
             onSubmit={(event) => {
               event.preventDefault();
               if (trimmed && role) onLogin(trimmed, role);
             }}
           >
-            <p className="note note-warn flex gap-2">
-              <Info aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                실제 계정 인증과 권한 확인은 아직 연결되지 않았습니다. 입력한 계정 이름은 화면 표시에만 쓰이며 저장하지 않습니다.
-              </span>
-            </p>
-
-            <label className="block space-y-1.5">
-              <span className="field-label text-xs">계정</span>
+            <Field label="계정" htmlFor="login-account" icon={<User className="h-4 w-4" />}>
               <input
+                id="login-account"
                 type="text"
                 value={account}
                 onChange={(event) => setAccount(event.target.value)}
-                placeholder="이름 또는 사번"
+                placeholder="예: 홍길동 또는 사번"
                 maxLength={50}
                 autoComplete="off"
                 autoFocus
-                className="field h-9 text-[13px]"
+                className="h-11 min-w-0 flex-1 bg-transparent pr-3 text-[14px] text-white placeholder:text-white/35 focus:outline-none"
               />
-            </label>
+            </Field>
 
-            <fieldset className="space-y-1.5">
-              <legend className="field-label mb-1.5 text-xs">역할</legend>
-              <div role="radiogroup" aria-label="역할" className="grid grid-cols-2 gap-2">
-                {ROLE_OPTIONS.map((option) => {
-                  const selected = option.key === roleKey;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setRoleKey(option.key)}
-                      className={`rounded border px-3 py-2 text-left transition-colors ${
-                        selected
-                          ? "border-cyan-500 bg-cyan-500/10 text-white"
-                          : "border-neutral-600 text-neutral-300 hover:border-neutral-500 hover:bg-white/5"
-                      }`}
-                    >
-                      <span className="block text-[13px] font-medium">{option.label}</span>
-                      <span className="block text-[11px] text-neutral-400">{option.description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="block text-[11px] text-neutral-500">
-                작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 관리자 화면은 관리자만 엽니다.
-              </span>
-            </fieldset>
-
-            <label className="block space-y-1.5">
-              <span className="field-label text-xs">비밀번호</span>
+            <Field
+              label="비밀번호"
+              htmlFor="login-password"
+              icon={<Lock className="h-4 w-4" />}
+              disabled
+              hint="시연 환경에서는 입력하지 않습니다. 인증 서버가 연결되면 사용합니다."
+            >
               {/* 시연용: 값을 받지 않도록 비활성화하고 name 도 두지 않는다. */}
               <input
+                id="login-password"
                 type="password"
                 disabled
                 value=""
                 readOnly
-                placeholder="시연 환경에서는 입력하지 않습니다"
+                aria-describedby="login-password-hint"
                 autoComplete="off"
-                aria-describedby="login-password-help"
-                className="field h-9 text-[13px]"
+                className="h-11 min-w-0 flex-1 cursor-not-allowed bg-transparent pr-3 text-[14px] text-white focus:outline-none"
               />
-              <span id="login-password-help" className="block text-[11px] text-neutral-500">
-                인증 서버가 연결되면 사용할 수 있습니다.
-              </span>
-            </label>
+            </Field>
 
-            <button type="submit" disabled={!trimmed || !role} className="btn btn-primary btn-lg w-full">
+            <Field
+              label="역할"
+              htmlFor="login-role"
+              icon={<Users className="h-4 w-4" />}
+              hint="작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 도면 등록과 OCR 검토는 관리자만 합니다."
+            >
+              <select
+                id="login-role"
+                value={roleKey}
+                onChange={(event) => setRoleKey(event.target.value)}
+                aria-describedby="login-role-hint"
+                className={`h-11 min-w-0 flex-1 appearance-none bg-transparent pr-9 text-[14px] focus:outline-none [&>option]:bg-[#13202f] [&>option]:text-white ${roleKey ? "text-white" : "text-white/45"}`}
+              >
+                <option value="" disabled>
+                  역할 선택
+                </option>
+                {ROLE_OPTIONS.map((entry) => (
+                  <option key={entry.key} value={entry.key}>
+                    {entry.label} — {entry.description}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
+            </Field>
+
+            <button
+              type="submit"
+              disabled={!trimmed || !role}
+              className="!mt-6 h-11 w-full rounded-md bg-[#22c3dc] text-[14px] font-semibold leading-none text-[#04212b] transition-colors hover:bg-[#45d0e5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22c3dc] disabled:cursor-not-allowed disabled:bg-[#22c3dc]/30 disabled:text-[#04212b]/70"
+            >
               로그인
             </button>
           </form>
 
-          <div className="my-6 flex items-center gap-3 text-[11px] text-neutral-500">
-            <span className="h-px flex-1 bg-neutral-700" />
-            또는
-            <span className="h-px flex-1 bg-neutral-700" />
+          <div className="mt-5 border-t border-white/8 pt-4">
+            <button
+              type="button"
+              disabled={!role}
+              onClick={() => role && onDemo(role)}
+              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-[#22c3dc] disabled:cursor-not-allowed disabled:font-normal disabled:text-white/40 disabled:no-underline"
+            >
+              <PlayCircle aria-hidden="true" className="h-4 w-4" />
+              {role ? "데모 도면으로 체험하기" : "역할을 고르면 데모 도면을 볼 수 있습니다"}
+            </button>
           </div>
-
-          <button type="button" disabled={!role} onClick={() => role && onDemo(role)} className="btn btn-secondary btn-lg w-full">
-            <PlayCircle aria-hidden="true" className="h-4 w-4" />
-            데모 체험하기
-          </button>
-          <p className="mt-2.5 text-center text-[11px] text-neutral-400">
-            {role ? "샘플 도면과 샘플 측정항목으로 고른 역할의 화면을 미리 봅니다." : "역할을 먼저 고르면 샘플 화면을 볼 수 있습니다."}
-          </p>
         </div>
-      </section>
+        <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-white/40">
+          입력한 이름은 화면 표시에만 쓰고 저장하지 않습니다. 로그인하면 전체 엔진 3D 화면에서 시작합니다.
+        </p>
+      </div>
+      </div>
+      </div>
     </main>
+  );
+}
+
+/** 라벨(항상 보임) + 아이콘·구분선이 있는 입력틀 + 보조 문구. 포커스 시 시안 테두리 */
+function Field({
+  label,
+  htmlFor,
+  icon,
+  disabled,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  icon: ReactNode;
+  disabled?: boolean;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-[13px] font-medium leading-[1.4] text-white/85">
+        {label}
+      </label>
+      <div
+        className={`relative mt-2 flex items-center rounded-md border bg-[#0e1a28]/80 transition-colors focus-within:border-[#22c3dc] focus-within:ring-1 focus-within:ring-[#22c3dc]/40 ${
+          disabled ? "border-white/8 opacity-60" : "border-white/15 hover:border-white/30"
+        }`}
+      >
+        <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center text-white/55">{icon}</span>
+        <span aria-hidden="true" className="mr-3 h-5 w-px bg-white/15" />
+        {children}
+      </div>
+      {hint && (
+        <p id={`${htmlFor}-hint`} className="mt-1.5 text-[12px] leading-[1.5] text-white/50">
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }

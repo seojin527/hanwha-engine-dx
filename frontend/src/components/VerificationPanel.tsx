@@ -206,7 +206,7 @@ function CriteriaCard({ item }: { item: OcrItem }) {
                 <dd>
                   <span className="font-mono">{formatDeviationPair(item.upper_deviation, item.lower_deviation)}</span>
                   {item.tolerance_source && (
-                    <span className="ml-1.5 text-[11px] text-slate-500">{TOLERANCE_SOURCE_LABEL[item.tolerance_source]}</span>
+                    <span className="ml-1.5 text-[11px] text-slate-500">{TOLERANCE_SOURCE_LABEL[item.tolerance_source]}{item.tolerance_basis === "project_default" ? " · 프로젝트 기본 정책 (도면 표기 아님)" : ""}</span>
                   )}
                 </dd>
               </>

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useReportUnsaved } from "../lib/unsavedChanges";
 import {
   saveDrawingReview,
   type DrawingReviewResponse,
@@ -196,10 +197,17 @@ export default function DrawingReviewPanel({
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
   // 「확인 후 다음」을 눌렀는데 입력 오류가 있어 확인하지 못한 항목의 안내
   const [confirmBlocked, setConfirmBlocked] = useState<{ itemId: string; issues: string[] } | null>(null);
+  const initialConfirmed = useRef<Record<string, boolean>>({});
   // 저장을 눌렀는데 문제가 있으면 문제 목록을 보여준다 (그 뒤로는 고칠 때마다 목록이 갱신된다)
   const [showProblems, setShowProblems] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [added, setAdded] = useState<AddedDimension[]>([]);
+  // 저장하지 않은 검토 내용: 값·기준 수정, 항목 확인 변경, 추가 치수. 화면 이동·새로 고침 때 확인한다.
+  useReportUnsaved(
+    Object.keys(touched).length > 0 ||
+      added.length > 0 ||
+      Object.keys(confirmed).some((id) => confirmed[id] !== (initialConfirmed.current[id] ?? false)),
+  );
   const [reviewer, setReviewer] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [saving, setSaving] = useState(false);
@@ -305,9 +313,11 @@ export default function DrawingReviewPanel({
     setDrafts(nextDrafts);
     setTouched({});
     // 저장된 검토의 승인 항목은 확인된 상태로 이어서 보여준다. 새 항목은 미확인.
-    setConfirmed(Object.fromEntries(
+    const initial = Object.fromEntries(
       source.result.items.map((item) => [item.id, reviewed && item.inspection_approved === true]),
-    ));
+    );
+    initialConfirmed.current = initial;
+    setConfirmed(initial);
     setConfirmBlocked(null);
     setShowProblems(false);
     setReviewer(source.result.reviewer || defaultReviewer);

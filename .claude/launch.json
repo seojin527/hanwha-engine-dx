@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-sandbox",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_BASE=http://127.0.0.1:8001&& npm --prefix frontend exec -- vite frontend --port=5173 --host=127.0.0.1 --strictPort"],
+      "port": 5173
+    }
+  ]
+}

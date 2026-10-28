@@ -5,11 +5,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Activity, Box, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
-import { Header } from "./components/Header";
+import { EngineViewer3D, type EngineModelInfo } from "./components/shell/EngineViewer3D";
+import { EngineExplorerPanel, type EngineSelection } from "./components/shell/EngineExplorerPanel";
+import { DrawingContextHeader, ShellRail, ShellTopBar, type ShellView } from "./components/shell/ShellChrome";
+import { PanelLayoutContext } from "./components/ResizablePanels";
+import { MoveDrawingDialog } from "./components/shell/MoveDrawingDialog";
+import { ENGINE_PART_LABEL, type EnginePartKey } from "./lib/engineParts";
 import { DrawingLibrary } from "./components/DrawingLibrary";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
-import { apiUrl, drawingFileUrl, fetchDrawings } from './lib/drawingAPI';
+import { apiUrl, drawingFileUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
 import { LoginScreen } from './components/entry/LoginScreen';
 import { DrawingSelectScreen, type AdminView } from './components/entry/DrawingSelectScreen';
 import { ErrorDbManager } from './components/admin/errorDb/ErrorDbManager';
@@ -24,9 +29,8 @@ import { AdminPage } from './pages/AdminPage';
 import { WORK_PURPOSES, type AdminPageProps, type DrawingPageProps, type WorkPurpose, type WorkspacePageProps } from './pages/workspaceTypes';
 import { roleLabel, type UserRole } from './lib/role';
 import { UnsavedChangesProvider, type UnsavedRegistry } from './lib/unsavedChanges';
-import type { Drawing } from "./lib/drawingAPI";
+import type { Drawing, Part } from "./lib/drawingAPI";
 import DrawingReviewHistory from "./components/DrawingReviewHistory";
-import { EngineViewerModal } from "./components/EngineViewerModal";
 
 import {
   fetchMeasurements,
@@ -48,11 +52,11 @@ export function App() {
   const [selectedPointId, setSelectedPointId] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
-  const [engineViewerOpen, setEngineViewerOpen] = useState(false);
 
   const [demoMode, setDemoMode] = useState(true);
-  // 진입 흐름: 시연용 로그인 → 부품·도면 선택 → 작업 화면
-  const [stage, setStage] = useState<"login" | "select" | "workspace">("login");
+  // 진입 흐름: 시연용 로그인 → 전체 엔진 3D(engine) → 부품 선택 → 도면 작업(workspace).
+  // select 는 셸 안의 목록·관리 화면(부품·도면 목록 · 작업 진행 현황 · 오류 DB)이다.
+  const [stage, setStage] = useState<"login" | "engine" | "select" | "workspace">("login");
   // 시연용 계정 이름. 화면 표시용으로 메모리에만 둔다 (인증 아님).
   const [userLabel, setUserLabel] = useState("");
   // 화면 역할 (인증 아님). 관리자는 통합 관리자 화면, 작업자는 자기 업무 페이지에서 입력한다.
@@ -75,6 +79,19 @@ export function App() {
   const [pickedDrawing, setPickedDrawing] = useState<Drawing | null>(null);
   // 오류 DB·작업 현황에서 도면 위치를 열 때 도면을 연 뒤 선택할 항목 (revision 이 없으면 현재 버전)
   const [pendingFocus, setPendingFocus] = useState<{ drawingId: string; itemId: string; revision?: string } | null>(null);
+  // 3D 메인: 선택한 3D 부품 종류·등록 부품·도면. 도면 작업에서 돌아와도 유지한다.
+  const [engineSelection, setEngineSelection] = useState<EngineSelection>({ engineKey: null, partId: null, drawingId: null });
+  const [engineModel, setEngineModel] = useState<EngineModelInfo | null>(null);
+  const [allParts, setAllParts] = useState<Part[]>([]);
+  // 도면 등록·검토 저장 뒤 부품·도면 목록(검토 상태 포함)을 다시 불러오게 한다.
+  const [libraryVersion, setLibraryVersion] = useState(0);
+  const [siblingDrawings, setSiblingDrawings] = useState<Drawing[]>([]);
+  // 도면 작업 중 「소속 부품 변경」 창
+  const [moveOpen, setMoveOpen] = useState(false);
+  // 작업 진행 현황·오류 DB 는 한 번 연 뒤 숨기기만 한다 → 도면을 열었다 돌아와도 필터·선택이 그대로다.
+  // 이 화면들의 미저장 입력은 따로 모은다 (숨겨도 입력이 사라지지 않으므로 다른 화면 이동을 막지 않는다).
+  const adminRegistry = useRef<UnsavedRegistry>(new Set()).current;
+  const [visited, setVisited] = useState<{ progress: boolean; errors: boolean }>({ progress: false, errors: false });
   const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
 
   const [uploadRequest, setUploadRequest] = useState(0);
@@ -372,7 +389,6 @@ export function App() {
   function closeWorkspaceOverlays() {
     if (positionResolver.current) finishPositionPick(null);
     setHistoryOpen(false);
-    setEngineViewerOpen(false);
     setPreviewFile(null);
   }
 
@@ -383,6 +399,7 @@ export function App() {
     setSelectedDrawing(drawing);
     setDrawingUrl(drawingFileUrl(drawing));
     setActivePartId(drawing.part_id);
+    setPickedDrawing(drawing);
     setDemoMode(false);
     setLibraryOpenOnEnter(false);
     setStage("workspace");
@@ -397,43 +414,129 @@ export function App() {
     setStage("workspace");
   }
 
-  /** 화면을 바꾸면 사라지는 입력이 있으면 사용자에게 확인한다. */
+  /** 화면을 바꾸면 사라지는 입력이 있으면 사용자에게 확인한다 (관리자 검토 · 측정값 · 오류사례 · 도면 등록 입력). */
   function confirmLeave(destination: string) {
+    if (unsavedRegistry.size === 0) return true;
     if (!demoMode && reviewOpen) {
       return window.confirm(`관리자 검토 중 저장하지 않은 내용은 사라집니다. ${destination}할까요?`);
     }
-    if (unsavedRegistry.size > 0) {
-      return window.confirm(`저장하지 않은 측정값 또는 오류사례 입력이 있습니다. ${destination}하면 입력한 내용이 사라집니다. 계속할까요?`);
-    }
-    return true;
+    return window.confirm(`저장하지 않은 측정값 또는 오류사례 입력이 있습니다. ${destination}하면 입력한 내용이 사라집니다. 계속할까요?`);
   }
 
-  function backToList() {
-    if (!confirmLeave("도면 목록으로 이동")) return;
-    closeWorkspaceOverlays();
-    setAdminView("drawings");
-    setStage("select");
+  const shellView: ShellView =
+    stage === "engine" ? "engine"
+      : stage === "workspace" ? "drawing"
+        : adminView === "errors" ? "errors"
+          : adminView === "progress" ? "progress"
+            : "library";
+
+  function isModelKey(key?: string | null) {
+    return !!key && (engineModel ? engineModel.parts.some((part) => part.key === key) : key in ENGINE_PART_LABEL);
   }
+
+  function modelPartName(key?: string | null) {
+    if (!key) return null;
+    return engineModel?.parts.find((part) => part.key === key)?.name ?? ENGINE_PART_LABEL[key as EnginePartKey] ?? null;
+  }
+
+  /** 셸 메뉴 이동. 도면 작업을 떠날 때는 미저장 확인, 3D로 돌아갈 때는 연 도면의 부품을 선택해 둔다. */
+  function navigate(next: ShellView) {
+    if (next === shellView) return;
+    if (!confirmLeave(next === "engine" ? "3D 화면으로 이동" : "다른 화면으로 이동")) return;
+    if (stage === "workspace") {
+      closeWorkspaceOverlays();
+      if (next === "engine" && !demoMode && selectedDrawing) {
+        const part = allParts.find((entry) => entry.part_id === selectedDrawing.part_id);
+        setEngineSelection({
+          engineKey: isModelKey(part?.engine_part_key) ? part!.engine_part_key! : null,
+          partId: selectedDrawing.part_id,
+          drawingId: selectedDrawing.drawing_id,
+        });
+      }
+    }
+    if (next === "engine") setStage("engine");
+    else if (next === "drawing") setStage("workspace");
+    else {
+      setAdminView(next === "library" ? "drawings" : next);
+      if (next === "progress" || next === "errors") setVisited((previous) => ({ ...previous, [next]: true }));
+      if (next === "progress" && !pickedDrawing) setPickedDrawing(selectedDrawing);
+      setStage("select");
+    }
+  }
+
+  function backTo3D() {
+    navigate("engine");
+  }
+
+  /** 도면 소속 부품을 바꾼 뒤: 열린 도면·경로·목록을 새 소속으로 갱신한다 (작업 상태는 그대로). */
+  function handleDrawingMoved(drawing: Drawing) {
+    if (selectedDrawing?.drawing_id === drawing.drawing_id) {
+      setSelectedDrawing((current) => (current ? { ...current, part_id: drawing.part_id } : current));
+      setActivePartId(drawing.part_id);
+    }
+    if (pickedDrawing?.drawing_id === drawing.drawing_id) setPickedDrawing({ ...pickedDrawing, part_id: drawing.part_id });
+    setLibraryVersion((value) => value + 1);
+    fetchParts().then((data) => setAllParts(data.parts)).catch(() => {});
+  }
+
+  function partPathOf(part: Part | undefined) {
+    return part ? `${modelPartName(part.engine_part_key) ?? "3D 미연결"} › ${part.name}` : "알 수 없는 부품";
+  }
+
+  function logout() {
+    if ((unsavedRegistry.size > 0 || adminRegistry.size > 0) &&
+      !window.confirm("저장하지 않은 입력이 있습니다. 처음 화면으로 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    closeWorkspaceOverlays();
+    setUserLabel("");
+    setRole(null);
+    setAdminView("drawings");
+    setVisited({ progress: false, errors: false });
+    setEngineSelection({ engineKey: null, partId: null, drawingId: null });
+    setStage("login");
+  }
+
+  /** 3D 화면(트리·연결 도면)에서 도면을 연다. 도면을 열기 전까지 중앙은 3D 그대로다. */
+  function openDrawingFromExplorer(drawing: Drawing) {
+    if (!confirmLeave("도면을 열기")) return;
+    startWorkspace(drawing);
+  }
+
+  // 도면 작업 중: 같은 부품의 다른 도면 목록 (맥락 머리글의 도면 바꾸기)
+  useEffect(() => {
+    setSiblingDrawings([]);
+    const partId = selectedDrawing?.part_id;
+    if (stage !== "workspace" || demoMode || !partId) return;
+    const controller = new AbortController();
+    fetchDrawings(partId, controller.signal)
+      .then((data) => !controller.signal.aborted && setSiblingDrawings(data.drawings))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [stage, demoMode, selectedDrawing?.part_id, libraryVersion]);
+
+  // 새로 고침·탭 닫기: 앱 안 이동과 달리 브라우저 기본 확인 창을 쓴다.
+  useEffect(() => {
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (unsavedRegistry.size === 0 && adminRegistry.size === 0) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [unsavedRegistry, adminRegistry]);
 
   /** 관리자 검토 화면 → 이 도면의 작업 진행 현황 */
   function openProgressFromWorkspace() {
     if (!confirmLeave("작업 현황으로 이동")) return;
     closeWorkspaceOverlays();
     setPickedDrawing(selectedDrawing);
+    setVisited((previous) => ({ ...previous, progress: true }));
     setAdminView("progress");
     setStage("select");
   }
 
-  /** 관리자 메뉴 이동. 오류 DB 화면 등에 저장하지 않은 입력이 있으면 확인한다. */
-  function changeAdminView(next: AdminView) {
-    if (next === adminView) return;
-    if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 메뉴를 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
-    setAdminView(next);
-  }
-
   /** 관리자 메뉴에서 도면을 관리자 검토 화면으로 연다 (itemId 가 있으면 그 항목을 선택). */
   function openDrawingFromAdmin(drawing: Drawing, itemId?: string, revision?: string) {
-    if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 도면을 열면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    if (!confirmLeave("도면을 열기")) return;
     setPendingFocus(itemId ? { drawingId: drawing.drawing_id, itemId, revision } : null);
     startWorkspace(drawing);
   }
@@ -679,11 +782,12 @@ export function App() {
 
       <button
         type="button"
-        onClick={() => setEngineViewerOpen(true)}
+        onClick={backTo3D}
+        title="전체 엔진 3D 화면으로 돌아가 이 도면의 부품을 선택합니다"
         className="btn btn-dark"
       >
         <Box aria-hidden="true" className="h-3.5 w-3.5" />
-        3D 뷰어
+        3D에서 보기
       </button>
 
       {isAdmin && (
@@ -767,11 +871,13 @@ export function App() {
             }
           }}
           onSaved={() => {
+            // 저장 뒤에도 관리자 화면에 머문다 (작업자 화면으로 옮기지 않음). 도면 목록의 검토 상태는 다시 불러온다.
             setReviewSource(null);
             setReviewNotice(
-              "검수 결과를 서버에 저장했습니다. 최신 결과를 불러옵니다.",
+              "검수 결과를 서버에 저장했습니다. 이 도면은 이제 작업자가 측정할 수 있습니다. 최신 결과를 불러옵니다.",
             );
             ocr.refresh();
+            setLibraryVersion((value) => value + 1);
           }}
         />
       ) : (
@@ -844,7 +950,7 @@ export function App() {
         onLogin={(account, nextRole) => {
           setUserLabel(account);
           enterWithRole(nextRole);
-          setStage("select");
+          setStage("engine");
         }}
         onDemo={(nextRole) => {
           setUserLabel("데모 체험");
@@ -855,75 +961,178 @@ export function App() {
     );
   }
 
-  if (stage === "select") {
-    return (
-      <UnsavedChangesProvider registry={unsavedRegistry}>
-      <DrawingSelectScreen
-        userLabel={userDisplay}
-        initialPartId={activePartId}
-        initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
-        onStart={startWorkspace}
-        onRegister={!isAdmin ? undefined : (partId) => {
-          // 도면 없이 관리자 화면을 열고 부품·도면 관리 영역을 펼친다.
-          setActivePartId(partId);
-          setSelectedDrawing(null);
-          setDrawingUrl(null);
-          setDemoMode(false);
-          setLibraryOpenOnEnter(true);
-          setStage("workspace");
-        }}
-        onDemo={enterDemo}
-        onExit={() => {
-          if (unsavedRegistry.size > 0 && !window.confirm("저장하지 않은 입력이 있습니다. 처음 화면으로 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
-          setUserLabel("");
-          setRole(null);
-          setAdminView("drawings");
-          setStage("login");
-        }}
-        adminMenu={isAdmin ? { view: adminView, onChange: changeAdminView } : undefined}
-        onSelectionChange={(partId, drawing) => {
-          setActivePartId(partId);
-          setPickedDrawing(drawing);
-        }}
-        adminContent={
-          !isAdmin ? null : adminView === "errors" ? (
-            <ErrorDbManager onOpenLocation={(target) => void openLocation(target)} />
-          ) : adminView === "progress" ? (
-            <WorkflowProgress
-              drawing={pickedDrawing}
-              onOpenDrawing={(drawing, itemId) => openDrawingFromAdmin(drawing, itemId)}
-              onChooseDrawing={() => changeAdminView("drawings")}
-            />
-          ) : null
-        }
-      />
-      </UnsavedChangesProvider>
-    );
-  }
+  const engineTitle = engineModel?.title || "엔진 조립품";
+  const workspacePart = allParts.find((part) => part.part_id === selectedDrawing?.part_id);
+  const explorerPart = allParts.find((part) => part.part_id === engineSelection.partId);
+  const menuLabel: Record<ShellView, string> = {
+    engine: "3D 엔진 탐색",
+    drawing: "도면 작업",
+    library: "부품·도면 목록",
+    progress: "작업 진행 현황",
+    errors: "오류 DB 관리",
+  };
+  const shellPath: { label: string; onClick?: () => void }[] =
+    shellView === "engine"
+      ? [
+          { label: engineTitle, onClick: engineSelection.engineKey || engineSelection.partId ? () => setEngineSelection({ engineKey: null, partId: null, drawingId: null }) : undefined },
+          ...(engineSelection.engineKey ? [{ label: modelPartName(engineSelection.engineKey) ?? engineSelection.engineKey }] : []),
+          ...(explorerPart ? [{ label: explorerPart.name }] : []),
+        ]
+      : shellView === "drawing"
+        ? demoMode
+          ? [{ label: engineTitle, onClick: backTo3D }, { label: "데모 도면 (샘플)" }]
+          : [
+              { label: engineTitle, onClick: backTo3D },
+              { label: modelPartName(workspacePart?.engine_part_key) ?? "3D 미연결" },
+              { label: workspacePart?.name ?? document?.part_name ?? "등록 부품" },
+              { label: selectedDrawing?.original_filename || "도면 선택 대기" },
+            ]
+        : [{ label: engineTitle, onClick: () => navigate("engine") }, { label: menuLabel[shellView] }];
+
+  // 도면 작업 중 왼쪽 작업 패널 위에 붙는 맥락 (엔진·부품·도면 · 같은 부품의 다른 도면 · 3D 복귀)
+  const drawingContext = demoMode ? (
+    <div className="flex shrink-0 items-center gap-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-dx-faint">데모</p>
+        <p className="truncate text-[13px] font-semibold text-white">샘플 도면 · 샘플 측정항목</p>
+      </div>
+      <button type="button" onClick={backTo3D} className="dx-btn"><Box aria-hidden="true" className="h-3.5 w-3.5" />3D로</button>
+    </div>
+  ) : selectedDrawing ? (
+    <DrawingContextHeader
+      enginePartName={modelPartName(workspacePart?.engine_part_key)}
+      partName={workspacePart?.name ?? document?.part_name ?? "등록 부품"}
+      drawing={selectedDrawing}
+      revision={ocr.snapshot?.revision}
+      reviewed={documentReviewed}
+      siblings={siblingDrawings}
+      onSwitchDrawing={(next) => {
+        if (next.drawing_id === selectedDrawing.drawing_id || !confirmLeave("다른 도면으로 이동")) return;
+        startWorkspace(next);
+      }}
+      onBackTo3D={backTo3D}
+      extra={isAdmin && (
+        <button
+          type="button"
+          className="dx-btn w-full"
+          onClick={() => {
+            if (!allParts.length) fetchParts().then((data) => setAllParts(data.parts)).catch(() => {});
+            setMoveOpen(true);
+          }}
+        >
+          소속 부품 변경
+        </button>
+      )}
+    />
+  ) : null;
 
   return (
     <UnsavedChangesProvider registry={unsavedRegistry}>
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
-      <Header
-        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        userLabel={userDisplay}
-        onBackToList={backToList}
+    <div className="dx-shell flex h-screen w-screen overflow-hidden font-sans">
+      <ShellRail
+        view={shellView}
+        isAdmin={isAdmin}
+        drawingAvailable={demoMode || !!selectedDrawing}
+        onNavigate={navigate}
+        onLogout={logout}
       />
-
-      {engineViewerOpen && (
-        <EngineViewerModal
-          partName={
-            demoMode
-              ? "PISTON ROD"
-              : document?.part_name || selectedDrawing?.name
-          }
-          isMockName={demoMode}
-          onClose={() => setEngineViewerOpen(false)}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ShellTopBar
+          path={shellPath}
+          userLabel={userLabel}
+          roleLabel={roleLabel(role)}
+          search={shellView === "drawing" ? { value: searchQuery, onChange: setSearchQuery } : undefined}
         />
-      )}
+        <div className="relative flex min-h-0 flex-1">
+          {stage === "engine" && (
+            <EngineExplorerPanel
+              model={engineModel}
+              selection={engineSelection}
+              onSelect={setEngineSelection}
+              canManage={isAdmin}
+              refreshKey={libraryVersion}
+              onOpenDrawing={openDrawingFromExplorer}
+              onUploaded={(drawing) => {
+                setLibraryVersion((value) => value + 1);
+                startWorkspace(drawing);
+              }}
+              onPartsLoaded={setAllParts}
+              onDrawingMoved={handleDrawingMoved}
+            />
+          )}
+          {/* 3D 는 한 번 만든 뒤 숨기기만 한다 (카메라·선택·분해 상태 유지) */}
+          <EngineViewer3D
+            visible={stage === "engine"}
+            selectedKey={engineSelection.engineKey}
+            onSelect={(key) => setEngineSelection({ engineKey: key, partId: null, drawingId: null })}
+            onReady={setEngineModel}
+          />
 
+          {stage === "select" && adminView === "drawings" && (
+            <DrawingSelectScreen
+              embedded
+              userLabel={userDisplay}
+              initialPartId={activePartId}
+              initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
+              onStart={openDrawingFromExplorer}
+              onRegister={!isAdmin ? undefined : (partId) => {
+                // 도면 없이 관리자 도면 화면을 열고 부품·도면 관리 영역을 펼친다.
+                setActivePartId(partId);
+                setSelectedDrawing(null);
+                setDrawingUrl(null);
+                setDemoMode(false);
+                setLibraryOpenOnEnter(true);
+                setStage("workspace");
+              }}
+              onDemo={enterDemo}
+              onExit={logout}
+              onSelectionChange={(partId, drawing) => {
+                setActivePartId(partId);
+                setPickedDrawing(drawing);
+              }}
+            />
+          )}
+          {isAdmin && (
+            <UnsavedChangesProvider registry={adminRegistry}>
+              {visited.progress && (
+                <div className={`entry-gray min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 ${stage === "select" && adminView === "progress" ? "flex" : "hidden"}`}>
+                  <WorkflowProgress
+                    drawing={pickedDrawing}
+                    onOpenDrawing={(drawing, itemId) => openDrawingFromAdmin(drawing, itemId)}
+                    onChooseDrawing={() => navigate("library")}
+                  />
+                </div>
+              )}
+              {visited.errors && (
+                <div className={`entry-gray min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 ${stage === "select" && adminView === "errors" ? "flex" : "hidden"}`}>
+                  <ErrorDbManager onOpenLocation={(target) => void openLocation(target)} />
+                </div>
+              )}
+            </UnsavedChangesProvider>
+          )}
+
+          {moveOpen && selectedDrawing && (
+            <MoveDrawingDialog
+              drawing={selectedDrawing}
+              parts={allParts}
+              partPath={partPathOf}
+              onCancel={() => setMoveOpen(false)}
+              onConfirm={async (target) => {
+                try {
+                  const result = await moveDrawingToPart(selectedDrawing.drawing_id, target.part_id, selectedDrawing.part_id);
+                  setMoveOpen(false);
+                  handleDrawingMoved(result.drawing);
+                  setReviewNotice(`소속 부품을 바꿨습니다: ${partPathOf(allParts.find((p) => p.part_id === result.from_part_id))} → ${partPathOf(target)}. 검토·측정 기록은 그대로입니다.`);
+                  return null;
+                } catch (cause) {
+                  return `이동하지 못했습니다. 원래 소속을 유지합니다. 이유: ${cause instanceof Error ? cause.message : "알 수 없는 오류"}`;
+                }
+              }}
+            />
+          )}
+          {stage === "workspace" && (
+    <PanelLayoutContext.Provider value={{ side: "left", header: drawingContext }}>
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
       <DrawingLibrary
         uploadRequest={uploadRequest}
         status={toolbarStatus}
@@ -1116,6 +1325,11 @@ export function App() {
           </div>
         </dialog>
       )}
+    </div>
+    </PanelLayoutContext.Provider>
+          )}
+        </div>
+      </div>
     </div>
     </UnsavedChangesProvider>
   );
