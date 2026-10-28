@@ -32,11 +32,16 @@ GDT_INPUT_RE = re.compile(r"^[Ø⌀∅]?(0|[1-9]\d*)(\.\d+)?$")  # 기하공차 
 INPUT_VALUE_RE = re.compile(r"^\d+(\.\d+)?$")      # 작업자 입력 허용 (0.01, 1)
 DATUM_RE = re.compile(r"^[A-Z](-[A-Z])?$")
 _NUM = r"\d+(?:\.\d+)?"
+# 공차 한쪽 값: 부호 있는 숫자(앞자리 0 생략 +.08 포함) 또는 부호 없는 0 (ocr_metadata.DEVIATION 과 같은 규칙)
+_DEV = r"(?:[+-](?:\d+(?:\.\d+)?|\.\d+)|0(?:\.0+)?)"
 # 작업자가 고치거나 추가한 치수 표기 (ocr_metadata.parse_dimension 이 읽을 수 있는 모양)
-#   M16, M16x1.5 / 26, ⌀12, R5, C0.5 / 26±0.05 / 26 +0.02/-0.01
+#   M16, M16x1.5 / Ra 0.8 (표면 거칠기) / 26, ⌀12, R5, C0.5 / 26±0.05 / 26 +0.02/-0.01 / ⌀680(+0.08/0) 괄호 · 0 은 부호 생략 가능
 DIM_TEXT_RE = re.compile(
     rf"^(?:M\s*{_NUM}(?:\s*[x×]\s*{_NUM})?"
-    rf"|(?:[⌀Øø]|R|C)?\s*{_NUM}(?:\s*±\s*{_NUM}|\s*[+-]{_NUM}\s*/\s*[+-]{_NUM})?)$"
+    rf"|Ra\s*(?:{_NUM}|\.\d+)"
+    rf"|(?:[⌀Øø]|R|C)?\s*{_NUM}(?:\s*±\s*{_NUM}"
+    rf"|\s*\(\s*{_DEV}\s*/\s*{_DEV}\s*\)"
+    rf"|\s*{_DEV}\s*/\s*{_DEV})?)$"
 )
 KIND_PREFIX = {"length": "", "diameter": "⌀", "radius": "R", "chamfer": "C", "thread": "M"}
 
@@ -188,7 +193,7 @@ def compose_dimension_text(item: dict) -> str:
             raise ReviewError([f"치수 텍스트에 숫자가 없음: {text!r}"])
         if not DIM_TEXT_RE.match(text):
             raise ReviewError([
-                f"치수 표기 형식이 아님: {text!r} (예: 26, ⌀12±0.01, 26 +0.02/-0.01, R5, C0.5, M16)"
+                f"치수 표기 형식이 아님: {text!r} (예: 26, ⌀12±0.01, 26 +0.02/-0.01, ⌀680(+0.08/0), R5, C0.5, M16, Ra 0.8)"
             ])
         return text
     value = str(item.get("value", "")).strip()

@@ -13,13 +13,12 @@ import {
   DIMENSION_EXAMPLES,
   GENERAL_LABEL,
   droppedZeroCandidate,
-  fitStatus,
   formatDeviationPair,
+  deviationText,
   formatNumber,
   formatRange,
   isValidGdtValue,
   parseDimension,
-  signedDeviationText,
   type ParsedDimension,
   type ToleranceSource,
 } from "../lib/inspection/tolerance";
@@ -53,8 +52,6 @@ interface Draft {
   toleranceSource: ToleranceSource;
   upper: string;
   lower: string;
-  /** 특별 공차 편차를 채우는 보조 입력 (저장하지 않음, 편차 값만 저장된다) */
-  fitCode: string;
   unit: string;
   instrument: string;
   criteria: string;
@@ -89,6 +86,7 @@ function characteristicName(item: OcrItem) {
     RADIUS: "반지름",
     LINEAR_DIMENSION: "길이",
     GEOMETRIC_TOLERANCE: "기하공차",
+    SURFACE_ROUGHNESS: "표면 거칠기",
   };
   return names[item.measurement_characteristic ?? ""] ?? (item.category === "GDT" ? "기하공차" : "치수");
 }
@@ -175,7 +173,15 @@ export default function DrawingReviewPanel({
   // 도면·OCR 버전이 바뀌면 편집 상태를 새로 만든다. 저장된 검토가 있으면 그 상태를 이어서 보여준다.
   useEffect(() => {
     const reviewed = source.result.review_status === "reviewed";
-    setDimensions(Object.fromEntries(source.review.dimensions.map((item) => [item.item_id, item.text])));
+    // 표제란 범례(R1 = Ra 0.8)로 거칠기로 읽은 항목은 확정 표기를 "Ra 0.8"로 시작한다. OCR 원문(R1)은 되돌리기로 복원.
+    const roughnessByNo = new Map(
+      source.result.items
+        .filter((item) => item.category === "DIMENSION" && item.surface_roughness)
+        .map((item) => [itemNumber(item), item.surface_roughness as string]),
+    );
+    setDimensions(
+      Object.fromEntries(source.review.dimensions.map((item) => [item.item_id, roughnessByNo.get(item.no) ?? item.text])),
+    );
     setGdtValues(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.value])));
     setGdtSymbols(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.symbol])));
 
@@ -183,8 +189,8 @@ export default function DrawingReviewPanel({
     const nextConfirmed: Record<string, boolean> = {};
     for (const item of source.result.items) {
       const approved = reviewed && item.inspection_approved === true;
-      const parsed = parseDimension(item.raw_text);
-      const isGauge = item.category === "GDT" || parsed.kind === "THREAD_SPEC";
+      const parsed = parseDimension(item.surface_roughness ?? item.raw_text);
+      const isGauge = item.category === "GDT" || parsed.kind === "THREAD_SPEC" || parsed.kind === "SURFACE_ROUGHNESS";
       const savedSource = item.tolerance_source?.toLowerCase() as ToleranceSource | undefined;
       const rowSymbols = source.review.gdt
         .filter((entry) => item.category === "GDT" && entry.entry_no === itemNumber(item))
@@ -202,7 +208,6 @@ export default function DrawingReviewPanel({
           approved && item.tolerance_source === "SPECIAL" && typeof item.lower_deviation === "number"
             ? String(item.lower_deviation)
             : "",
-        fitCode: "",
         unit: item.unit || source.result.unit || "mm",
         instrument: item.instrument ?? "",
         criteria: item.gauge_criteria ?? "",
@@ -320,6 +325,8 @@ export default function DrawingReviewPanel({
       } else if (parsed.valid) {
         if (parsed.kind === "THREAD_SPEC") {
           issues.push("나사는 합격·불합격 기록 방식(게이지)으로 지정해주세요.");
+        } else if (parsed.kind === "SURFACE_ROUGHNESS") {
+          issues.push("표면 거칠기는 합격·불합격 기록 방식으로 지정해주세요.");
         } else if (draft.toleranceSource === "drawing" && !parsed.drawing) {
           issues.push("도면 표기에 공차가 없습니다. 일반공차나 특별 공차를 선택해주세요.");
         } else if (draft.toleranceSource === "general" && parsed.general === null) {
@@ -374,8 +381,12 @@ export default function DrawingReviewPanel({
     const draft = drafts[item.id];
     if (parsed.valid) {
       syncFeature(item.id, allowedFeatures({ dimensionKind: parsed.kind }));
-      if (parsed.kind === "THREAD_SPEC" && draft?.mode === "numeric") {
+      if ((parsed.kind === "THREAD_SPEC" || parsed.kind === "SURFACE_ROUGHNESS") && draft?.mode === "numeric") {
         setDrafts((previous) => ({ ...previous, [item.id]: { ...previous[item.id], mode: "gauge" } }));
+      }
+      // 거칠기로 읽었던 항목을 R1 같은 반지름 표기로 되돌리면 실측값 방식으로 돌아간다.
+      if (parsed.kind !== "SURFACE_ROUGHNESS" && parsed.kind !== "THREAD_SPEC" && draft?.feature === "SURFACE") {
+        setDrafts((previous) => ({ ...previous, [item.id]: { ...previous[item.id], mode: "numeric" } }));
       }
     }
     if (parsed.valid && draft && draft.toleranceSource !== "special") {
@@ -851,6 +862,7 @@ function SelectedItem({
 }: SelectedProps) {
   const parsed = parseDimension(dimText);
   const isGdt = item.category === "GDT";
+  const isSurface = parsed.kind === "SURFACE_ROUGHNESS";
   const unit = draft?.unit || "mm";
 
   return (
@@ -992,6 +1004,14 @@ function SelectedItem({
                   </button>
                 </p>
               )}
+              {isSurface && (
+                <p className="text-[11px] text-slate-600">
+                  표면 거칠기 <b>{dimText}</b> µm
+                  {item.roughness_symbol
+                    ? ` · 표제란 범례 ${item.roughness_symbol}로 읽음. 반지름이면 확정 표기를 ${item.roughness_symbol}로 고치세요.`
+                    : " · 도면에 적힌 Ra 표기"}
+                </p>
+              )}
               {parsed.valid && parsed.nominal !== null && (
                 <p className="text-[11px] text-slate-600">
                   기준치수 <b>{formatNumber(parsed.nominal)}</b>
@@ -1022,7 +1042,7 @@ function SelectedItem({
               ["numeric", "실측값 입력 · 자동 판정"],
               ["gauge", "합격 / 불합격 기록"],
             ] as const).map(([mode, label]) => {
-              const disabled = mode === "numeric" && (isGdt || parsed.kind === "THREAD_SPEC");
+              const disabled = mode === "numeric" && (isGdt || parsed.kind === "THREAD_SPEC" || isSurface);
               return (
                 <button
                   key={mode}
@@ -1040,6 +1060,11 @@ function SelectedItem({
           {(isGdt || parsed.kind === "THREAD_SPEC") && (
             <p className="text-[10px] text-slate-500">
               {isGdt ? "기하공차" : "나사"}는 게이지·CMM 결과를 합격/불합격으로 기록합니다.
+            </p>
+          )}
+          {isSurface && (
+            <p className="text-[10px] text-slate-500">
+              표면 거칠기는 측정기 결과를 합격/불합격으로 기록합니다. 합격 기준은 도면을 보고 직접 입력해주세요.
             </p>
           )}
 
@@ -1083,7 +1108,7 @@ function SelectedItem({
                   parsed.general !== null ? `±${formatNumber(parsed.general)}` : "적용 범위 밖",
                   parsed.general !== null,
                 ],
-                ["special", "특별 공차", "직접 입력 · 끼워맞춤 코드", true],
+                ["special", "특별 공차", "직접 입력", true],
               ] as Array<[ToleranceSource, string, string, boolean]>).map(([value, label, detail, available]) => (
                 <label
                   key={value}
@@ -1096,48 +1121,46 @@ function SelectedItem({
                     name={`tolerance-${item.id}`}
                     disabled={!available}
                     checked={draft.toleranceSource === value}
-                    onChange={() => onDraft({ toleranceSource: value })}
+                    onChange={() =>
+                      // 특별 공차로 바꾸면 지금 보이는(도면에서 읽은) 편차에서 시작한다.
+                      onDraft(value === "special" ? { toleranceSource: value, ...shownDeviation(draft, parsed) } : { toleranceSource: value })
+                    }
                   />
                   <span className="font-semibold">{label}</span>
                   <span className="flex-1 text-right font-mono text-slate-600">{detail}</span>
                 </label>
               ))}
-              {draft.toleranceSource === "special" && (
-                <FitCodeInput
-                  nominal={parsed.valid ? parsed.nominal : null}
-                  value={draft.fitCode}
-                  onChange={(fitCode, deviation) =>
-                    onDraft(
-                      deviation
-                        ? { fitCode, upper: signedDeviationText(deviation.upper), lower: signedDeviationText(deviation.lower) }
-                        : { fitCode },
-                    )
-                  }
-                />
-              )}
-              {draft.toleranceSource === "special" && (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <label className="space-y-1 text-xs">
-                    <span className="text-slate-600">상한 편차 (부호 포함)</span>
-                    <input
-                      className={`${editClass} font-mono`}
-                      inputMode="decimal"
-                      placeholder="예: +0.05"
-                      value={draft.upper}
-                      onChange={(event) => onDraft({ upper: event.target.value })}
-                    />
-                  </label>
-                  <label className="space-y-1 text-xs">
-                    <span className="text-slate-600">하한 편차 (부호 포함)</span>
-                    <input
-                      className={`${editClass} font-mono`}
-                      inputMode="decimal"
-                      placeholder="예: -0.02"
-                      value={draft.lower}
-                      onChange={(event) => onDraft({ lower: event.target.value })}
-                    />
-                  </label>
-                </div>
+              {/* 도면에서 읽은 편차를 채워 보여주고, 고치면 특별 공차로 저장한다. */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <label className="space-y-1 text-xs">
+                  <span className="text-slate-600">상한 편차 (부호 포함)</span>
+                  <input
+                    className={`${editClass} font-mono`}
+                    inputMode="decimal"
+                    placeholder="예: +0.05"
+                    value={shownDeviation(draft, parsed).upper}
+                    onChange={(event) =>
+                      onDraft({ toleranceSource: "special", upper: event.target.value, lower: shownDeviation(draft, parsed).lower })
+                    }
+                  />
+                </label>
+                <label className="space-y-1 text-xs">
+                  <span className="text-slate-600">하한 편차 (부호 포함)</span>
+                  <input
+                    className={`${editClass} font-mono`}
+                    inputMode="decimal"
+                    placeholder="예: -0.02"
+                    value={shownDeviation(draft, parsed).lower}
+                    onChange={(event) =>
+                      onDraft({ toleranceSource: "special", upper: shownDeviation(draft, parsed).upper, lower: event.target.value })
+                    }
+                  />
+                </label>
+              </div>
+              {draft.toleranceSource !== "special" && (parsed.drawing || parsed.general !== null) && (
+                <p className="text-[11px] text-slate-500">
+                  {draft.toleranceSource === "drawing" ? "도면에서 읽은 값입니다." : "일반공차 값입니다."} 고치면 특별 공차로 저장됩니다.
+                </p>
               )}
               <RangePreview parsed={parsed} draft={draft} unit={unit} />
             </fieldset>
@@ -1152,7 +1175,11 @@ function SelectedItem({
               <textarea
                 className={editClass}
                 rows={3}
-                placeholder="사용할 게이지 규격과 합격·불합격 조건을 입력하세요."
+                placeholder={
+                  isSurface
+                    ? "도면의 Ra 표기와 측정 조건을 확인해 합격·불합격 기준을 직접 입력하세요."
+                    : "사용할 게이지 규격과 합격·불합격 조건을 입력하세요."
+                }
                 value={criteria}
                 onChange={(event) => onDraft({ criteria: event.target.value, criteriaEdited: true })}
               />
@@ -1207,42 +1234,15 @@ function SelectedItem({
   );
 }
 
-/** 끼워맞춤 코드(H7, g6 …)를 입력하면 아래 상·하한 편차를 채워주는 보조 입력. 채워진 값은 직접 고칠 수 있다. */
-function FitCodeInput({
-  nominal,
-  value,
-  onChange,
-}: {
-  nominal: number | null;
-  value: string;
-  onChange: (code: string, deviation: { upper: number; lower: number } | null) => void;
-}) {
-  const status = fitStatus(value, nominal);
-  return (
-    <div className="space-y-1 pt-1 text-xs">
-      <label className="block space-y-1">
-        <span className="text-slate-600">끼워맞춤 코드 (선택) · 입력하면 편차를 자동으로 채웁니다</span>
-        <input
-          className={`${editClass} font-mono`}
-          placeholder="예: H7 (구멍), g6 (축)"
-          value={value}
-          onChange={(event) => {
-            const next = event.target.value;
-            const result = fitStatus(next, nominal);
-            onChange(next, result.state === "ok" ? { upper: result.upper, lower: result.lower } : null);
-          }}
-        />
-      </label>
-      {status.state === "ok" && (
-        <p className="text-[11px] text-cyan-700">
-          {value.trim()} → 상한 {signedDeviationText(status.upper)} / 하한 {signedDeviationText(status.lower)} mm 를 채웠습니다. 도면과 대조해 확인해주세요.
-        </p>
-      )}
-      {(status.state === "invalid" || status.state === "unsupported") && (
-        <p className="text-[11px] text-amber-700">{status.message}</p>
-      )}
-    </div>
-  );
+/** 상·하한 편차 입력칸에 보여줄 값: 도면 공차·일반공차면 읽은 값, 특별 공차면 입력한 값. */
+function shownDeviation(draft: Draft, parsed: ParsedDimension): { upper: string; lower: string } {
+  if (draft.toleranceSource === "drawing" && parsed.drawing) {
+    return { upper: deviationText(parsed.drawing.upper), lower: deviationText(parsed.drawing.lower) };
+  }
+  if (draft.toleranceSource === "general" && parsed.general !== null) {
+    return { upper: deviationText(parsed.general), lower: deviationText(-parsed.general) };
+  }
+  return { upper: draft.upper, lower: draft.lower };
 }
 
 function RangePreview({ parsed, draft, unit }: { parsed: ParsedDimension; draft: Draft; unit: string }) {

@@ -5,7 +5,65 @@ import re
 from general_tolerance import GENERAL_LABEL, general_deviation
 
 NUMBER = r'\d+(?:\.\d+)?'
+# 표면 거칠기: 값 앞자리 0이 빠진 .8 도 읽는다 (OCR이 '0.8'을 '.8'로 읽는 경우가 있음)
+ROUGH_NUMBER = r'\d+(?:\.\d+)?|\.\d+'
+# 거칠기 기호 글자: R 뒤 숫자. OCR이 1을 i, I, l, L, | 로 읽는 경우를 같은 글자로 본다.
+ROUGH_KEY_CHAR = r'[0-9iIlL|]'
+ROUGH_LEGEND_RE = re.compile(rf'(?<![A-Za-z0-9])R\s*({ROUGH_KEY_CHAR})\s*[=:]\s*Ra\s*({ROUGH_NUMBER})')
+ROUGH_KEY_RE = re.compile(rf'R\s*({ROUGH_KEY_CHAR})')
+
+
+def roughness_text(value):
+    """거칠기 값을 'Ra 0.8' 모양으로. 앞자리 0이 빠진 .8도 0.8로."""
+    return f'Ra {float(value):g}'
+
+
+def roughness_legend(title):
+    """표제란 글자에서 'R1 = Ra 0.8' 범례를 찾는다. 같은 기호에 값이 다르면 그 기호는 읽지 않는다.
+
+    반환: {'R1': {'text': 'Ra 0.8', 'misread': False}, ...}. misread 는 1을 i/l 등으로 읽어 보정했다는 뜻.
+    """
+    found, conflict = {}, set()
+    for match in ROUGH_LEGEND_RE.finditer(title or ''):
+        char = match[1]
+        key = 'R' + (char if char.isdigit() else '1')
+        entry = {'text': roughness_text(match[2]), 'misread': not char.isdigit()}
+        if key in found and found[key]['text'] != entry['text']:
+            conflict.add(key)
+        elif key not in found or not entry['misread']:
+            found[key] = entry
+    return {key: value for key, value in found.items() if key not in conflict}
+
+
+def apply_roughness_legend(item, legend):
+    """표제란 범례에 있는 기호(R1, R2)로 적힌 치수는 반지름이 아니라 표면 거칠기로 본다.
+
+    원문(raw_text)은 그대로 둔다. 진짜 반지름이면 관리자가 확정 표기를 R1 로 되돌리면 된다.
+    """
+    match = ROUGH_KEY_RE.fullmatch(item['raw_text'].strip())
+    if not match or not legend:
+        return
+    key = 'R' + (match[1] if match[1].isdigit() else '1')
+    entry = legend.get(key)
+    if entry is None:
+        return
+    item.update(feature_type='SURFACE', measurement_characteristic='SURFACE_ROUGHNESS',
+                tol_type='UNSPECIFIED', nominal_value=None, unit='µm',
+                surface_roughness=entry['text'], roughness_symbol=key,
+                upper_deviation=None, lower_deviation=None, lower_limit=None, upper_limit=None)
+    item.pop('tolerance_source', None)
+    reasons = [f'표제란 범례 {key} = {entry["text"]}: 표면 거칠기로 읽음 (반지름이면 확정 표기를 {key}로 고치세요)']
+    if match[1] != key[1]:
+        reasons.append(f'기호 {match[0]!r}는 {key}의 OCR 오독으로 봄: 도면 확인 필요')
+    if entry['misread']:
+        reasons.append(f'범례의 {key} 글자가 OCR에서 다르게 읽힘: 도면 확인 필요')
+    reasons.append('합격 기준은 관리자가 지정 (도면에서 임의로 만들지 않음)')
+    item['review_reasons'] = reasons
+    item['requires_review'] = True
 SIGNED = r'[+-]\d+(?:\.\d+)?'
+# 공차 한쪽 값: 부호가 있는 숫자 (+0.08, -0.16, OCR이 앞자리 0을 빼먹은 +.08) 또는 부호 없는 0.
+# 부호 없는 0 이 아닌 값(0.07)은 상·하한 구분이 불가능해 읽지 않는다.
+DEVIATION = r'(?:[+-](?:\d+(?:\.\d+)?|\.\d+)|0(?:\.0+)?)'
 
 
 def parse_dimension(raw, unit):
@@ -20,6 +78,12 @@ def parse_dimension(raw, unit):
                   upper_deviation=None, tolerance_source=None,
                   requires_review=True, review_reasons=[])
     text = raw.strip()
+    rough = re.fullmatch(rf'Ra\s*({ROUGH_NUMBER})', text)
+    if rough:
+        result.update(feature_type='SURFACE', measurement_characteristic='SURFACE_ROUGHNESS',
+                      unit='µm', surface_roughness=roughness_text(rough[1]))
+        result['review_reasons'].append('표면 거칠기: 합격 기준은 관리자가 지정 (도면에서 임의로 만들지 않음)')
+        return result
     if text.startswith('M'):
         match = re.fullmatch(rf'M\s*({NUMBER})(?:\s*[x×]\s*({NUMBER}))?', text)
         if match:
@@ -43,8 +107,11 @@ def parse_dimension(raw, unit):
             result.update(feature_type='RADIUS', measurement_characteristic='RADIUS')
         else:
             result['measurement_characteristic'] = 'LINEAR_DIMENSION'
+        # 공차 표기: ±0.05 / +0.02/-0.01 / (+0.08/0) 괄호 / 0 은 부호 생략 가능
         pattern = (prefix + rf'({NUMBER})'
-                   rf'(?:\s*±\s*({NUMBER})|\s*({SIGNED})\s*/\s*({SIGNED}))?')
+                   rf'(?:\s*±\s*({NUMBER})'
+                   rf'|\s*\(\s*({DEVIATION})\s*/\s*({DEVIATION})\s*\)'
+                   rf'|\s*({DEVIATION})\s*/\s*({DEVIATION}))?')
     match = re.fullmatch(pattern, text)
     if not match:
         result['tol_type'] = 'UNKNOWN'
@@ -54,8 +121,10 @@ def parse_dimension(raw, unit):
     result['nominal_value'] = nominal
     if match[2]:
         upper, lower = float(match[2]), -float(match[2])
-    elif match[3]:
-        upper, lower = float(match[3]), float(match[4])
+    elif match[3] or match[5]:
+        # 괄호 표기(3·4번 그룹)와 괄호 없는 표기(5·6번 그룹) 중 하나
+        upper = float(match[3] or match[5])
+        lower = float(match[4] or match[6])
         if lower > upper:
             upper, lower = lower, upper
     else:
@@ -139,6 +208,7 @@ def convert(source, drawing_id, image_file=None):
         if count and int(count[1])!=len(entries):
             raise ValueError(f'{label}: 추출 항목 수와 JSON 변환 수가 다릅니다.')
     fields, title = title_fields(tables)
+    legend = roughness_legend(title)
     unit = fields.get('unit','').lower() or None
     doc=dict(schema_version='1.1', drawing_id=drawing_id, **fields,
              material_normalized=None, title_table_raw=title, table_cells=tables,
@@ -146,6 +216,8 @@ def convert(source, drawing_id, image_file=None):
              image=dict(file=image_file, width_px=width,height_px=height,dpi=200,
                         coordinate_origin='top-left',coordinate_anchor='text_center',coordinate_status='FRAME_OFFSET_APPLIED'),items=[])
     doc['unit']=unit
+    if legend:
+        doc['roughness_legend']={key: value['text'] for key, value in legend.items()}
     for category, entries in [('DIMENSION',dimensions),('GDT',gdts)]:
         for n,raw,x,y in entries:
             original={'x':x,'y':y}
@@ -154,7 +226,9 @@ def convert(source, drawing_id, image_file=None):
                 raise ValueError(f'{category}_{n:03d}: 이미지 범위 밖 좌표 {x},{y}')
             item=dict(id=f'{category}_{n:03d}',category=category,raw_text=raw,
                       position={'x':x,'y':y},original_position=original)
-            if category=='DIMENSION':item.update(parse_dimension(raw,unit))
+            if category=='DIMENSION':
+                item.update(parse_dimension(raw,unit))
+                apply_roughness_legend(item, legend)
             else:item.update(feature_type='UNKNOWN',tol_type='UNKNOWN',
                 measurement_characteristic='GEOMETRIC_TOLERANCE',requires_review=True,
                 review_reasons=['기하공차 원문·데이텀·공차역 확인 필요'])

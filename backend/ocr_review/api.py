@@ -245,6 +245,7 @@ TOLERANCE_SOURCES = {"drawing": "DRAWING", "general": "GENERAL", "special": "SPE
 FEATURE_KO = {
     "HOLE": "구멍·내경", "SHAFT": "축·외경", "PLANE": "평면·길이", "SLOT": "홈",
     "THREAD": "나사", "EDGE": "모서리", "RADIUS": "반지름", "CHAMFER": "모따기",
+    "SURFACE": "표면 거칠기",
 }
 SOURCE_KO = {"DRAWING": "도면 공차", "GENERAL": GENERAL_LABEL, "SPECIAL": "특별 공차"}
 
@@ -319,7 +320,7 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
     feature = setting.get("feature_type")
     if feature not in {
         "HOLE", "SHAFT", "PLANE", "SLOT",
-        "THREAD", "EDGE", "RADIUS", "CHAMFER",
+        "THREAD", "EDGE", "RADIUS", "CHAMFER", "SURFACE",
     }:
         raise HTTPException(
             422,
@@ -342,6 +343,20 @@ def apply_inspection_settings(item: dict, setting: dict) -> dict:
     result = dict(item)
     result["measurement_mode"] = mode
     result["feature_type"] = feature
+
+    # 표면 거칠기는 실측 허용범위(상·하한)가 없어 합격·불합격 기록으로만 둔다.
+    if feature == "SURFACE":
+        if mode != "gauge":
+            raise HTTPException(
+                422,
+                f"{item['id']}: 표면 거칠기는 합격·불합격 기록 방식으로 지정해주세요.",
+            )
+        result["measurement_characteristic"] = "SURFACE_ROUGHNESS"
+    elif result.get("measurement_characteristic") == "SURFACE_ROUGHNESS":
+        # 거칠기로 읽혔던 항목을 관리자가 다른 형상(예: 반지름)으로 바로잡은 경우
+        result["measurement_characteristic"] = "RADIUS" if feature == "RADIUS" else "LINEAR_DIMENSION"
+        for key in ("surface_roughness", "roughness_symbol"):
+            result.pop(key, None)
     result["instrument"] = instrument.strip()
 
     if mode == "numeric":

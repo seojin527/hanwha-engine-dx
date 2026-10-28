@@ -23,6 +23,10 @@ export interface OcrItem {
   tolerance_source?: "DRAWING" | "GENERAL" | "SPECIAL" | null;
   /** 관리자가 검사 기준까지 확정한 항목 */
   inspection_approved?: boolean;
+  /** 표면 거칠기로 읽은 항목의 값. 예: "Ra 0.8" (표제란 범례 R1 = Ra 0.8 또는 도면의 Ra 표기) */
+  surface_roughness?: string;
+  /** 범례 기호로 적혀 있던 항목의 기호. 예: "R1" */
+  roughness_symbol?: string;
 }
 export interface OcrDocument {
   review_status?: string;
@@ -55,6 +59,7 @@ export interface OcrPoint {
 const names: Record<string, string> = {
   DIAMETER: '지름', THREAD_SPEC: '나사', CHAMFER_SIZE: '모따기',
   RADIUS: '반지름', LINEAR_DIMENSION: '길이', GEOMETRIC_TOLERANCE: '기하공차',
+  SURFACE_ROUGHNESS: '표면 거칠기',
 };
 export function toOcrPoints(document: OcrDocument): OcrPoint[] {
   return document.items.map((source, index) => ({

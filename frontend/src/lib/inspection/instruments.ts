@@ -13,9 +13,11 @@ export const FEATURE_LABEL: Record<string, string> = {
   EDGE: "모서리",
   RADIUS: "반지름",
   CHAMFER: "모따기",
+  SURFACE: "표면 거칠기",
 };
 
-export const FEATURE_OPTIONS = Object.keys(FEATURE_LABEL);
+// 기하공차·길이 치수에 걸 수 있는 형상. 표면 거칠기는 Ra 표기(또는 표제란 범례 R1·R2)에서만 정해진다.
+export const FEATURE_OPTIONS = Object.keys(FEATURE_LABEL).filter((feature) => feature !== "SURFACE");
 
 const BY_FEATURE: Record<string, string[]> = {
   SHAFT: ["외경 마이크로미터", "대형 외측 마이크로미터", "하이트 게이지", "대형 버니어 캘리퍼스", "버니어 캘리퍼스", "파이 테이프", "다이얼게이지", "CMM"],
@@ -26,6 +28,7 @@ const BY_FEATURE: Record<string, string[]> = {
   EDGE: ["확대경", "투영기", "육안 확인"],
   RADIUS: ["R 템플릿", "투영기", "윤곽 측정기", "CMM"],
   CHAMFER: ["모따기 게이지", "버니어 캘리퍼스", "투영기", "확대경"],
+  SURFACE: ["표면 거칠기 측정기", "비교 표준편"],
 };
 
 // 기하공차 기호별 추천 측정기 (기호가 여러 개면 합쳐서 보여준다)
@@ -94,7 +97,7 @@ const GDT_FEATURES: Record<string, string[]> = {
 
 /**
  * 이 항목에 고를 수 있는 측정 형상.
- * 치수: 표기 앞글자로 (⌀ → 축·구멍, C → 모따기, R → 반지름, M → 나사, 숫자만 → 길이 계열)
+ * 치수: 표기 앞글자로 (⌀ → 축·구멍, C → 모따기, R → 반지름, M → 나사, Ra → 표면 거칠기, 숫자만 → 길이 계열)
  * 기하공차: 기호로 (2단 틀이면 두 기호 모두에 맞는 형상)
  */
 export function allowedFeatures(options: { dimensionKind?: string | null; gdtSymbols?: string[] }): string[] {
@@ -113,6 +116,8 @@ export function allowedFeatures(options: { dimensionKind?: string | null; gdtSym
       return ["RADIUS"];
     case "THREAD_SPEC":
       return ["THREAD"];
+    case "SURFACE_ROUGHNESS":
+      return ["SURFACE"];
     case "LINEAR_DIMENSION":
       return ["PLANE", "SHAFT", "HOLE", "SLOT", "EDGE"];
     default:

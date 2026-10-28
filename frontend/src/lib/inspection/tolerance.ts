@@ -35,7 +35,7 @@ function lookup(table: Array<[number, number | null, number]>, nominal: number) 
   return null;
 }
 
-export type DimensionKind = "LINEAR_DIMENSION" | "DIAMETER" | "CHAMFER_SIZE" | "RADIUS" | "THREAD_SPEC";
+export type DimensionKind = "LINEAR_DIMENSION" | "DIAMETER" | "CHAMFER_SIZE" | "RADIUS" | "THREAD_SPEC" | "SURFACE_ROUGHNESS";
 
 export function generalDeviation(kind: DimensionKind | null, nominal: number | null): number | null {
   if (nominal === null || !Number.isFinite(nominal)) return null;
@@ -45,10 +45,15 @@ export function generalDeviation(kind: DimensionKind | null, nominal: number | n
 }
 
 const NUM = String.raw`\d+(?:\.\d+)?`;
-const SIGNED = String.raw`[+-]\d+(?:\.\d+)?`;
 const THREAD_RE = new RegExp(String.raw`^M\s*(${NUM})(?:\s*[x×]\s*(${NUM}))?$`);
+// 표면 거칠기: Ra 0.8 (OCR이 앞자리 0을 뺀 .8 포함). 백엔드 ocr_metadata.parse_dimension 과 같은 규칙.
+const ROUGHNESS_RE = new RegExp(String.raw`^Ra\s*(\d+(?:\.\d+)?|\.\d+)$`);
+// 공차 한쪽 값: 부호 있는 숫자(OCR이 앞자리 0을 뺀 +.08 포함) 또는 부호 없는 0.
+// 부호 없는 0 이 아닌 값(0.07)은 상·하한 구분이 불가능해 읽지 않는다. (백엔드 ocr_metadata.DEVIATION 과 같은 규칙)
+const DEV = String.raw`(?:[+-](?:\d+(?:\.\d+)?|\.\d+)|0(?:\.0+)?)`;
+// 공차 표기: ±0.05 / +0.02/-0.01 / (+0.08/0) 괄호
 const PLAIN_RE = new RegExp(
-  String.raw`^([⌀Øø]|R|C)?\s*(${NUM})(?:\s*±\s*(${NUM})|\s*(${SIGNED})\s*/\s*(${SIGNED}))?$`,
+  String.raw`^([⌀Øø]|R|C)?\s*(${NUM})(?:\s*±\s*(${NUM})|\s*\(\s*(${DEV})\s*/\s*(${DEV})\s*\)|\s*(${DEV})\s*/\s*(${DEV}))?$`,
 );
 
 export interface ParsedDimension {
@@ -59,6 +64,8 @@ export interface ParsedDimension {
   drawing: { upper: number; lower: number } | null;
   /** 개별 공차가 없을 때 적용할 일반공차 ± (적용 불가면 null) */
   general: number | null;
+  /** 표면 거칠기 Ra 값 (µm). 표면 거칠기 표기일 때만 */
+  roughness?: number;
 }
 
 export function parseDimension(text: string): ParsedDimension {
@@ -66,6 +73,10 @@ export function parseDimension(text: string): ParsedDimension {
   const thread = value.match(THREAD_RE);
   if (thread) {
     return { valid: true, kind: "THREAD_SPEC", nominal: Number(thread[1]), drawing: null, general: null };
+  }
+  const rough = value.match(ROUGHNESS_RE);
+  if (rough) {
+    return { valid: true, kind: "SURFACE_ROUGHNESS", nominal: null, drawing: null, general: null, roughness: Number(rough[1]) };
   }
   const match = value.match(PLAIN_RE);
   if (!match) return { valid: false, kind: null, nominal: null, drawing: null, general: null };
@@ -82,9 +93,10 @@ export function parseDimension(text: string): ParsedDimension {
   let drawing: ParsedDimension["drawing"] = null;
   if (match[3]) {
     drawing = { upper: Number(match[3]), lower: -Number(match[3]) };
-  } else if (match[4]) {
-    const a = Number(match[4]);
-    const b = Number(match[5]);
+  } else if (match[4] || match[6]) {
+    // 괄호 표기(4·5번 그룹)와 괄호 없는 표기(6·7번 그룹) 중 하나
+    const a = Number(match[4] ?? match[6]);
+    const b = Number(match[5] ?? match[7]);
     drawing = { upper: Math.max(a, b), lower: Math.min(a, b) };
   }
   return {
@@ -96,7 +108,7 @@ export function parseDimension(text: string): ParsedDimension {
   };
 }
 
-export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, R5, C0.5, M16";
+export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, ⌀680(+0.08/0), R5, C0.5, M16, Ra 0.8";
 
 /** 기하공차 공차값: 숫자만 (0.01, 1). 쉼표·글자가 섞이면 무효. */
 /** 기하공차 값: 숫자, 또는 지름 공차역 표시가 붙은 숫자 (⌀0.2 — 위치도 등) */
@@ -123,73 +135,14 @@ export function formatRange(nominal: number, upper: number, lower: number, unit 
   return `${formatNumber(nominal + lower)} ~ ${formatNumber(nominal + upper)} ${unit}`.trim();
 }
 
+/** 상·하한 편차 입력칸에 채울 부호 포함 문자열 (+0.08 / 0 / -0.16) */
+export function deviationText(value: number): string {
+  if (value === 0) return "0";
+  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value);
+}
+
 export function formatDeviationPair(upper: number, lower: number): string {
   if (upper === -lower) return `±${formatNumber(upper)}`;
   const sign = (value: number) => (value >= 0 ? `+${formatNumber(value)}` : formatNumber(value));
   return `${sign(upper)} / ${sign(lower)}`;
-}
-
-// ---------------------------------------------------------------- 끼워맞춤 (ISO 286)
-/**
- * 끼워맞춤 코드(H7, g6 …)로 특별 공차의 상·하한 편차를 채우는 보조 계산.
- * 표에 있는 구간·코드만 계산하고, 그 밖은 null 을 돌려 관리자가 편차를 직접 입력하게 한다.
- * 값은 µm 단위 [상한, 하한]. 30~50mm 구간만 두 곳의 공개 표(30~40mm 열)와 대조해 확인했다.
- * 다른 구간은 ISO 286-2 (KS B 0401) 원문과 대조한 뒤에만 추가한다. 임의로 계산식으로 채우지 않는다.
- */
-interface FitRange {
-  over: number;
-  upTo: number;
-  deviations: Record<string, [number, number]>;
-}
-
-const FIT_TABLE: FitRange[] = [
-  {
-    over: 30,
-    upTo: 50,
-    deviations: {
-      H6: [16, 0],
-      H7: [25, 0],
-      H8: [39, 0],
-      f7: [-25, -50],
-      g6: [-9, -25],
-      h6: [0, -16],
-      k6: [18, 2],
-      p6: [42, 26],
-    },
-  },
-];
-
-export type FitStatus =
-  | { state: "empty" }
-  | { state: "invalid"; message: string }
-  | { state: "unsupported"; message: string }
-  | { state: "ok"; upper: number; lower: number };
-
-/** 입력한 코드(대소문자 구분: H=구멍, h=축)와 기준치수로 편차(mm)를 계산한다. */
-export function fitStatus(code: string, nominal: number | null): FitStatus {
-  const text = code.trim();
-  if (!text) return { state: "empty" };
-  if (!/^[A-Za-z]{1,2}\d{1,2}$/.test(text)) {
-    return { state: "invalid", message: "코드 형식이 아닙니다. 예: H7, g6" };
-  }
-  if (nominal === null || !Number.isFinite(nominal)) {
-    return { state: "unsupported", message: "기준치수를 읽을 수 없어 계산하지 못했습니다. 편차를 직접 입력해주세요." };
-  }
-  const range = FIT_TABLE.find((entry) => nominal > entry.over && nominal <= entry.upTo);
-  const found = range?.deviations[text];
-  if (!range || !found) {
-    const supported = FIT_TABLE.flatMap((entry) => Object.keys(entry.deviations)).join(", ");
-    return {
-      state: "unsupported",
-      message: `표에 없는 코드이거나 치수 범위입니다 (지원: ${supported}, 30 초과 ~ 50 이하). 편차를 직접 입력해주세요.`,
-    };
-  }
-  const toMm = (micro: number) => Number((micro / 1000).toFixed(6));
-  return { state: "ok", upper: toMm(found[0]), lower: toMm(found[1]) };
-}
-
-/** 입력칸에 채울 부호 포함 문자열 (+0.025 / 0 / -0.009) */
-export function signedDeviationText(value: number): string {
-  if (value === 0) return "0";
-  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value);
 }
