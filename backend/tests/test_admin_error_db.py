@@ -415,6 +415,21 @@ class ProgressTests(AdminBase):
         stale = self.client.get("/api/admin/drawings/drawing-a/progress/items/D2", params={"revision": "rev-0"})
         self.assertEqual(stale.status_code, 409)
 
+    def test_misread_items_are_not_targets(self):
+        # 관리자가 D3 을 오인식으로 제외 → 조립·검증 대상과 항목 목록에서 빠지고 번호는 그대로
+        items = [dict(item, excluded=True) if item["id"] == "D3" else item for item in ITEMS]
+        document = {"drawing_id": "drawing-a", "part_name": "", "image": {"width_px": 1000, "height_px": 1000},
+                    "items": items, "review_status": "reviewed"}
+        with library.database() as db:
+            db.execute("UPDATE ocr_results SET metadata_json=? WHERE drawing_id='drawing-a'", (json.dumps(document),))
+        body = self.client.get("/api/admin/drawings/drawing-a/progress").json()
+        self.assertEqual(body["stages"]["assembly"]["target"], len(ITEMS) - 1)
+        self.assertEqual(body["ocr"]["item_count"], len(ITEMS) - 1)
+        self.assertNotIn("D3", [item["item_id"] for item in body["items"]])
+        self.assertEqual([item["number"] for item in body["items"]],
+                         [n for n, item in enumerate(ITEMS, start=1) if item["id"] != "D3"])
+        self.assertIn("첫 측정", body["stages"]["manufacturing"]["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

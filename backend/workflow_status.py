@@ -12,6 +12,7 @@
 - 불합격: 최신 판정이 불합격 (재측정 필요)
 - 미완료: 그 밖의 전부 — 미측정 · 확정 전(합격 미확정) · 판정 기준 확인 필요
 - 진행률 = 완료 / 대상. 대상이 0 이면 '대상 없음', 계산 근거가 없으면 '산정 불가'로 두고 0% 로 쓰지 않는다.
+- 관리자가 오인식으로 제외한 OCR 항목(excluded)은 대상·항목 목록에서 뺀다 (번호는 OCR 순서 그대로).
 """
 
 import json
@@ -29,9 +30,14 @@ router = APIRouter(prefix="/api/admin/drawings", tags=["관리자 작업 진행 
 
 PURPOSE_UNIT = {
     "manufacturing": "제품 번호별 · 단계별 측정항목",
-    "assembly": "도면 측정항목 (OCR 버전별 항목당 최신 1건, 제품 번호 없음)",
-    "verification": "도면 측정항목 (OCR 버전별 항목당 최신 1건, 제품 번호 없음)",
+    "assembly": "도면 항목별 최신 1건 (제품 번호 없음)",
+    "verification": "도면 항목별 최신 1건 (제품 번호 없음)",
 }
+
+
+def _measurable(document: dict) -> list[dict]:
+    """작업 대상 OCR 항목. 관리자가 오인식으로 제외한 항목은 재지 않는다."""
+    return [item for item in document.get("items", []) if not item.get("excluded")]
 
 
 def _ratio(done: int, total: int):
@@ -121,7 +127,10 @@ def _manufacturing(drawing_id: str, revision: str, document: dict) -> tuple[dict
     completed = sum(entry["completed"] for entry in stages.values())
     failed = sum(entry["failed"] for entry in stages.values())
     if not serials:
-        state, reason = "unavailable", "기록된 제품 번호가 없어 몇 개를 만드는지 알 수 없습니다 (산정 불가)."
+        example = f"{plan.get('part_key') or 'S'}01"
+        state, reason = "unavailable", (
+            f"아직 부품제작 측정 기록이 없습니다. 제품 번호(예: {example})를 정해 첫 측정을 저장하면 진행률이 계산됩니다."
+        )
     elif target == 0:
         state, reason = "no_target", "단계 측정 대상 항목이 없습니다."
     else:
@@ -165,7 +174,7 @@ def _manufacturing(drawing_id: str, revision: str, document: dict) -> tuple[dict
 
 
 def _summarize_measurements(purpose: str, rows: list[dict], revision: str, document: dict) -> tuple[dict, dict]:
-    item_ids = [item["id"] for item in document.get("items", [])]
+    item_ids = [item["id"] for item in _measurable(document)]
     current = {r["item_id"]: r for r in rows if r["ocr_revision"] == revision and r["item_id"] in set(item_ids)}
     completed = sum(1 for r in current.values() if r["status"] == "completed")
     failed = sum(1 for r in current.values() if r["status"] == "remeasure")
@@ -201,7 +210,7 @@ def drawing_progress(drawing_id: str):
             "has_result": document is not None,
             "revision": snapshot.get("revision"),
             "review_status": (document or {}).get("review_status") or ("none" if document is None else "pending"),
-            "item_count": len((document or {}).get("items", [])),
+            "item_count": len(_measurable(document or {})),
         },
     }
     with database() as db:
@@ -229,6 +238,8 @@ def drawing_progress(drawing_id: str):
     links = _link_counts(drawing_id, revision)
     items = []
     for index, item in enumerate(document.get("items", [])):
+        if item.get("excluded"):
+            continue
         item_id = item["id"]
         items.append({
             "item_id": item_id,

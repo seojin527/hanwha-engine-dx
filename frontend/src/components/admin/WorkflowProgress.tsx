@@ -36,8 +36,9 @@ function statusTag(status: MeasurementStatus | null | undefined) {
   return <Tag tone={tone}>{text}</Tag>;
 }
 
+/** 진행률을 낼 수 없을 때의 안내. 이유 문장이 무엇을 하면 되는지까지 말한다. */
 function stateText(state: CardState, reason: string) {
-  return state === "no_target" ? `대상 없음 — ${reason}` : `산정 불가 — ${reason}`;
+  return state === "no_target" ? `대상 없음 — ${reason}` : reason;
 }
 
 /** 제작 항목의 마커 색: 불합격이 있으면 재측정, 모든 단계·모든 제품이 완료면 완료, 그 밖은 대기 */
@@ -162,7 +163,10 @@ export function WorkflowProgress({
                 <div key={key} className="contents">
                   {index > 0 && <FlowConnector />}
                   <FlowCard title={LABEL[key]} active={purpose === key} onClick={() => setPurpose(key)}>
-                    {card.state === "ok" ? (
+                    {card.state === "ok" && key !== "manufacturing" && "not_measured" in card && card.not_measured === card.target ? (
+                      // 기록이 하나도 없으면 0% 막대 대신 아직 시작 전임을 알린다.
+                      <span className="text-[11px] text-neutral-300">아직 {LABEL[key]} 측정 기록이 없습니다 (0 / {card.target} 항목)</span>
+                    ) : card.state === "ok" ? (
                       <>
                         <span className="flex items-baseline justify-between gap-2">
                           <span className="text-lg font-semibold tabular-nums text-white">{percent(card.progress)}</span>
@@ -203,7 +207,8 @@ export function WorkflowProgress({
           </div>
           <p className="text-[11px] text-neutral-500">
             진행률 = 완료 ÷ 대상. 완료는 합격 판정 후 확정한 기록, 불합격은 최신 판정이 불합격인 기록, 미완료는 미측정·확정 전·기준 확인 필요입니다.
-            제작의 제품 번호와 조립·검증 기록은 서로 연결돼 있지 않아 같은 실물의 이력으로 보지 않습니다.
+            조립·검증 기록은 제품 번호 없이 도면 항목별 최신 1건만 셉니다. 그래서 부품제작의 제품 번호(예: CR01)와 같은 실물의 이력으로 묶지 않습니다.
+            관람객 체험값은 서버에 저장되지 않아 여기에 나오지 않습니다.
           </p>
 
           {progress.items.length > 0 && (
@@ -448,7 +453,7 @@ function ItemDetail({
         </section>
 
         <section aria-label="연결된 오류사례">
-          <h5 className="mb-1 text-[11px] font-semibold text-neutral-300">명시적으로 연결한 {LABEL[purpose]} 사례</h5>
+          <h5 className="mb-1 text-[11px] font-semibold text-neutral-300">이 항목에 연결한 {LABEL[purpose]} 사례</h5>
           {links.length === 0 ? (
             <p className="text-neutral-400">연결된 사례가 없습니다.</p>
           ) : (
@@ -469,7 +474,7 @@ function ItemDetail({
 
         <section aria-label="자동 추천 사례">
           <div className="mb-1 flex items-center justify-between">
-            <h5 className="text-[11px] font-semibold text-neutral-300">자동 검색 추천 (연결 아님)</h5>
+            <h5 className="text-[11px] font-semibold text-neutral-300">비슷한 사례 추천 (아직 연결 안 됨)</h5>
             <button type="button" disabled={searching} onClick={() => void search()} className="btn btn-ghost h-6">
               {candidates ? "다시 검색" : "추천 보기"}
             </button>
@@ -500,7 +505,7 @@ function ItemDetail({
         </section>
 
         <section aria-label="사례 이력">
-          <h5 className="mb-1 text-[11px] font-semibold text-neutral-300">이 항목의 {LABEL[purpose]} 사례 이력</h5>
+          <h5 className="mb-1 text-[11px] font-semibold text-neutral-300">이 항목의 {LABEL[purpose]} 사례 등록·연결·해제 기록</h5>
           {history.length === 0 ? (
             <p className="text-neutral-400">기록된 이력이 없습니다.</p>
           ) : (
