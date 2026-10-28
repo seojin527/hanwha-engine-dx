@@ -528,10 +528,8 @@ function PartBrowser({
     );
   }
 
-  const groups = [
-    ...modelKeys.map((key) => ({ key, label: partName(key) ?? key, parts: (parts ?? []).filter((entry) => entry.engine_part_key === key) })),
-    { key: "none", label: "3D 미연결 부품", parts: (parts ?? []).filter((entry) => !entry.engine_part_key) },
-  ];
+  // 3D 에 연결된 부품만 보여준다 (3D 미연결 영역은 두지 않는다).
+  const groups = modelKeys.map((key) => ({ key, label: partName(key) ?? key, parts: (parts ?? []).filter((entry) => entry.engine_part_key === key) }));
   return (
     <MobileOverlay title="부품·도면 목록" onClose={onClose}>
       {error && <p className="p-4 text-[14px] text-rose-300">{error}</p>}

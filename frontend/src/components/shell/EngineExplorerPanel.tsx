@@ -155,7 +155,6 @@ export function EngineExplorerPanel({
   );
   const modelKeys = new Set(modelParts.map((p) => p.key));
   const linkedParts = (key: string) => (parts ?? []).filter((part) => part.engine_part_key === key);
-  const unlinkedParts = (parts ?? []).filter((part) => !part.engine_part_key || !modelKeys.has(part.engine_part_key));
   const partPath = (part: Part | undefined) =>
     part
       ? `${modelParts.find((m) => m.key === part.engine_part_key)?.name ?? "3D 미연결"} › ${part.name}`
@@ -172,7 +171,6 @@ export function EngineExplorerPanel({
       const next = new Set(previous);
       next.add("engine");
       if (selection.engineKey) next.add(`model:${selection.engineKey}`);
-      else if (selectedPart) next.add("unlinked");
       if (selection.partId) next.add(`part:${selection.partId}`);
       return next;
     });
@@ -442,21 +440,6 @@ export function EngineExplorerPanel({
                     </div>
                   );
                 })}
-                <div>
-                  <TreeRow
-                    depth={1}
-                    expandable
-                    open={expanded.has("unlinked")}
-                    onToggle={() => toggle("unlinked")}
-                    drop={expandOnlyProps("unlinked")}
-                    current={false}
-                    icon={<span aria-hidden="true" className="h-2 w-2 rounded-sm border border-dashed border-dx-faint" />}
-                    label="3D 미연결 등록 부품"
-                    meta={parts ? `${unlinkedParts.length}` : ""}
-                    onClick={() => toggle("unlinked")}
-                  />
-                  {expanded.has("unlinked") && (unlinkedParts.length ? partRows(unlinkedParts, 2) : <TreeNote depth={2}>없음</TreeNote>)}
-                </div>
               </>
             )}
           </div>
