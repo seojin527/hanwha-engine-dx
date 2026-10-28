@@ -218,9 +218,16 @@ export interface ErrorCandidate {
   source_file?: string;
   distance: number;
 }
+/** 화면 표시명(name)과 서버가 실제 검색에 쓴 부품 식별값(key: 3D 연결 키 또는 공통 별칭 · families: 오류 DB 표기). */
+export interface SearchPart {
+  name: string;
+  key: string | null;
+  key_source: 'engine' | 'alias' | null;
+  families: string[];
+}
 /** 작업 목적의 오류사례 컬렉션에서만 검색한다 (다른 목적·공통 컬렉션은 섞지 않는다). */
 export async function fetchItemErrors(purpose: WorkPurpose, drawingId: string, itemId: string, signal?: AbortSignal) {
-  return readResponse<{ purpose: WorkPurpose; drawing_id: string; item_id: string; revision: string; errors: ErrorCandidate[] }>(await fetch(
+  return readResponse<{ purpose: WorkPurpose; drawing_id: string; item_id: string; revision: string; part?: SearchPart; errors: ErrorCandidate[] }>(await fetch(
     `${API_BASE}/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}/items/${encodeURIComponent(itemId)}/errors`, { signal }
   ));
 }

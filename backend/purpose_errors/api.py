@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 
 from drawing_library import database
 from ocr_results import read_ocr_result
+from part_identity import drawing_part, search_families
 
 from . import store as case_store
 from . import vectors
@@ -203,23 +204,17 @@ def list_point_errors(purpose: Purpose, drawing_id: str, item_id: str, revision:
 
 # ------------------------------------------------------------------ 검색
 
-def part_families(drawing_id: str, snapshot: dict) -> list[str]:
-    """기존 검색과 같은 부품 범위 (도면 소속 부품 + 표제란 피스톤로드)."""
-    family = ""
+def known_families(store: PurposeStore) -> list[str]:
+    """이 목적의 오류 DB 에 실제로 쓰인 부품 표기 (원문 테이블 기준, 바꾸지 않는다)."""
     with database() as db:
-        part = db.execute(
-            "SELECT p.name FROM drawings d JOIN parts p ON p.part_id=d.part_id WHERE d.drawing_id=?",
-            (drawing_id,),
-        ).fetchone()
-    if part:
-        family = part["name"]
-    if family.replace(" ", "") == "피스톤로드":
-        family = "피스톤 로드"
-    families = [family] if family else []
-    part_name = str(snapshot["result"].get("part_name") or "").replace(" ", "").upper()
-    if part_name in ("PISTONROD", "피스톤로드") and "피스톤 로드" not in families:
-        families.append("피스톤 로드")
-    return families
+        rows = db.execute(f"SELECT DISTINCT part_family FROM {store.case_table}").fetchall()
+    return [row[0] for row in rows if row[0]]
+
+
+def search_part(store: PurposeStore, drawing_id: str, snapshot: dict) -> dict:
+    """도면 부품의 표시명과 검색용 식별값 (부품 키 + 검색할 오류 DB 표기)."""
+    part = drawing_part(drawing_id, snapshot["result"])
+    return {**part, "families": search_families(part, known_families(store))}
 
 
 @router.get("/drawings/{drawing_id}/items/{item_id}/errors")
@@ -240,7 +235,8 @@ def item_errors(
     if item is None:
         raise HTTPException(404, "이 도면의 측정항목을 찾을 수 없습니다.")
 
-    families = part_families(drawing_id, snapshot)
+    part = search_part(store, drawing_id, snapshot)
+    families = part["families"]
     if not families:
         raise HTTPException(409, "도면의 소속 부품을 확인해주세요.")
 
@@ -259,5 +255,7 @@ def item_errors(
         "item_id": item_id,
         "revision": snapshot["revision"],
         "result_type": "candidate",
+        # 화면 표시명(name)과 실제 검색에 쓴 부품 식별값(key·families)을 함께 돌려준다.
+        "part": part,
         "errors": errors,
     }

@@ -19,6 +19,9 @@
   - 피스톤 로드: 속이 빈 단조 로드. 일부 구간(로드 본체)은 연삭 가공.
 """
 
+from part_identity import alias_key
+
+
 STAGE_NAMES = {"1": "황삭", "2": "중삭", "3": "정삭"}
 STAGE_KEYS = ("1", "2", "3")
 MID_ALLOWANCE = 0.5      # 중삭 후 남길 여유 (mm, 황삭 여유와 같은 방향)
@@ -165,21 +168,7 @@ TEMPLATES = {
 }
 
 
-_NAMES = [
-    ("PR", ("피스톤로드", "pistonrod")),
-    ("PH", ("피스톤헤드", "pistonhead", "피스톤크라운", "pistoncrown")),
-    ("CR", ("커넥팅로드", "connectingrod", "conrod")),
-    ("CS", ("크랭크샤프트", "크랭크축", "crankshaft")),
-]
-
-
 def part_key_for(*names) -> str | None:
-    """부품 이름(라이브러리) 또는 표제란 PART NAME 으로 템플릿 키를 찾는다."""
-    for name in names:
-        text = "".join(str(name or "").split()).lower()
-        if not text:
-            continue
-        for key, words in _NAMES:
-            if any(word in text for word in words):
-                return key
-    return None
+    """부품 이름(라이브러리) 또는 표제란 PART NAME 으로 템플릿 키를 찾는다 (공통 별칭 사용)."""
+    key = alias_key(*names)
+    return key if key in TEMPLATES else None

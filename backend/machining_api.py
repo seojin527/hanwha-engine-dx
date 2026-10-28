@@ -20,11 +20,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from drawing_library import database
-from machining_templates import MID_WINDOW, STAGE_KEYS, STAGE_NAMES, TEMPLATES, part_key_for
+from machining_templates import MID_WINDOW, STAGE_KEYS, STAGE_NAMES, TEMPLATES
 from measurement_api import current_snapshot, judge, measurement_state
 from ocr_api import retrieval_query
 from ocr_results import read_ocr_result
-from purpose_errors.api import part_families
+from part_identity import drawing_part
+from purpose_errors.api import search_part
 from purpose_errors.purposes import STORES, Purpose
 from purpose_errors.vectors import query_active
 
@@ -170,12 +171,8 @@ def stage_criteria(item: dict, stages: dict, stage: str) -> dict | None:
 
 
 def part_info(drawing_id: str, document: dict):
-    with database() as db:
-        row = db.execute(
-            "SELECT p.name FROM drawings d JOIN parts p ON p.part_id=d.part_id WHERE d.drawing_id=?",
-            (drawing_id,),
-        ).fetchone()
-    key = part_key_for(row["name"] if row else "", document.get("part_name"))
+    """가공 템플릿: 표시명이 아니라 부품 키(3D 연결 키 → 공통 별칭)로 고른다."""
+    key = drawing_part(drawing_id, document)["key"]
     return key, TEMPLATES.get(key)
 
 
@@ -406,10 +403,8 @@ def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal
     item = next((entry for entry in document["items"] if entry["id"] == item_id), None)
     if item is None:
         raise HTTPException(404, "이 도면의 측정항목을 찾을 수 없습니다.")
-    _, template = part_info(drawing_id, document)
-    families = list(dict.fromkeys(
-        ([template["label"]] if template else []) + part_families(drawing_id, snapshot)
-    ))
+    part = search_part(STORES[Purpose.manufacturing], drawing_id, snapshot)
+    families = part["families"]
     if not families:
         raise HTTPException(409, "도면의 소속 부품을 확인해주세요.")
 
@@ -432,7 +427,7 @@ def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal
                               query_text=retrieval_query(item), where=where,
                               candidate_ids=candidates["ids"], top_k=top_k)
     return {"purpose": Purpose.manufacturing.value, "drawing_id": drawing_id, "item_id": item_id,
-            "stage": stage, "errors": errors}
+            "stage": stage, "part": part, "errors": errors}
 
 
 # --------------------------------------------------------------------------- 자주검사 성적서
