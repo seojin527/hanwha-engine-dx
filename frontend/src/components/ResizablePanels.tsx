@@ -1,6 +1,4 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { MobileSheet, type SheetState } from './shell/MobileSheet';
-import { useCompactLayout, useLandscapePhone } from '../hooks/useCompactLayout';
 
 /**
  * 작업 패널 위치. 기본은 오른쪽(기존 화면). ENGINE DX 셸은 왼쪽에 두고, 패널 위에 현재 엔진·부품·도면 맥락(header)을 붙인다.
@@ -27,10 +25,6 @@ export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNod
     return defaultWidth;
   });
   const [dragging, setDragging] = useState(false);
-  // 휴대폰: 도면을 화면 전체에 두고 작업 패널은 필요할 때 여는 하단 시트로
-  const compact = useCompactLayout();
-  const landscape = useLandscapePhone();
-  const [sheet, setSheet] = useState<SheetState>('peek');
   const drag = useRef<{id: number; x: number; width: number} | null>(null);
   const bounds = panelBounds(width || 1200);
   const panelWidth = clamp(requested, bounds.min, bounds.max);
@@ -52,19 +46,6 @@ export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNod
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
   const main = <div className="flex min-h-0 min-w-0 flex-1 flex-col">{left}</div>;
-  if (compact) {
-    return <div ref={container} className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${landscape ? '' : 'pb-[60px]'}`}>
-      {main}
-      <MobileSheet label="작업 패널" state={sheet} onStateChange={setSheet}
-        summary={<span className="block min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-white">작업 패널</span>
-          <span className="block truncate text-[11px] text-dx-muted">측정 항목 · 검사 기준{onLeft ? ' · 3D 복귀' : ''}</span>
-        </span>}>
-        {header}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white">{right}</div>
-      </MobileSheet>
-    </div>;
-  }
   const separator = <div role="separator" aria-label={onLeft ? '작업 패널과 도면 너비 조절' : '도면과 오른쪽 패널 너비 조절'} aria-orientation="vertical"
       aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(panelWidth)}
       aria-valuetext={`${onLeft ? '왼쪽' : '오른쪽'} 패널 ${Math.round(panelWidth)}픽셀`} tabIndex={0}

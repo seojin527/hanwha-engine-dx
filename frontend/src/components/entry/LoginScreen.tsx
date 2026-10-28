@@ -8,6 +8,10 @@ interface LoginScreenProps {
   onLogin: (account: string, role: UserRole) => void;
   /** 고른 역할로 샘플 도면 화면을 바로 연다. */
   onDemo: (role: UserRole) => void;
+  /** 관람객 주소(서버 읽기 전용): 관리자 역할을 빼고 체험 안내를 보인다 */
+  visitor?: boolean;
+  /** 휴대폰: 샘플 도면 진입을 숨긴다. 관람객이면 역할은 도면을 본 뒤 고르므로 묻지 않는다 */
+  compact?: boolean;
 }
 
 /**
@@ -24,12 +28,16 @@ interface LoginScreenProps {
  *   보조    12px/400 행간 1.5 흰색 50%
  *   버튼    14px/600 높이 44px
  */
-export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
+export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false }: LoginScreenProps) {
   const [account, setAccount] = useState("");
   const [roleKey, setRoleKey] = useState("");
   const [fullEngineArt, setFullEngineArt] = useState(true);
   const trimmed = account.trim();
-  const role = ROLE_OPTIONS.find((entry) => entry.key === roleKey)?.role ?? null;
+  // 관람객 주소에서는 관리자 역할을 고를 수 없다 (서버도 변경 요청을 막는다).
+  const options = visitor ? ROLE_OPTIONS.filter((entry) => entry.role.kind !== "admin") : ROLE_OPTIONS;
+  // 휴대폰 관람객: 역할은 도면을 본 뒤 업무 선택에서 고른다. 진입용 기본값만 둔다.
+  const askRole = !(visitor && compact);
+  const role = askRole ? options.find((entry) => entry.key === roleKey)?.role ?? null : ({ kind: "worker", purpose: "manufacturing" } as UserRole);
 
   return (
     <main className="dx-shell relative h-dvh w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#132235_0%,#0b1522_60%,#08111b_100%)] text-[14px] leading-normal">
@@ -104,7 +112,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               />
             </Field>
 
-            <Field
+            {askRole && <Field
               label="비밀번호"
               htmlFor="login-password"
               icon={<Lock className="h-4 w-4" />}
@@ -122,13 +130,19 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
                 autoComplete="off"
                 className="h-11 min-w-0 flex-1 cursor-not-allowed bg-transparent pr-3 text-[14px] text-white focus:outline-none"
               />
-            </Field>
+            </Field>}
 
-            <Field
+            {visitor && (
+              <p className="rounded-md border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-[12px] leading-[1.5] text-cyan-50/90">
+                관람객 체험 주소입니다. 입력한 값은 이 화면에서만 쓰는 체험 결과이며 서버에 저장되지 않습니다.
+                관리자 기능은 관리자 주소에서 사용합니다.
+              </p>
+            )}
+            {askRole && <Field
               label="역할"
               htmlFor="login-role"
               icon={<Users className="h-4 w-4" />}
-              hint="작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 도면 등록과 OCR 검토는 관리자만 합니다."
+              hint={visitor ? "작업 화면을 체험할 업무를 고릅니다. 다른 업무는 작업 화면에서 바꿀 수 있습니다." : "작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 도면 등록과 OCR 검토는 관리자만 합니다."}
             >
               <select
                 id="login-role"
@@ -140,25 +154,25 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
                 <option value="" disabled>
                   역할 선택
                 </option>
-                {ROLE_OPTIONS.map((entry) => (
+                {options.map((entry) => (
                   <option key={entry.key} value={entry.key}>
                     {entry.label} — {entry.description}
                   </option>
                 ))}
               </select>
               <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
-            </Field>
+            </Field>}
 
             <button
               type="submit"
               disabled={!trimmed || !role}
               className="!mt-6 h-11 w-full rounded-md bg-[#22c3dc] text-[14px] font-semibold leading-none text-[#04212b] transition-colors hover:bg-[#45d0e5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22c3dc] disabled:cursor-not-allowed disabled:bg-[#22c3dc]/30 disabled:text-[#04212b]/70"
             >
-              로그인
+              {askRole ? "로그인" : "체험 시작"}
             </button>
           </form>
 
-          <div className="mt-5 border-t border-white/8 pt-4">
+          {!compact && <div className="mt-5 border-t border-white/8 pt-4">
             <button
               type="button"
               disabled={!role}
@@ -168,7 +182,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               <PlayCircle aria-hidden="true" className="h-4 w-4" />
               {role ? "데모 도면으로 체험하기" : "역할을 고르면 데모 도면을 볼 수 있습니다"}
             </button>
-          </div>
+          </div>}
         </div>
         <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-white/40">
           입력한 이름은 화면 표시에만 쓰고 저장하지 않습니다. 로그인하면 전체 엔진 3D 화면에서 시작합니다.

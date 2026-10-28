@@ -9,8 +9,9 @@ import { EngineViewer3D, type EngineModelInfo } from "./components/shell/EngineV
 import { EngineExplorerPanel, type EngineSelection } from "./components/shell/EngineExplorerPanel";
 import { DrawingContextHeader, ShellRail, ShellTopBar, type ShellView } from "./components/shell/ShellChrome";
 import { PanelLayoutContext } from "./components/ResizablePanels";
-import { MobileSheet, type SheetState } from "./components/shell/MobileSheet";
+import { MobileShell } from "./components/mobile/MobileShell";
 import { useCompactLayout } from "./hooks/useCompactLayout";
+import { useDeployMode } from "./hooks/useDeployMode";
 import { MoveDrawingDialog } from "./components/shell/MoveDrawingDialog";
 import { ENGINE_PART_LABEL, type EnginePartKey } from "./lib/engineParts";
 import { DrawingLibrary } from "./components/DrawingLibrary";
@@ -63,7 +64,10 @@ export function App() {
   const [userLabel, setUserLabel] = useState("");
   // 화면 역할 (인증 아님). 관리자는 통합 관리자 화면, 작업자는 자기 업무 페이지에서 입력한다.
   const [role, setRole] = useState<UserRole | null>(null);
-  const isAdmin = role?.kind === "admin";
+  // 관람객 주소(서버 읽기 전용)에서는 관리자 화면·도구를 열지 않는다. 서버도 변경 요청을 막는다.
+  const deployMode = useDeployMode();
+  const visitor = deployMode.readOnly;
+  const isAdmin = role?.kind === "admin" && !visitor;
   const ownPurpose: WorkPurpose | null = role?.kind === "worker" ? role.purpose : null;
   const userDisplay = role ? `${userLabel} · ${roleLabel(role)}` : userLabel;
   // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
@@ -84,13 +88,8 @@ export function App() {
   // 3D 메인: 선택한 3D 부품 종류·등록 부품·도면. 도면 작업에서 돌아와도 유지한다.
   const [engineSelection, setEngineSelection] = useState<EngineSelection>({ engineKey: null, partId: null, drawingId: null });
   const [engineModel, setEngineModel] = useState<EngineModelInfo | null>(null);
-  // 휴대폰: 3D 는 화면 전체, 트리·정보·연결 도면은 하단 시트. 시트 높이는 도면에 다녀와도 유지한다.
+  // 휴대폰은 별도 흐름(components/mobile)으로 그린다: 3D → 부품 → 대표 도면 → 업무 → 한 항목씩 작업
   const compact = useCompactLayout();
-  const [engineSheet, setEngineSheet] = useState<SheetState>("peek");
-  // 3D·트리에서 부품을 고르면 연결 도면이 보이게 시트를 반쯤 올린다.
-  useEffect(() => {
-    if (engineSelection.engineKey || engineSelection.partId) setEngineSheet((state) => (state === "peek" ? "half" : state));
-  }, [engineSelection.engineKey, engineSelection.partId]);
   const [allParts, setAllParts] = useState<Part[]>([]);
   // 도면 등록·검토 저장 뒤 부품·도면 목록(검토 상태 포함)을 다시 불러오게 한다.
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -933,8 +932,8 @@ export function App() {
     ocrInspectionRecords,
     measurementRecords,
     onMeasurementSaved: handleMeasurementSaved,
-    // 자기 업무 페이지가 아니면 조회만
-    readOnly: purpose !== ownPurpose,
+    // 자기 업무 페이지가 아니면 조회만. 관람객 주소의 데스크톱 화면도 조회만 (휴대폰은 저장 없는 체험)
+    readOnly: purpose !== ownPurpose || visitor,
     workerBlocked,
   };
 
@@ -956,6 +955,8 @@ export function App() {
   if (stage === "login") {
     return (
       <LoginScreen
+        visitor={visitor}
+        compact={compact}
         onLogin={(account, nextRole) => {
           setUserLabel(account);
           enterWithRole(nextRole);
@@ -966,6 +967,44 @@ export function App() {
           enterWithRole(nextRole);
           enterDemo();
         }}
+      />
+    );
+  }
+
+  if (compact) {
+    return (
+      <MobileShell
+        userLabel={userLabel}
+        roleText={visitor ? "관람객 체험" : roleLabel(role)}
+        isAdmin={isAdmin}
+        trial={visitor}
+        ownPurpose={visitor ? null : ownPurpose}
+        onLogout={logout}
+        inWorkspace={stage === "workspace" && !demoMode}
+        engineModel={engineModel}
+        onEngineReady={setEngineModel}
+        selection={engineSelection}
+        onSelect={setEngineSelection}
+        onOpenDrawing={openDrawingFromExplorer}
+        onBackTo3D={backTo3D}
+        selectedDrawing={selectedDrawing}
+        siblingDrawings={siblingDrawings}
+        document={document}
+        ocrStatus={ocr.status}
+        revision={reviewRevision}
+        resultUrl={resultUrl}
+        points={ocrPoints}
+        activePoint={activeOcrPoint}
+        onSelectPoint={setSelectedPointId}
+        purpose={purpose}
+        onPurpose={switchPurpose}
+        measurementRecords={measurementRecords}
+        onMeasurementSaved={handleMeasurementSaved}
+        reviewFiles={reviewFiles}
+        reviewPane={reviewPane}
+        picking={pickingPosition}
+        onPickAt={(position) => finishPositionPick(position)}
+        onCancelPick={() => finishPositionPick(null)}
       />
     );
   }
@@ -1042,12 +1081,10 @@ export function App() {
       drawingAvailable={demoMode || !!selectedDrawing}
       onNavigate={navigate}
       onLogout={logout}
-      compact={compact}
     />
   );
-  const explorerPanel = (layout: "side" | "sheet") => (
+  const explorerPanel = () => (
     <EngineExplorerPanel
-      layout={layout}
       model={engineModel}
       selection={engineSelection}
       onSelect={setEngineSelection}
@@ -1066,41 +1103,22 @@ export function App() {
   return (
     <UnsavedChangesProvider registry={unsavedRegistry}>
     <div className="dx-shell flex h-dvh w-screen overflow-hidden font-sans">
-      {!compact && railNav}
+      {railNav}
       <div className="flex min-w-0 flex-1 flex-col">
         <ShellTopBar
           path={shellPath}
           userLabel={userLabel}
           roleLabel={roleLabel(role)}
           search={shellView === "drawing" ? { value: searchQuery, onChange: setSearchQuery } : undefined}
-          nav={compact ? railNav : undefined}
         />
         <div className="relative flex min-h-0 flex-1">
-          {/* 휴대폰은 같은 패널을 하단 시트에 넣는다. 이 자리만 바뀌고 아래 3D 는 다시 만들지 않는다 */}
-          {stage === "engine" && (compact ? (
-            <MobileSheet
-              label="탐색 패널"
-              state={engineSheet}
-              onStateChange={setEngineSheet}
-              summary={
-                <span className="block min-w-0">
-                  <span className="block truncate text-[13px] font-semibold text-white">{explorerPart?.name ?? modelPartName(engineSelection.engineKey) ?? engineTitle}</span>
-                  <span className="block truncate text-[11px] text-dx-muted">
-                    {engineSelection.engineKey || engineSelection.partId ? "부품 정보 · 연결 도면 보기" : "부품을 눌러 선택 · 한 손가락 회전 · 두 손가락 확대"}
-                  </span>
-                </span>
-              }
-            >
-              {explorerPanel("sheet")}
-            </MobileSheet>
-          ) : explorerPanel("side"))}
+          {stage === "engine" && explorerPanel()}
           {/* 3D 는 한 번 만든 뒤 숨기기만 한다 (카메라·선택·분해 상태 유지) */}
           <EngineViewer3D
             visible={stage === "engine"}
             selectedKey={engineSelection.engineKey}
             onSelect={(key) => setEngineSelection({ engineKey: key, partId: null, drawingId: null })}
             onReady={setEngineModel}
-            compact={compact}
           />
 
           {stage === "select" && adminView === "drawings" && (

@@ -22,7 +22,3 @@ export function useCompactLayout(): boolean {
   return useMedia(QUERY);
 }
 
-/** 휴대폰 가로 화면: 하단 시트 대신 오른쪽에 붙인 패널로 연다 (3D·도면 왼쪽 절반을 남긴다) */
-export function useLandscapePhone(): boolean {
-  return useMedia("(orientation: landscape) and (max-height: 500px)");
-}
