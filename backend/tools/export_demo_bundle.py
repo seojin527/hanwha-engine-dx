@@ -23,6 +23,7 @@ import sys
 import tarfile
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -36,8 +37,18 @@ DRAWING_DATA_DIRS = ("origin", "reviewed", "logs")
 HISTORY_CSV = Path("logs") / "review_history.csv"
 
 
-def connect_ro(db_path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
+@contextmanager
+def opened(connection: sqlite3.Connection):
+    """커밋 후 반드시 닫는다. (Windows 는 열린 DB 파일을 지우지 못해 임시 폴더 정리가 실패한다)"""
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
+def connect_ro(db_path: Path):
+    return opened(sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True))
 
 
 def tables_with(db: sqlite3.Connection, column: str) -> list[str]:
@@ -117,7 +128,7 @@ def _stage_path(stage: Path, path: Path) -> Path | None:
 
 def apply_exclusion(stage: Path, db_copy: Path, plan: dict) -> None:
     """임시 사본(stage, db_copy)에서만 지운다."""
-    with sqlite3.connect(db_copy) as db:
+    with opened(sqlite3.connect(db_copy)) as db:
         ids = plan["drawing_ids"]
         if ids:
             marks = ",".join("?" * len(ids))
@@ -231,19 +242,21 @@ def main(argv=None) -> int:
         ignore = shutil.ignore_patterns("worker.lock", f"{LIBRARY_DB.name}*", *SKIP_STORAGE)
         shutil.copytree(STORAGE_DIR, stage / "storage", ignore=ignore)
         db_copy = stage / "storage" / LIBRARY_DB.name
-        with sqlite3.connect(LIBRARY_DB) as source, sqlite3.connect(db_copy) as dest:
+        with opened(sqlite3.connect(LIBRARY_DB)) as source, opened(sqlite3.connect(db_copy)) as dest:
             source.backup(dest)
         shutil.copytree(VECTOR_DB_DIR, stage / "vector_db")
         shutil.copytree(DATA_DIR, stage / "data")
         if plan:
             apply_exclusion(stage, db_copy, plan)
-        with sqlite3.connect(db_copy) as db:
+        with opened(sqlite3.connect(db_copy)) as db:
             for part_id, name in renames.items():
                 db.execute("UPDATE parts SET name = ? WHERE part_id = ?", (name, part_id))
         # 지운 행이 빈 페이지에 남지 않게 파일을 다시 쓴다 (공개 서버에 올라가는 사본).
         vacuum = sqlite3.connect(db_copy)
-        vacuum.execute("VACUUM")
-        vacuum.close()
+        try:
+            vacuum.execute("VACUUM")
+        finally:
+            vacuum.close()
         restored = restore_missing_origin(stage, db_copy)
         summary = {"source": manifest(), "excluded_parts": args.exclude_part, "renamed_parts": renames, "restored_origin_files": restored}
         (stage / "manifest.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
