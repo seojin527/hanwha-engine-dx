@@ -166,6 +166,9 @@ def parse_dimension(raw, unit):
     return result
 
 
+SCALE_VALUE_RE = re.compile(r'\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?')
+
+
 def title_fields(tables):
     """표 셀의 좌표로 행을 묶는다. 원문/셀 데이터도 그대로 보관한다."""
     rows = []
@@ -187,6 +190,16 @@ def title_fields(tables):
             match = re.match(re.escape(label) + r'\s+(.+)$', line, re.I)
             if match:
                 fields[key] = match[1].strip(); break
+    # 라벨 칸(SCALE / SHEET SIZE 두 줄)과 값 칸('1:20, A3')의 세로 위치가 어긋나면 서로 다른 줄로 갈라진다.
+    # 라벨만 있는 SCALE 줄 바로 다음 줄이 '1:20' 모양일 때만 그 줄을 축척으로 읽는다.
+    if 'drawing_scale' not in fields:
+        for before, line in zip(lines, lines[1:]):
+            if re.fullmatch(r'SCALE', before.strip(), re.I) and SCALE_VALUE_RE.match(line.strip()):
+                fields['drawing_scale'] = line.strip(); break
+    # 축척 칸에 용지 크기가 함께 읽힌 경우('1:20, A3') 비율 부분만 쓴다. 비율 모양이 아니면 원문 그대로 둔다.
+    found = SCALE_VALUE_RE.match(fields.get('drawing_scale', ''))
+    if found:
+        fields['drawing_scale'] = re.sub(r'\s+', '', found[0])
     return fields, '\n'.join(lines)
 
 

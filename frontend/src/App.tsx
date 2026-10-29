@@ -905,7 +905,7 @@ export function App() {
     <UnsavedChangesProvider registry={unsavedRegistry}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       <Header
-        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기" }}
+        displayInfo={demoMode ? undefined : { partName: document?.part_name || "등록 부품", drawingName: selectedDrawing?.original_filename || "선택 대기", partNo: document?.part_no || undefined, scale: document?.drawing_scale || undefined }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         userLabel={userDisplay}

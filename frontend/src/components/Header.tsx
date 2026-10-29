@@ -8,7 +8,8 @@ import { ArrowLeft, Search } from "lucide-react";
 import { MOCK_PART_INFO } from "../data/mockData";
 
 interface HeaderProps {
-  displayInfo?: { partName: string; drawingName: string };
+  /** 등록 도면 정보. partNo·scale 은 표제란 OCR 이 읽은 값이며 못 읽었으면 없다 (이때 "—"). */
+  displayInfo?: { partName: string; drawingName: string; partNo?: string; scale?: string };
   searchQuery: string;
   onSearchChange: (q: string) => void;
   /** 시연용 계정 이름 (인증된 사용자가 아님) */
@@ -26,9 +27,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const meta = [
     { label: "부품", value: displayInfo?.partName || MOCK_PART_INFO?.name },
-    { label: "부품번호", value: displayInfo ? "—" : MOCK_PART_INFO?.partNo },
+    { label: "부품번호", value: displayInfo ? displayInfo.partNo : MOCK_PART_INFO?.partNo },
     { label: "도면", value: displayInfo?.drawingName || MOCK_PART_INFO?.drawingNo },
-    { label: "축척", value: displayInfo ? "—" : MOCK_PART_INFO?.scale },
+    { label: "축척", value: displayInfo ? displayInfo.scale : MOCK_PART_INFO?.scale },
     { label: "개정", value: displayInfo ? "—" : MOCK_PART_INFO?.revision },
   ];
 
