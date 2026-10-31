@@ -63,7 +63,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
             </button>)}
           </nav>
           <p className="worker-case-caption">유사 조건 검색 결과 · 적용 조건 확인 필요</p>
-          {selected && <CaseCard key={`${key}/${selected.case_id}`} error={selected} />}
+          {selected && <CaseCard key={`${key}/${selected.case_id}`} error={selected} showTitle={errors.length === 1} />}
         </>}
     <div className="worker-case-registration">
       <PointErrorForm key={key} purpose={purpose} drawingId={drawingId} revision={revision} item={point.source} number={point.displayNumber} readOnly={readOnly} onIndexed={() => setRetry(v => v + 1)} />
@@ -90,17 +90,14 @@ function GuidanceSteps({ label, value, kind }: { label: string; value: unknown; 
   </section>;
 }
 
-export function CaseCard({ error }: { error: ErrorCandidate }) {
+export function CaseCard({ error, showTitle = true }: { error: ErrorCandidate; showTitle?: boolean }) {
   const [tab, setTab] = useState(0);
   const tabId = useId();
   const tabs = ['측정 전 확인', '오류 조치', '사례 상세'];
   const origin = error.data_origin === 'SYNTHETIC' ? '예시 데이터' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin;
   const source = error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '출처 미기록';
   return <article className="worker-case-card" aria-label="선택한 사례 상세">
-    <header>
-      <span className="worker-kicker">선택한 참고 사례</span>
-      <h3>{error.case_title || error.case_id}</h3>
-    </header>
+    {showTitle && <header><h3>{error.case_title || error.case_id}</h3></header>}
     <div className="worker-guide-tabs" role="tablist" aria-label="사례 안내 종류">
       {tabs.map((label, index) => <button type="button" key={label} role="tab"
         id={`${tabId}-tab-${index}`} aria-controls={`${tabId}-panel-${index}`}
@@ -138,8 +135,8 @@ export function CaseCard({ error }: { error: ErrorCandidate }) {
           <CaseField label="공정" value={error.process_stage} />
         </div>
       </details>
-      </div>
       <footer className="worker-case-source"><span>사례 {error.case_id}{origin ? ` · ${origin}` : ''}</span><span>출처: {source}</span></footer>
+      </div>
     </div>
   </article>;
 }

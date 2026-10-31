@@ -442,3 +442,18 @@
 .worker-measurement [aria-label="측정 입력"] > .card-header, .worker-measurement [aria-label$=" 측정 입력"] > .card-header { background: #e8eef4; padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #dce3ea; }
 .worker-measurement input[inputmode="decimal"] { border-color: #8cabbc; box-shadow: 0 0 0 2px #edf4f8; }
 .worker-measurement input[inputmode="decimal"]:focus { outline: 2px solid #0e829d; outline-offset: 1px; }
+
+/* Reference material remains subordinate to measurement entry. */
+.worker-workspace { background: #e1e7ee; }
+.worker-support { background: #e9eef3; }
+.worker-case-browser .worker-case-card h3 { font-size: 14px; font-weight: 600; }
+.worker-case-browser .worker-case-list-title { font-size: 12px; font-weight: 500; }
+.worker-case-browser .worker-case-card > header { padding: 11px 14px; }
+.worker-case-browser .worker-case-card > .worker-case-narrative { padding: 14px; }
+.worker-case-narrative [role="tabpanel"] { min-height: 0; }
+.worker-case-narrative .worker-guidance li p { font-size: 13px; line-height: 1.75; font-weight: 400; }
+.worker-case-narrative .worker-guidance-number { width: 18px; height: 18px; font-size: 10px; }
+.worker-case-browser .worker-case-field { font-size: 13px; }
+.worker-guide-tabs button { min-height: 38px; font-size: 11px; }
+.worker-case-browser .worker-case-registration { margin-top: 18px; padding-top: 12px; }
+.worker-measurement input[inputmode="decimal"]:focus-visible { border-color: #087e98; box-shadow: 0 0 0 3px #d8edf3; }
