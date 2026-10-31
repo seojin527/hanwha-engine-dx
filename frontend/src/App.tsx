@@ -53,7 +53,8 @@ export function App() {
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [demoMode, setDemoMode] = useState(true);
+  // 샘플은 사용자가 체험 버튼을 눌렀을 때만 연다.
+  const [demoMode, setDemoMode] = useState(false);
   // 진입 흐름: 시연용 로그인 → 전체 엔진 3D(engine) → 부품 선택 → 도면 작업(workspace).
   // select 는 셸 안의 목록·관리 화면(부품·도면 목록 · 작업 진행 현황 · 오류 DB)이다.
   const [stage, setStage] = useState<"login" | "engine" | "select" | "workspace">("login");
@@ -489,6 +490,10 @@ export function App() {
     closeWorkspaceOverlays();
     setUserLabel("");
     setRole(null);
+    setDemoMode(false);
+    setSelectedDrawing(null);
+    setDrawingUrl(null);
+    setPickedDrawing(null);
     setAdminView("drawings");
     setVisited({ progress: false, errors: false });
     setEngineSelection({ engineKey: null, partId: null, drawingId: null });
@@ -981,7 +986,9 @@ export function App() {
       : shellView === "drawing"
         ? demoMode
           ? [{ label: engineTitle, onClick: backTo3D }, { label: "데모 도면 (샘플)" }]
-          : [
+          : !selectedDrawing
+            ? [{ label: engineTitle, onClick: backTo3D }, { label: "도면 선택 대기" }]
+            : [
               { label: engineTitle, onClick: backTo3D },
               { label: modelPartName(workspacePart?.engine_part_key) ?? "3D 미연결" },
               { label: workspacePart?.name ?? document?.part_name ?? "등록 부품" },
@@ -1032,7 +1039,7 @@ export function App() {
       <ShellRail
         view={shellView}
         isAdmin={isAdmin}
-        drawingAvailable={demoMode || !!selectedDrawing}
+        drawingAvailable
         onNavigate={navigate}
         onLogout={logout}
       />
@@ -1235,7 +1242,16 @@ export function App() {
         </div>
       )}
 
-      {isAdmin ? (
+      {!demoMode && !selectedDrawing ? (
+        <section aria-label="도면 선택 안내" className="flex min-h-0 flex-1 items-center justify-center bg-dx-bg p-6 text-center">
+          <div className="max-w-md rounded-xl border border-dx-line bg-dx-panel p-8">
+            <ScanText aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-dx-accent" />
+            <h1 className="text-lg font-semibold text-white">작업할 부품과 도면을 선택하세요</h1>
+            <p className="mt-2 text-sm leading-relaxed text-dx-muted">선택한 도면의 측정항목과 작업 화면이 여기에 표시됩니다.</p>
+            <button type="button" onClick={() => navigate("library")} className="dx-btn dx-btn-primary mt-6">도면 선택</button>
+          </div>
+        </section>
+      ) : isAdmin ? (
         <AdminPage {...adminPageProps} />
       ) : (() => {
         const Page =
