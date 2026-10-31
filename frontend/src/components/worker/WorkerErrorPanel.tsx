@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, RefreshCw } from 'lucide-react';
+import { BookOpen, ChevronRight, RefreshCw } from 'lucide-react';
 import { fetchItemErrors, type ErrorCandidate } from '../../lib/drawingAPI';
 import { fetchStageErrors, STAGE_NAME, type StageKey } from '../../lib/machiningAPI';
 import type { OcrPoint } from '../../lib/ocr';
@@ -16,6 +16,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
   const key = `${purpose}/${drawingId}/${revision}/${stage ?? ''}/${serial ?? ''}/${itemId}`;
   const [state, setState] = useState<State>({ key: '', loading: true, errors: [], error: '' });
   const [retry, setRetry] = useState(0);
+  const [selection, setSelection] = useState({ key: "", id: "" });
   useEffect(() => {
     if (!itemId) return;
     const controller = new AbortController();
@@ -37,20 +38,33 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
   if (!point) return <p className="worker-empty">도면이나 아래 측정항목 표에서 치수를 선택하세요.</p>;
   const loading = state.key !== key || state.loading;
   const errors = state.key === key ? state.errors : [];
-  return <div className="space-y-4 p-3">
+  const selected = errors.find(error => selection.key === key && error.case_id === selection.id) ?? errors[0];
+  return <div className="worker-case-browser">
     <section className="worker-support-context" aria-label="오류 사례 선택 항목">
       <span className="worker-kicker">선택 항목 {stage ? `· ${STAGE_NAME[stage]}` : ''}</span>
       <h2>{point.displayNumber}번 · {point.feature.name}</h2>
       <p className="font-mono">{point.source.raw_text.replace(/\n/g, ' ')}</p>
     </section>
     <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
-      <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />관련 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
+      <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
       <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
     </div>
     {loading ? <p role="status" className="worker-empty">관련 오류·주의사항을 찾고 있습니다…</p>
       : state.error ? <p role="alert" className="note note-error">조회하지 못했습니다. {state.error}</p>
       : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.<p className="mt-1 text-xs">사례가 없다고 안전함을 의미하지는 않습니다.</p></div>
-      : <>{errors.map(error => <CaseCard key={error.case_id} error={error} />)}</>}
+      : <>
+          <nav className="worker-case-list" aria-label="참고 사례 목록">
+            {errors.map((error, index) => <button type="button" key={error.case_id}
+              aria-pressed={selected?.case_id === error.case_id}
+              onClick={() => setSelection({ key, id: error.case_id })}>
+              <span className="worker-case-index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="worker-case-list-title">{error.case_title || error.case_id}</span>
+              <ChevronRight aria-hidden="true" size={15} />
+            </button>)}
+          </nav>
+          <p className="worker-case-caption">유사 조건 검색 결과 · 적용 조건 확인 필요</p>
+          {selected && <CaseCard key={`${key}/${selected.case_id}`} error={selected} />}
+        </>}
     <div className="worker-case-registration">
       <PointErrorForm key={key} purpose={purpose} drawingId={drawingId} revision={revision} item={point.source} number={point.displayNumber} readOnly={readOnly} onIndexed={() => setRetry(v => v + 1)} />
     </div>

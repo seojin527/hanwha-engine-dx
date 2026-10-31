@@ -180,7 +180,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
         ) : (
           <>
             {hasRange ? (
-              <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+              <div className="worker-range-summary">
                 <span className="text-[11px] text-slate-500">허용 범위</span>
                 <b className="font-mono text-sm font-semibold text-slate-900">
                   {formatNumber(low!)} ~ {formatNumber(high!)} {unit}

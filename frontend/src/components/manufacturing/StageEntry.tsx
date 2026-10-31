@@ -128,7 +128,7 @@ export default function StageEntry({
               {criteria.text}
             </p>
           ) : hasRange ? (
-            <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+            <div className="worker-range-summary">
               <span className="text-[11px] text-slate-500">
                 {criteria.role === "allowance" ? `${stageName} 목표 범위` : "허용 범위"}
               </span>

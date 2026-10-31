@@ -115,6 +115,7 @@ export function ShellTopBar({
 
 /** 도면 작업 중 왼쪽 작업 패널 위: 현재 엔진·부품·도면, 같은 부품의 다른 도면으로 이동, 3D 복귀 */
 export function DrawingContextHeader({
+  compact = false,
   enginePartName,
   partName,
   drawing,
@@ -125,6 +126,7 @@ export function DrawingContextHeader({
   onBackTo3D,
   extra,
 }: {
+  compact?: boolean;
   enginePartName: string | null;
   partName: string;
   drawing: Drawing;
@@ -136,6 +138,10 @@ export function DrawingContextHeader({
   extra?: ReactNode;
 }) {
   const review = reviewed ? { text: "검토 완료", tone: "ok" as const } : reviewLabel({ review_status: revision ? "pending" : null, ocr_status: drawing.ocr_status });
+  if (compact) return <div className="worker-drawing-context">
+    <span className="truncate" title={partName}>{partName}</span>
+    <button type="button" onClick={onBackTo3D} className="dx-btn"><Box aria-hidden="true" className="h-3.5 w-3.5" />3D 보기</button>
+  </div>;
   return (
     <div className="shrink-0 space-y-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
       <div className="flex items-start gap-2">

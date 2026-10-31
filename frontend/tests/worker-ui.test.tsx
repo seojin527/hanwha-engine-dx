@@ -29,7 +29,7 @@ function mockFetch() {
     const url = new URL(String(input));
     requests.push({ path: url.pathname+url.search, method: options.method ?? 'GET' });
     let body: any;
-    if (url.pathname.endsWith('/errors')) body = { drawing_id: doc.drawing_id, item_id: url.pathname.split('/').at(-2), revision: 'rev-1', errors: [example], ...(url.searchParams.has('stage') ? { stage: url.searchParams.get('stage') } : {}) };
+    if (url.pathname.endsWith('/errors')) body = { drawing_id: doc.drawing_id, item_id: url.pathname.split('/').at(-2), revision: 'rev-1', errors: [example, { ...example, case_id: "case-2", case_title: "다른 측정 사례", precaution: "두 번째 사례 주의사항" }], ...(url.searchParams.has('stage') ? { stage: url.searchParams.get('stage') } : {}) };
     else if (url.pathname.endsWith('/error-cases')) body = { reports: [] };
     else if (url.pathname.endsWith('/measurements')) body = { records: [] };
     else if (url.pathname.endsWith('/plan')) body = { drawing_id: doc.drawing_id, revision: 'rev-1', serial: url.searchParams.get('serial') || 'PR01', serials: ['PR01'], stage_labels: { '1': '황삭', '2': '중삭', '3': '정삭' }, template_found: true, items: points.map(p => ({ item_id: p.source.id, raw_text: p.source.raw_text, label: p.feature.name, plan_label: '정삭', stages: { '1': { role: 'finish', mode: 'numeric', target: 76, allowance: 0, lower_limit: 75.7, upper_limit: 76.3, text: '검사 기준' }, '2': null, '3': null } })), records: [], status: { '1': { unlocked: true, required: 2, passed: 0, failed: 0 }, '2': { unlocked: false, required: 0, passed: 0, failed: 0 }, '3': { unlocked: false, required: 0, passed: 0, failed: 0 } } };
@@ -164,5 +164,23 @@ test('오른쪽 너비 조절: 드래그·방향키·기본값 복원·너비 �
     await act(async()=>divider.dispatchEvent(new dom.window.MouseEvent('dblclick',{bubbles:true})));
     assert.equal(width(),340);
     assert.equal(document.querySelectorAll('.worker-center tbody tr').length,2);
+  } finally { await unmount(); }
+});
+
+
+test('사례 목록에서 하나만 표시하고 사례 변경 시 측정 입력을 유지', async () => {
+  narrow = false; mockFetch();
+  await mount(<Fixture Page={AssemblyPage} />);
+  try {
+    const input = document.querySelector('.worker-measurement input[inputmode="decimal"]')!;
+    const list = document.querySelector('[aria-label="참고 사례 목록"]')!;
+    assert.equal(list.querySelectorAll('button').length, 2);
+    assert.equal(document.querySelectorAll('.worker-case-card').length, 1);
+    assert.ok(document.querySelector('.worker-case-card')!.textContent!.includes(example.precaution.includes('condition') ? '측정 전 영점 확인' : example.precaution));
+    await act(async () => (list.querySelectorAll('button')[1] as HTMLButtonElement).click());
+    assert.equal(list.querySelectorAll('[aria-pressed="true"]').length, 1);
+    assert.ok(document.querySelector('.worker-case-card')!.textContent!.includes('두 번째 사례 주의사항'));
+    assert.equal(document.querySelectorAll('.worker-case-card').length, 1);
+    assert.equal(document.querySelector('.worker-measurement input[inputmode="decimal"]'), input);
   } finally { await unmount(); }
 });

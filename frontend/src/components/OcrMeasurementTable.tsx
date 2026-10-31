@@ -43,7 +43,7 @@ export function OcrMeasurementTable({
     ? points.filter((point) => records[point.source.id]?.status === 'completed').length
     : 0;
   return (
-    <section className={`${collapsed ? "" : compact ? "h-[200px] max-h-[32%] min-h-[120px]" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white`}>
+    <section className={`${collapsed ? "" : compact ? "h-[200px] max-h-[32%] min-h-[120px]" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white ${compact ? "worker-compact-table" : ""}`}>
       <div className="flex h-8 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
         <h3 className="min-w-0 truncate text-xs font-semibold text-slate-900">{title} 측정항목</h3>
         <span className="shrink-0 text-[11px] text-slate-500">

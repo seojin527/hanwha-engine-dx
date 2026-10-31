@@ -1007,6 +1007,7 @@ export function App() {
     </div>
   ) : selectedDrawing ? (
     <DrawingContextHeader
+      compact={!isAdmin}
       enginePartName={modelPartName(workspacePart?.engine_part_key)}
       partName={workspacePart?.name ?? document?.part_name ?? "등록 부품"}
       drawing={selectedDrawing}
