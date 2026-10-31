@@ -409,3 +409,36 @@
 .worker-case-applicability { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e8edf2; font-size: 12px; }
 .worker-case-applicability .worker-case-field { margin-top: 12px; font-size: 12px; }
 .worker-case-source { display: flex; flex-direction: column; gap: 3px; margin-top: 18px; padding-top: 12px; border-top: 1px solid #e8edf2; color: #64748b; font-size: 10px; overflow-wrap: anywhere; }
+
+/* Focused worker surfaces: one visible instruction, clear interactive tabs. */
+.worker-support { background: #eaf0f5; }
+.worker-case-browser { padding: 14px; }
+.worker-inspection-context { margin-bottom: 12px; padding-bottom: 10px; }
+.worker-inspection-context .worker-kicker { font-size: 10px; }
+.worker-inspection-context .worker-case-current { padding: 3px 0; }
+.worker-case-browser .worker-case-caption { padding: 7px 0 12px; font-size: 10px; }
+.worker-case-browser .worker-case-list { margin-top: 10px; }
+.worker-case-browser .worker-case-list button { padding: 10px 12px; }
+.worker-case-browser .worker-case-card > header { background: #f4f7fa; padding: 14px 16px; }
+.worker-case-browser .worker-case-card h3 { font-size: 16px; line-height: 1.5; margin-top: 4px; }
+.worker-case-browser .worker-case-card > .worker-guide-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 0; background: #f4f7fa; border-bottom: 1px solid #dce3ea; }
+.worker-guide-tabs button { min-height: 42px; padding: 9px 4px; border-bottom: 2px solid transparent; color: #64748b; font-size: 12px; font-weight: 500; cursor: pointer; }
+.worker-guide-tabs button:hover { color: #0e7490; background: #edf3f7; }
+.worker-guide-tabs button[aria-selected="true"] { color: #086b84; border-bottom-color: #07839d; background: #fff; font-weight: 650; }
+.worker-guide-tabs button:focus-visible { outline: 2px solid #07839d; outline-offset: -3px; }
+.worker-case-browser .worker-case-card > .worker-case-narrative { padding: 18px 16px 12px; }
+.worker-case-narrative [role="tabpanel"] { min-height: 130px; }
+.worker-case-narrative [role="tabpanel"][hidden] { display: none; }
+.worker-case-narrative [role="tabpanel"] > .worker-guidance { margin-top: 0; }
+.worker-case-narrative [role="tabpanel"] > .worker-guidance > h4 { display: none; }
+.worker-case-narrative .worker-guidance li { gap: 11px; }
+.worker-case-narrative .worker-guidance li p { font-size: 15px; line-height: 1.85; color: #24364a; }
+.worker-case-narrative .worker-guidance-number { background: #e7f2f6; color: #09758e; width: 23px; height: 23px; font-size: 11px; }
+.worker-case-narrative .worker-guidance.is-action { background: transparent; border: 0; padding: 0; }
+.worker-case-narrative .worker-case-source { margin-top: 12px; }
+.worker-measurement { background: #f0f3f7; }
+.worker-measurement > section { background: #f0f3f7; }
+.worker-measurement [aria-label="측정 입력"], .worker-measurement [aria-label$=" 측정 입력"] { border: 1px solid #d6dfe8; border-radius: 6px; }
+.worker-measurement [aria-label="측정 입력"] > .card-header, .worker-measurement [aria-label$=" 측정 입력"] > .card-header { background: #e8eef4; padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #dce3ea; }
+.worker-measurement input[inputmode="decimal"] { border-color: #8cabbc; box-shadow: 0 0 0 2px #edf4f8; }
+.worker-measurement input[inputmode="decimal"]:focus { outline: 2px solid #0e829d; outline-offset: 1px; }

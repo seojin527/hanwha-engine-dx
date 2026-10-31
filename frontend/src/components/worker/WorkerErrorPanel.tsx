@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { BookOpen, ChevronRight, RefreshCw } from 'lucide-react';
 import { fetchItemErrors, type ErrorCandidate } from '../../lib/drawingAPI';
 import { fetchStageErrors, STAGE_NAME, type StageKey } from '../../lib/machiningAPI';
@@ -91,20 +91,39 @@ function GuidanceSteps({ label, value, kind }: { label: string; value: unknown; 
 }
 
 export function CaseCard({ error }: { error: ErrorCandidate }) {
+  const [tab, setTab] = useState(0);
+  const tabId = useId();
+  const tabs = ['측정 전 확인', '오류 조치', '사례 상세'];
   const origin = error.data_origin === 'SYNTHETIC' ? '예시 데이터' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin;
   const source = error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '출처 미기록';
   return <article className="worker-case-card" aria-label="선택한 사례 상세">
     <header>
-      <span className="worker-kicker">측정 오류 가이드</span>
+      <span className="worker-kicker">선택한 참고 사례</span>
       <h3>{error.case_title || error.case_id}</h3>
     </header>
+    <div className="worker-guide-tabs" role="tablist" aria-label="사례 안내 종류">
+      {tabs.map((label, index) => <button type="button" key={label} role="tab"
+        id={`${tabId}-tab-${index}`} aria-controls={`${tabId}-panel-${index}`}
+        aria-selected={tab === index} tabIndex={tab === index ? 0 : -1}
+        onClick={() => setTab(index)} onKeyDown={event => {
+          const next = event.key === 'ArrowRight' ? (index + 1) % 3 : event.key === 'ArrowLeft' ? (index + 2) % 3 : event.key === 'Home' ? 0 : event.key === 'End' ? 2 : null;
+          if (next === null) return;
+          event.preventDefault(); setTab(next);
+          event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+        }}>{label}</button>)}
+    </div>
     <div className="worker-case-narrative">
+      <div role="tabpanel" id={`${tabId}-panel-0`} aria-labelledby={`${tabId}-tab-0`} hidden={tab !== 0}>
+        <GuidanceSteps label="측정 전 확인" value={error.precaution} kind="before" />
+      </div>
+      <div role="tabpanel" id={`${tabId}-panel-1`} aria-labelledby={`${tabId}-tab-1`} hidden={tab !== 1}>
+        <GuidanceSteps label="오류 발생 시 조치" value={error.corrective_action} kind="action" />
+      </div>
+      <div role="tabpanel" id={`${tabId}-panel-2`} aria-labelledby={`${tabId}-tab-2`} hidden={tab !== 2}>
       {(caseTextBlocks(error.error_description).length > 0 || caseTextBlocks(error.cause).length > 0) && <section className="worker-case-background" aria-label="오류와 발생 원인">
         <CaseField label="발생할 수 있는 오류" value={error.error_description} />
         <CaseField label="발생 원인" value={error.cause} />
       </section>}
-      <GuidanceSteps label="측정 전 확인" value={error.precaution} kind="before" />
-      <GuidanceSteps label="오류 발생 시 조치" value={error.corrective_action} kind="action" />
       <section className="worker-case-applicability" aria-label="사례 적용 조건">
         <h4>적용 조건 확인</h4>
         {caseTextBlocks(error.applicable_condition).length ? <ReadableCaseText value={error.applicable_condition} /> : <p>상세 적용 조건이 등록되지 않았습니다. 현재 항목에 사용할 수 있는지 확인하세요.</p>}
@@ -119,6 +138,7 @@ export function CaseCard({ error }: { error: ErrorCandidate }) {
           <CaseField label="공정" value={error.process_stage} />
         </div>
       </details>
+      </div>
       <footer className="worker-case-source"><span>사례 {error.case_id}{origin ? ` · ${origin}` : ''}</span><span>출처: {source}</span></footer>
     </div>
   </article>;

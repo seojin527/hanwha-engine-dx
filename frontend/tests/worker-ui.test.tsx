@@ -201,3 +201,24 @@ test('사례 가이드는 저장된 원인·조건·출처를 표시하고 누�
     assert.ok(!card.textContent!.includes('"condition"'));
   } finally { await unmount(); }
 });
+
+
+test('사례 탭은 내용 하나만 표시하고 키보드로 이동 가능', async () => {
+  await mount(<CaseCard error={example} />);
+  try {
+    const tabs = document.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    const panels = document.querySelectorAll<HTMLElement>('[role="tabpanel"]');
+    assert.equal(tabs.length, 3);
+    assert.equal(Array.from(panels).filter(p => !p.hidden).length, 1);
+    assert.equal(panels[0].hidden, false);
+    await act(async () => tabs[1].click());
+    assert.equal(panels[0].hidden, true);
+    assert.equal(panels[1].hidden, false);
+    assert.ok(panels[1].textContent!.includes(example.corrective_action));
+    await act(async () => tabs[1].dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+    assert.equal(tabs[2].getAttribute('aria-selected'), 'true');
+    assert.equal(panels[2].hidden, false);
+    assert.equal(document.activeElement, tabs[2]);
+    assert.ok(panels[2].textContent!.includes(example.cause));
+  } finally { await unmount(); }
+});
