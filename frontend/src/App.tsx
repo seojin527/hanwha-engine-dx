@@ -1147,6 +1147,7 @@ export function App() {
         initialPartId={activePartId}
         initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
         initialOpen={libraryOpenOnEnter}
+        floating={!isAdmin}
         canManage={isAdmin}
         onSelectPart={setActivePartId}
         onSelectDrawing={(drawing, url) => {

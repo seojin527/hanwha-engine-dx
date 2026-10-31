@@ -83,6 +83,7 @@ export function VerificationPage(props: WorkspacePageProps) {
         />
       ) : document ? (
         <OcrMeasurementTable
+          compact
           points={filteredOcrPoints}
           selectedId={activeOcrPoint?.id || 0}
           onSelect={onSelectOcrPoint}

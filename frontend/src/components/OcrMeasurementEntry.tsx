@@ -246,7 +246,9 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
           />
         </label>
 
-        <label className="block space-y-1">
+        <details className="worker-memo worker-disclosure">
+            <summary>측정 메모 추가</summary>
+            <label className="block space-y-1">
           <span className="field-label">측정 메모</span>
           <textarea
             className={inputClass}
@@ -258,6 +260,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             }}
           />
         </label>
+          </details>
 
         {mode === "numeric" && !hasRange ? (
           <button

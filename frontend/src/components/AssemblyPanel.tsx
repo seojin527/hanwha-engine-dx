@@ -94,8 +94,7 @@ export function AssemblyPanel({
       </div>
 
       <div className="flex-1 space-y-3 p-3">
-        <CriteriaCard item={item} />
-        <AssemblyFitCard item={item} drawingId={drawingId} revision={revision} />
+        {!item.inspection_approved && <CriteriaCard item={item} />}
         <OcrMeasurementEntry
           purpose={PURPOSE}
           readOnly={readOnly}
@@ -105,6 +104,11 @@ export function AssemblyPanel({
           item={item}
           onSaved={onMeasurementSaved}
         />
+        <details className="worker-disclosure" key={`criteria-${key}`}>
+          <summary>상세 검사 기준</summary>
+          <CriteriaCard item={item} />
+        </details>
+        <AssemblyFitCard item={item} drawingId={drawingId} revision={revision} />
 
       </div>
     </section>

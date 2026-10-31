@@ -24,6 +24,7 @@ export function OcrMeasurementTable({
   title,
   records = {},
   reviewed = false,
+  compact = false,
 }: {
   points: OcrPoint[];
   selectedId: number;
@@ -31,6 +32,7 @@ export function OcrMeasurementTable({
   title: string;
   records?: Record<string, MeasurementRecord>;
   reviewed?: boolean;
+  compact?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
@@ -41,7 +43,7 @@ export function OcrMeasurementTable({
     ? points.filter((point) => records[point.source.id]?.status === 'completed').length
     : 0;
   return (
-    <section className={`${collapsed ? "" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white`}>
+    <section className={`${collapsed ? "" : compact ? "h-[200px] max-h-[32%] min-h-[120px]" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white`}>
       <div className="flex h-8 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
         <h3 className="min-w-0 truncate text-xs font-semibold text-slate-900">{title} 측정항목</h3>
         <span className="shrink-0 text-[11px] text-slate-500">
@@ -99,7 +101,10 @@ export function OcrMeasurementTable({
                   <td className={`px-3 py-1.5 ${selected ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>{point.feature.name}</td>
                   <td className="px-3 py-1.5 font-mono font-medium text-slate-900">{point.source.raw_text}</td>
                   <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{FEATURE_LABEL[point.source.feature_type ?? ''] ?? '미확정'}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-slate-700">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : toleranceText(point.source)}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-slate-700">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : compact && typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' ? <>
+                    <span className="whitespace-nowrap font-medium">{Number(point.source.lower_limit.toFixed(4))} ~ {Number(point.source.upper_limit.toFixed(4))} {point.source.unit ?? 'mm'}</span>
+                    <details className="worker-table-basis" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><summary>공차 근거</summary><p>{toleranceText(point.source)}</p></details>
+                  </> : toleranceText(point.source)}</td>
                 </tr>
               );
             })}

@@ -72,14 +72,15 @@ export function CaseCard({ error }: { error: ErrorCandidate }) {
     </header>
     <div className="space-y-2.5 p-3">
       <CaseField label="측정 전 주의사항" value={error.precaution} tone="warning" />
-      <CaseField label="발생 오류" value={error.error_description} />
-      <CaseField label="원인" value={error.cause} />
       <CaseField label="조치" value={error.corrective_action} tone="action" />
-      <CaseField label="적용 조건" value={error.applicable_condition} />
-      <CaseField label="제외·확인 조건" value={error.exclude_condition} tone="warning" />
+      {!caseTextBlocks(error.precaution).length && !caseTextBlocks(error.corrective_action).length && <CaseField label="발생 오류" value={error.error_description} />}
       <details className="worker-case-details">
-        <summary>상세 정보</summary>
-        <div className="space-y-2 pt-2">
+        <summary>오류 내용·원인·적용 조건</summary>
+        <div className="space-y-3 pt-3">
+          <CaseField label="발생 오류" value={error.error_description} />
+          <CaseField label="원인" value={error.cause} />
+          <CaseField label="적용 조건" value={error.applicable_condition} />
+          <CaseField label="제외·확인 조건" value={error.exclude_condition} tone="warning" />
           {error.data_origin && <p className="text-[11px] text-slate-500">데이터 구분: {error.data_origin === 'SYNTHETIC' ? '샘플' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin}</p>}
           <CaseField label="측정기 후보" value={error.recommended_instrument} />
           <CaseField label="영향" value={error.impact} />

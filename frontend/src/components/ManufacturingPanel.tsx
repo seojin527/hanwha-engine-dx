@@ -121,8 +121,7 @@ export function ManufacturingPanel({
       </div>
 
       <div className="flex-1 space-y-3 p-3">
-        {itemPlan && <StageCriteriaCard itemPlan={itemPlan} stage={stage} stageLabel={plan!.stage_labels[stage]} />}
-        {(!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
+        {!item.inspection_approved && (!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
         {!plan ? (
           <p className="note note-info">가공 단계 정보를 불러오는 중입니다.</p>
         ) : !criteria ? (
@@ -149,8 +148,11 @@ export function ManufacturingPanel({
             }}
           />
         )}
-
-
+        <details className="worker-disclosure" key={`criteria-${key}`}>
+          <summary>가공·검사 기준</summary>
+          {itemPlan && <StageCriteriaCard itemPlan={itemPlan} stage={stage} stageLabel={plan!.stage_labels[stage]} />}
+          {(!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
+        </details>
       </div>
     </section>
   );

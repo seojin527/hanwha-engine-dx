@@ -24,6 +24,7 @@ interface DrawingLibraryProps {
   initialDrawingId?: string;
   /** 처음에 부품·도면 관리 영역을 펼칠지 */
   initialOpen?: boolean;
+  floating?: boolean;
   /** 선택한 부품이 바뀌면 알린다 (선택 해제는 빈 문자열). */
   onSelectPart?: (partId: string) => void;
   /** 관리자만 true: 부품 추가·삭제, 도면 등록·삭제를 보여준다. 작업자는 선택만 한다. */
@@ -37,11 +38,28 @@ export function DrawingLibrary({
   initialPartId = "",
   initialDrawingId = "",
   initialOpen = false,
+  floating = false,
   onSelectPart,
   canManage = false,
   status,
   actions,
 }: DrawingLibraryProps) {
+  const rootRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!floating) return;
+    const close = (event: PointerEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setLibraryOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLibraryOpen(false);
+        rootRef.current?.querySelector<HTMLButtonElement>('[aria-controls="drawing-library-controls"]')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
+  }, [floating]);
   const [parts, setParts] = useState<Part[]>([]);
   const [selectedPartId, setSelectedPartId] = useState(initialPartId);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -398,7 +416,7 @@ export function DrawingLibrary({
   )?.original_filename;
 
   return (
-    <section className="shrink-0 border-b border-slate-800 bg-slate-900 text-white">
+    <section ref={rootRef} className={`shrink-0 border-b border-slate-800 bg-slate-900 text-white ${floating ? "relative z-30" : ""}`}>
       <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5">
         <button
           type="button"
@@ -435,7 +453,7 @@ export function DrawingLibrary({
         )}
       </div>
 
-      <div id="drawing-library-controls" hidden={!libraryOpen} className="border-t border-slate-800">
+      <div id="drawing-library-controls" hidden={!libraryOpen} className={`border-t border-slate-800 ${floating ? "absolute left-0 right-0 top-full max-h-[65vh] overflow-y-auto bg-slate-900 shadow-xl" : ""}`}>
       <div className="grid gap-x-6 gap-y-3 px-3 py-3 lg:grid-cols-2">
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center justify-between">

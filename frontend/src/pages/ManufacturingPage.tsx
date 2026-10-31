@@ -144,6 +144,7 @@ export function ManufacturingPage(props: WorkspacePageProps) {
         />
       ) : document ? (
         <OcrMeasurementTable
+          compact
           points={stageTablePoints}
           selectedId={activeOcrPoint?.id || 0}
           onSelect={onSelectOcrPoint}

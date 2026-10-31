@@ -65,7 +65,17 @@ test('세 업무: 측정은 왼쪽, 기존 도면·표는 가운데, 오류·등
         const left = document.querySelector('.worker-measurement')!;
         const center = document.querySelector('.worker-center')!;
         const support = document.querySelector('.worker-support')!;
-        assert.ok(left.querySelector('[aria-label$="측정 입력"]'));
+        const entry = left.querySelector('[aria-label$="측정 입력"]')!;
+        assert.ok(entry);
+        const criteria = Array.from(left.querySelectorAll('details.worker-disclosure')).find(el => /^(상세 검사 기준|가공·검사 기준)$/.test(el.querySelector('summary')?.textContent ?? ''))!;
+        assert.ok(criteria);
+        assert.equal(criteria.hasAttribute('open'), false);
+        assert.ok(entry.compareDocumentPosition(criteria) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+        const caseDetails = support.querySelector('details.worker-case-details')!;
+        assert.equal(caseDetails.hasAttribute('open'), false);
+        assert.ok(caseDetails.textContent!.includes(example.cause));
+        assert.equal(caseDetails.textContent!.includes(example.corrective_action), false);
+        assert.ok(center.querySelector('.worker-table-basis'));
         assert.equal(left.querySelector('[aria-label="이 포인트의 오류 기록"]'), null);
         assert.equal(left.textContent!.includes(example.cause), false);
         assert.equal(center.querySelectorAll('tbody tr').length, 2);

@@ -317,3 +317,13 @@
   .worker-support-close { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; }
   .worker-support-close:focus-visible, .worker-support-toggle:focus-visible { outline: 2px solid #44849b; outline-offset: 2px; }
 }
+
+/* Worker detail hierarchy: keep entry and immediate guidance visible. */
+.worker-disclosure { margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+.worker-disclosure > summary { cursor: pointer; color: #475569; font-size: 12px; font-weight: 600; }
+.worker-disclosure[open] > summary { margin-bottom: 10px; }
+.worker-disclosure > .card { margin-top: 8px; }
+.worker-memo label { margin-top: 10px; }
+.worker-table-basis { margin-top: 3px; font-size: 11px; color: #64748b; }
+.worker-table-basis summary { cursor: pointer; }
+.worker-table-basis p { max-width: 28rem; padding: 6px 0; white-space: normal; line-height: 1.6; }

@@ -93,7 +93,7 @@ export function VerificationPanel({
       </div>
 
       <div className="flex-1 space-y-3 p-3">
-        <CriteriaCard item={item} />
+        {!item.inspection_approved && <CriteriaCard item={item} />}
         <OcrMeasurementEntry
           purpose={PURPOSE}
           readOnly={readOnly}
@@ -103,6 +103,10 @@ export function VerificationPanel({
           item={item}
           onSaved={onMeasurementSaved}
         />
+        <details className="worker-disclosure" key={`criteria-${key}`}>
+          <summary>상세 검사 기준</summary>
+          <CriteriaCard item={item} />
+        </details>
 
       </div>
     </section>
