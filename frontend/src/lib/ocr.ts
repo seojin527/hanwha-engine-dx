@@ -27,6 +27,8 @@ export interface OcrItem {
   defaults_applied?: string[];
   /** 관리자가 검사 기준까지 확정한 항목 */
   inspection_approved?: boolean;
+  /** 오인식으로 제외된 항목은 결합 후보에서 제외한다. */
+  excluded?: boolean;
 }
 export interface OcrDocument {
   review_status?: string;
