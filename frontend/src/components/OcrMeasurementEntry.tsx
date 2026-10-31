@@ -156,8 +156,8 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
 
   return (
     <section aria-label="측정 입력" className="card">
-      <header className="card-header">
-        <h3 className="text-xs font-semibold text-slate-900">{readOnly ? "측정 결과" : "측정 입력"}</h3>
+      <header className={readOnly || loading ? "card-header" : "sr-only"}>
+        <h3 className="sr-only">{readOnly ? "측정 결과" : "측정 입력"}</h3>
         {readOnly && !loading && (
           <span className="tag bg-slate-100 text-slate-600">조회 전용</span>
         )}

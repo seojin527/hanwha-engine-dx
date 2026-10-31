@@ -457,3 +457,13 @@
 .worker-guide-tabs button { min-height: 38px; font-size: 11px; }
 .worker-case-browser .worker-case-registration { margin-top: 18px; padding-top: 12px; }
 .worker-measurement input[inputmode="decimal"]:focus-visible { border-color: #087e98; box-shadow: 0 0 0 3px #d8edf3; }
+
+/* One title system for the three worker panes. */
+.worker-pane-heading { display: flex; align-items: center; gap: 10px; height: 60px; min-height: 60px; flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid #d4dde6; background: #f2f5f8; color: #24374a; }
+.worker-pane-heading .worker-pane-icon { display: inline-flex; flex: none; color: #63798d; }
+.worker-pane-heading > div { min-width: 0; }
+.worker-pane-heading h2 { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; }
+.worker-pane-heading p { margin: 3px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; }
+.worker-pane-heading > button { margin-left: auto; }
+.worker-center > .worker-pane-heading { background: #263444; border-color: #3b4a5b; color: #edf3f8; }
+.worker-center > .worker-pane-heading p, .worker-center > .worker-pane-heading .worker-pane-icon { color: #b1bfce; }

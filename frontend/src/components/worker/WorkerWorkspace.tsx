@@ -1,5 +1,5 @@
 import { useContext, useEffect, useId, useRef, useState, type ReactNode, type CSSProperties } from 'react';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, Ruler, ScanLine, X } from 'lucide-react';
 import { PanelLayoutContext, ResizablePanels } from '../ResizablePanels';
 
 /** Worker-only layout: measurement | drawing + existing table | support. */
@@ -66,13 +66,9 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
       <div className="worker-main flex min-h-0 min-w-0 flex-1">
         <PanelLayoutContext.Provider value={{ ...context, side: 'left' }}>
           <ResizablePanels initialWidth={360} storageScope="worker"
-            left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col">{left}</section>}
+            left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col"><PaneHeading icon={<ScanLine aria-hidden="true" size={17} />} title="도면·측정 위치" description="도면 번호를 눌러 항목 선택" />{left}</section>}
             right={<div className="worker-measurement min-h-full">
-              <ol className="worker-flow-guide" aria-label="측정 작업 순서">
-                <li><span>1</span>도면 번호 선택</li>
-                <li><span>2</span>측정값 입력</li>
-                <li><span>3</span>판정·저장</li>
-              </ol>
+              <PaneHeading icon={<Ruler aria-hidden="true" size={17} />} title="측정·판정" description="실측값 입력과 결과 저장" />
               {right}
             </div>}
           />
@@ -109,16 +105,22 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
         }}
       ><span aria-hidden="true" /></div>
       <button ref={toggle} type="button" className="worker-support-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(v => !v)}>
-        <BookOpen aria-hidden="true" className="h-4 w-4" />주의사항 · 오류 사례
+        <BookOpen aria-hidden="true" className="h-4 w-4" />측정 가이드
       </button>
       <aside ref={panel} id={panelId} aria-label="주의사항 및 오류 사례" className={`worker-support ${open ? 'is-open' : ''}`} style={{ '--worker-support-width': `${supportWidth}px` } as CSSProperties}>
-        <div className="worker-support-heading">
-          <span><BookOpen aria-hidden="true" className="h-4 w-4 text-slate-400" /><b>주의사항 · 오류 사례</b></span>
-          <button ref={close} type="button" className="worker-support-close" aria-label="오류 사례 패널 닫기" onClick={() => { setOpen(false); toggle.current?.focus(); }}><X className="h-4 w-4" /></button>
-        </div>
+        <PaneHeading icon={<BookOpen aria-hidden="true" size={17} />} title="측정 가이드" description="선택 항목의 주의사항·참고 사례"
+          action={<button ref={close} type="button" className="worker-support-close" aria-label="오류 사례 패널 닫기" onClick={() => { setOpen(false); toggle.current?.focus(); }}><X className="h-4 w-4" /></button>} />
         <div className="worker-support-content">{support}</div>
       </aside>
       {dragging && <div className="absolute inset-0 z-40" aria-hidden="true" />}
     </div>
   );
+}
+
+function PaneHeading({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
+  return <header className="worker-pane-heading">
+    <span className="worker-pane-icon">{icon}</span>
+    <div><h2>{title}</h2><p>{description}</p></div>
+    {action}
+  </header>;
 }

@@ -117,7 +117,7 @@ export default function StageEntry({
 
   return (
     <section aria-label={`${stageName} 측정 입력`} className="card">
-      <header className="card-header">
+      <header className="sr-only">
         <h3 className="text-xs font-semibold text-slate-900">{stageName} 측정 입력</h3>
       </header>
       <div className="card-body">
