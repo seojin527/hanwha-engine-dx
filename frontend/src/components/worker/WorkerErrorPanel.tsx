@@ -1,0 +1,96 @@
+import { useEffect, useState } from 'react';
+import { AlertTriangle, BookOpen, Lightbulb, RefreshCw } from 'lucide-react';
+import { fetchItemErrors, type ErrorCandidate } from '../../lib/drawingAPI';
+import { fetchStageErrors, STAGE_NAME, type StageKey } from '../../lib/machiningAPI';
+import type { OcrPoint } from '../../lib/ocr';
+import type { WorkPurpose } from '../../lib/purpose';
+import { caseTextBlocks } from '../../lib/casePresentation';
+import { PointErrorForm } from '../PointErrorForm';
+import { ReadableCaseText } from './ReadableCaseText';
+
+type State = { key: string; loading: boolean; errors: ErrorCandidate[]; error: string };
+export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly, stage, serial }: {
+  purpose: WorkPurpose; drawingId: string; revision: string; point?: OcrPoint; readOnly: boolean; stage?: StageKey; serial?: string;
+}) {
+  const itemId = point?.source.id;
+  const key = `${purpose}/${drawingId}/${revision}/${stage ?? ''}/${serial ?? ''}/${itemId}`;
+  const [state, setState] = useState<State>({ key: '', loading: true, errors: [], error: '' });
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (!itemId) return;
+    const controller = new AbortController();
+    setState({ key, loading: true, errors: [], error: '' });
+    const query = purpose === 'manufacturing' && stage
+      ? fetchStageErrors(drawingId, itemId, stage, controller.signal)
+      : fetchItemErrors(purpose, drawingId, itemId, controller.signal);
+    query.then(response => {
+      if (controller.signal.aborted) return;
+      if (response.item_id !== itemId || ('revision' in response && response.revision !== revision) ||
+          ('drawing_id' in response && response.drawing_id !== drawingId) ||
+          ('stage' in response && response.stage !== stage)) throw new Error('도면 또는 단계가 변경됐습니다. 다시 조회해주세요.');
+      setState({ key, loading: false, errors: response.errors, error: '' });
+    }).catch(error => {
+      if (!controller.signal.aborted) setState({ key, loading: false, errors: [], error: error instanceof Error ? error.message : '조회 실패' });
+    });
+    return () => controller.abort();
+  }, [purpose, drawingId, revision, itemId, stage, key, retry]);
+  if (!point) return <p className="worker-empty">도면이나 아래 측정항목 표에서 치수를 선택하세요.</p>;
+  const loading = state.key !== key || state.loading;
+  const errors = state.key === key ? state.errors : [];
+  return <div className="space-y-4 p-3">
+    <section className="worker-support-context" aria-label="오류 사례 선택 항목">
+      <span className="worker-kicker">현재 선택 {stage ? `· ${STAGE_NAME[stage]}` : ''}</span>
+      <h2>{point.displayNumber}번 · {point.feature.name}</h2>
+      <p className="font-mono">{point.source.raw_text.replace(/\n/g, ' ')}</p>
+    </section>
+    <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
+      <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />관련 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
+      <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
+    </div>
+    {loading ? <p role="status" className="worker-empty">관련 오류·주의사항을 찾고 있습니다…</p>
+      : state.error ? <p role="alert" className="note note-error">조회하지 못했습니다. {state.error}</p>
+      : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.<p className="mt-1 text-xs">사례가 없다고 안전함을 의미하지는 않습니다.</p></div>
+      : <><p className="text-[11px] leading-relaxed text-slate-500">검색으로 찾은 참고 사례입니다. 실제 적용 조건을 확인하세요.</p>
+        {errors.map(error => <CaseCard key={error.case_id} error={error} />)}</>}
+    <div className="worker-case-registration">
+      <PointErrorForm key={key} purpose={purpose} drawingId={drawingId} revision={revision} item={point.source} number={point.displayNumber} readOnly={readOnly} onIndexed={() => setRetry(v => v + 1)} />
+    </div>
+  </div>;
+}
+
+export function CaseField({ label, value, tone = 'plain' }: { label: string; value: unknown; tone?: 'plain' | 'warning' | 'action' }) {
+  const blocks = caseTextBlocks(value);
+  if (!blocks.length) return null;
+  return <section className={`worker-case-field is-${tone}`} aria-label={label}>
+    <h4>{tone === 'warning' && <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />}{label}</h4>
+    <ReadableCaseText value={value} />
+  </section>;
+}
+export function CaseCard({ error }: { error: ErrorCandidate }) {
+  return <article className="worker-case-card">
+    <header>
+      <span className="worker-kicker"><AlertTriangle className="h-3.5 w-3.5" />관련 오류 사례</span>
+      <h3>{error.case_title || error.case_id}</h3>
+      {error.data_origin === 'SYNTHETIC' && <span className="tag bg-amber-100 text-amber-900">가상 테스트 사례</span>}
+      {error.data_origin === 'USER_REPORTED' && <span className="tag bg-slate-100 text-slate-700">사용자 등록 사례</span>}
+    </header>
+    <div className="space-y-2.5 p-3">
+      <CaseField label="측정 전 주의사항" value={error.precaution} tone="warning" />
+      <CaseField label="발생 오류" value={error.error_description} />
+      <CaseField label="원인" value={error.cause} />
+      <CaseField label="조치" value={error.corrective_action} tone="action" />
+      <CaseField label="적용 조건" value={error.applicable_condition} />
+      <CaseField label="제외·확인 조건" value={error.exclude_condition} tone="warning" />
+      <details className="worker-case-details">
+        <summary>측정기 · 영향 · 출처 보기</summary>
+        <div className="space-y-2 pt-2">
+          <CaseField label="측정기 후보" value={error.recommended_instrument} />
+          <CaseField label="영향" value={error.impact} />
+          <CaseField label="심각도" value={error.severity} />
+          <CaseField label="공정" value={error.process_stage} />
+          <p className="text-[11px] text-slate-500">사례 {error.case_id}<br />출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
+        </div>
+      </details>
+    </div>
+  </article>;
+}

@@ -1,6 +1,6 @@
 /**
  * 부품제작 작업자 페이지.
- * 도면 뷰어 · 마커 · 하단 측정표 · 오른쪽 패널을 이 파일에서 직접 배치한다.
+ * 왼쪽 측정 · 가운데 도면/기존 측정표 · 오른쪽 오류 사례를 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
  * 부품제작 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
@@ -8,7 +8,8 @@ import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";
 import { MeasurementPanel } from "../components/MeasurementPanel";
 import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
-import { ResizablePanels } from "../components/ResizablePanels";
+import { WorkerWorkspace } from "../components/worker/WorkerWorkspace";
+import { WorkerErrorPanel } from "../components/worker/WorkerErrorPanel";
 import { ManufacturingPanel } from "../components/ManufacturingPanel";
 import { reviewInfoOf, type OcrPoint } from "../lib/ocr";
 import { useEffect } from "react";
@@ -102,7 +103,14 @@ export function ManufacturingPage(props: WorkspacePageProps) {
   }
 
   return (
-    <ResizablePanels left={<>
+    <WorkerWorkspace
+      support={!demoMode && document && selectedDrawing && revision ? (
+        <WorkerErrorPanel
+          purpose="manufacturing" drawingId={selectedDrawing.drawing_id} revision={revision}
+          point={activeOcrPoint} readOnly={readOnly} stage={machining.stage} serial={machining.serial}
+        />
+      ) : <p className="p-4 text-sm text-slate-500">도면의 측정항목을 선택하면 주의사항과 오류 사례를 확인할 수 있습니다.</p>}
+      left={<>
       <DrawingViewer
         key={
           demoMode
@@ -167,8 +175,8 @@ export function ManufacturingPage(props: WorkspacePageProps) {
           onSelectItemId={demo.onSelectItemId}
         />
       ) : document && selectedDrawing && revision ? (
-        <div className="flex h-full min-h-0 flex-col bg-white">
-          <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full flex-col">
+          <div className="min-w-0">
             <ManufacturingPanel
               readOnly={readOnly}
               drawingId={selectedDrawing.drawing_id}

@@ -269,7 +269,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             {saving ? "저장 중…" : "측정값 기록"}
           </button>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="worker-entry-actions grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={mode === "numeric" && inRange !== true}

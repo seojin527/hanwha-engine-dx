@@ -231,7 +231,7 @@ export default function StageEntry({
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="worker-entry-actions grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={!zeroOk || (mode === "numeric" && inRange !== true)}

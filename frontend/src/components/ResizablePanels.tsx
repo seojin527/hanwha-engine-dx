@@ -13,11 +13,11 @@ export function panelBounds(width: number) {
 }
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNode}) {
+export function ResizablePanels({left, right, initialWidth, storageScope = ''}: {left: ReactNode; right: ReactNode; initialWidth?: number; storageScope?: string}) {
   const {side, header} = useContext(PanelLayoutContext);
   const onLeft = side === 'left';
-  const storageKey = onLeft ? `${STORAGE_KEY}-left` : STORAGE_KEY;
-  const defaultWidth = onLeft ? 440 : 400;
+  const storageKey = `${onLeft ? `${STORAGE_KEY}-left` : STORAGE_KEY}${storageScope ? `-${storageScope}` : ''}`;
+  const defaultWidth = initialWidth ?? (onLeft ? 440 : 400);
   const container = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [requested, setRequested] = useState(() => {

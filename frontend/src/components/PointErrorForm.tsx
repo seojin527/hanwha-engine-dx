@@ -1,3 +1,4 @@
+import { ReadableCaseText } from './worker/ReadableCaseText';
 import { useEffect, useRef, useState } from 'react';
 import { fetchPointReports, registerPointError, retryCaseIndex, type RegistrationResult } from '../lib/pointAPI';
 import type { OcrItem } from '../lib/ocr';
@@ -97,7 +98,7 @@ export function PointErrorForm({purpose, drawingId, revision, item, number, onIn
     </div>}
     <div className="divide-y divide-slate-100">
     {historyError ? <p className="note note-error m-3">기록 조회 실패: {historyError}</p> : history.length ? history.map(r => <article key={r.case_id} className="space-y-1 p-3 text-xs">
-      <h4 className="font-semibold text-slate-900">{r.case_title}</h4><p className="leading-relaxed text-slate-800">{r.error_description}</p>
+      <h4 className="font-semibold text-slate-900">{r.case_title}</h4><div className="leading-relaxed text-slate-800"><ReadableCaseText value={r.error_description} /></div>
       <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500"><span>{r.created_at}</span><span className={`tag ${r.vector_status === 'ready' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'}`}>{r.vector_status === 'ready' ? '검색 반영 완료' : '검색 반영 필요'}</span>
       {r.vector_status !== 'ready' && !readOnly && <button type="button" disabled={busy} onClick={()=>void retry(r.case_id)} className="text-[11px] font-medium text-cyan-800 underline underline-offset-2 disabled:opacity-40">검색 반영 재시도</button>}</p>
     </article>) : <p className="p-3 text-xs text-slate-500">이 OCR 버전의 포인트에 직접 등록된 오류 기록이 없습니다.</p>}

@@ -208,6 +208,10 @@ export interface ErrorCandidate {
   error_description?: string;
   cause?: string;
   precaution?: string;
+  corrective_action?: string;
+  impact?: string;
+  severity?: string;
+  process_stage?: string;
   recommended_instrument?: string;
   applicable_condition?: string;
   exclude_condition?: string;

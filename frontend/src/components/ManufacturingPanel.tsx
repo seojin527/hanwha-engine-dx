@@ -1,8 +1,5 @@
-import { AlertTriangle, Download, Lock } from 'lucide-react';
-import { PointErrorForm } from './PointErrorForm';
-import { useEffect, useRef, useState } from 'react';
-import type { ErrorCandidate } from '../lib/drawingAPI';
-import type { WorkPurpose } from '../lib/purpose';
+import { Download, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { type OcrItem, type OcrPoint } from '../lib/ocr';
 import ItemHeader, { Chip, ProgressBar } from './review/ItemHeader';
 import { FEATURE_LABEL } from '../lib/inspection/instruments';
@@ -11,7 +8,6 @@ import StageEntry from './manufacturing/StageEntry';
 import {
   STAGE_KEYS,
   STAGE_NAME,
-  fetchStageErrors,
   saveStageRecord,
   stageReportUrl,
   type MachiningItem,
@@ -19,8 +15,6 @@ import {
   type StageKey,
 } from '../lib/machiningAPI';
 
-/** 이 패널의 오류사례 검색·등록은 manufacturing 저장소만 사용한다. */
-const PURPOSE: WorkPurpose = 'manufacturing';
 
 export interface ReviewInfo {
   reviewer: string;
@@ -34,8 +28,8 @@ const READ_ONLY_MESSAGE = '이 업무의 담당 작업자만 입력할 수 있�
 export const STAGE_DOT: Record<StageKey, string> = { '1': 'bg-orange-500', '2': 'bg-violet-600', '3': 'bg-indigo-600' };
 
 /**
- * 부품제작(가공 중 측정) 오른쪽 패널.
- * 제품 번호 → 단계(황삭·중삭·정삭) → 이 단계에서 잴 항목의 기준·측정 입력·관련 오류사례.
+ * 부품제작(가공 중 측정) 왼쪽 측정 패널.
+ * 제품 번호 → 단계(황삭·중삭·정삭) → 이 단계에서 잴 항목의 기준·측정 입력. 오류 사례는 오른쪽에서 표시한다.
  */
 export function ManufacturingPanel({
   drawingId,
@@ -66,27 +60,7 @@ export function ManufacturingPanel({
   readOnly?: boolean;
 }) {
   const { plan, stage } = machining;
-  const itemId = point?.source.id;
-  const key = `${drawingId}/${revision}/${machining.serial}/${stage}/${itemId}`;
-  const [result, setResult] = useState<{ key: string; loading: boolean; errors: ErrorCandidate[]; error: string }>({ key: '', loading: true, errors: [], error: '' });
-  const [retry, setRetry] = useState(0);
-  const sequence = useRef(0);
-  useEffect(() => {
-    if (!itemId) return;
-    const controller = new AbortController();
-    const token = ++sequence.current;
-    setResult({ key, loading: true, errors: [], error: '' });
-    fetchStageErrors(drawingId, itemId, stage, controller.signal).then((response) => {
-      if (controller.signal.aborted || token !== sequence.current) return;
-      setResult({ key, loading: false, errors: response.errors, error: '' });
-    }).catch((error) => {
-      if (!controller.signal.aborted && token === sequence.current) {
-        setResult({ key, loading: false, errors: [], error: error.message || '검색 실패' });
-      }
-    });
-    return () => { controller.abort(); ++sequence.current; };
-  }, [drawingId, revision, itemId, key, retry, stage]);
-
+  const key = `${drawingId}/${revision}/${machining.serial}/${stage}/${point?.source.id}`;
   const status = plan?.status[stage];
   const locked = plan && status && !status.unlocked
     ? lockMessage(plan.status, stage)
@@ -101,7 +75,6 @@ export function ManufacturingPanel({
     );
   }
   const item = point.source;
-  const loading = result.key !== key || result.loading;
   const itemPlan = machining.itemPlan(item.id);
   const criteria = itemPlan?.stages[stage] ?? null;
   const record = machining.stageRecords[item.id] ?? null;
@@ -177,33 +150,7 @@ export function ManufacturingPanel({
           />
         )}
 
-        <section aria-label="측정 전 확인 · 관련 오류사례" className="card border-amber-300">
-          <header className="card-header border-amber-200 bg-amber-50">
-            <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
-              <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
-              {STAGE_NAME[stage]} 측정 전 확인 · 관련 오류사례
-            </h3>
-            {!loading && !result.error && <span className="tag bg-amber-100 text-amber-900">{result.errors.length}건</span>}
-          </header>
-          {loading ? <p role="status" className="p-3 text-xs text-slate-600">관련 오류·주의사항 검색 중…</p>
-            : result.error ? <div role="alert" className="flex flex-wrap items-center gap-2 p-3 text-xs text-rose-700"><span className="min-w-0 flex-1">{result.error}</span><button type="button" onClick={() => setRetry((v) => v + 1)} className="btn btn-secondary h-6">다시 검색</button></div>
-            : !result.errors.length ? <p className="p-3 text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
-            : <div className="divide-y divide-slate-200">{result.errors.map((error) => <article key={error.case_id} className="space-y-2 p-3 text-xs">
-              <div>
-                <h4 className="text-[13px] font-semibold leading-snug text-slate-900">{error.case_title || error.case_id}</h4>
-                <p className="mt-0.5 text-[11px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
-              </div>
-              <p className="leading-relaxed text-slate-800">{error.error_description}</p>
-              {error.precaution && <p className="note note-ok"><b className="mr-1 font-semibold">주의사항</b>{error.precaution}</p>}
-              {(error.cause || error.recommended_instrument) && (
-                <dl className="grid grid-cols-[84px_1fr] gap-x-2 gap-y-1 leading-relaxed">
-                  {error.cause && <><dt className="text-slate-500">원인</dt><dd className="text-slate-800">{error.cause}</dd></>}
-                  {error.recommended_instrument && <><dt className="text-slate-500">측정기 후보</dt><dd className="text-slate-800">{error.recommended_instrument}</dd></>}
-                </dl>
-              )}
-            </article>)}</div>}
-        </section>
-        <PointErrorForm key={`error-form-${key}`} purpose={PURPOSE} readOnly={readOnly} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
+
       </div>
     </section>
   );
