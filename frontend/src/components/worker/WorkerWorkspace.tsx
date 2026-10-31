@@ -1,5 +1,5 @@
 import { useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { BookOpen, X } from 'lucide-react';
 import { PanelLayoutContext, ResizablePanels } from '../ResizablePanels';
 
 /** Worker-only layout: measurement | drawing + existing table | support. */
@@ -38,11 +38,11 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
         </PanelLayoutContext.Provider>
       </div>
       <button ref={toggle} type="button" className="worker-support-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(v => !v)}>
-        <AlertTriangle aria-hidden="true" className="h-4 w-4" />주의사항 · 오류 사례
+        <BookOpen aria-hidden="true" className="h-4 w-4" />주의사항 · 오류 사례
       </button>
       <aside ref={panel} id={panelId} aria-label="주의사항 및 오류 사례" className={`worker-support ${open ? 'is-open' : ''}`}>
         <div className="worker-support-heading">
-          <span><AlertTriangle aria-hidden="true" className="h-4 w-4 text-amber-400" /><b>주의사항 · 오류 사례</b></span>
+          <span><BookOpen aria-hidden="true" className="h-4 w-4 text-slate-400" /><b>주의사항 · 오류 사례</b></span>
           <button ref={close} type="button" className="worker-support-close" aria-label="오류 사례 패널 닫기" onClick={() => { setOpen(false); toggle.current?.focus(); }}><X className="h-4 w-4" /></button>
         </div>
         <div className="worker-support-content">{support}</div>

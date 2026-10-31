@@ -45,7 +45,7 @@ export default function ItemHeader({ number, total, title, rawText, itemId, onNa
           <p className="mt-0.5 break-all font-mono text-[13px] font-medium text-slate-800">
             {rawText.replace(/\n/g, "  ")}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-slate-400">{itemId}</p>
+          <p className="worker-item-id mt-0.5 truncate text-[11px] text-slate-400">{itemId}</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5 text-xs text-slate-500">
           <button

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BookOpen, Lightbulb, RefreshCw } from 'lucide-react';
+import { BookOpen, RefreshCw } from 'lucide-react';
 import { fetchItemErrors, type ErrorCandidate } from '../../lib/drawingAPI';
 import { fetchStageErrors, STAGE_NAME, type StageKey } from '../../lib/machiningAPI';
 import type { OcrPoint } from '../../lib/ocr';
@@ -39,7 +39,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
   const errors = state.key === key ? state.errors : [];
   return <div className="space-y-4 p-3">
     <section className="worker-support-context" aria-label="오류 사례 선택 항목">
-      <span className="worker-kicker">현재 선택 {stage ? `· ${STAGE_NAME[stage]}` : ''}</span>
+      <span className="worker-kicker">선택 항목 {stage ? `· ${STAGE_NAME[stage]}` : ''}</span>
       <h2>{point.displayNumber}번 · {point.feature.name}</h2>
       <p className="font-mono">{point.source.raw_text.replace(/\n/g, ' ')}</p>
     </section>
@@ -50,8 +50,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
     {loading ? <p role="status" className="worker-empty">관련 오류·주의사항을 찾고 있습니다…</p>
       : state.error ? <p role="alert" className="note note-error">조회하지 못했습니다. {state.error}</p>
       : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.<p className="mt-1 text-xs">사례가 없다고 안전함을 의미하지는 않습니다.</p></div>
-      : <><p className="text-[11px] leading-relaxed text-slate-500">검색으로 찾은 참고 사례입니다. 실제 적용 조건을 확인하세요.</p>
-        {errors.map(error => <CaseCard key={error.case_id} error={error} />)}</>}
+      : <>{errors.map(error => <CaseCard key={error.case_id} error={error} />)}</>}
     <div className="worker-case-registration">
       <PointErrorForm key={key} purpose={purpose} drawingId={drawingId} revision={revision} item={point.source} number={point.displayNumber} readOnly={readOnly} onIndexed={() => setRetry(v => v + 1)} />
     </div>
@@ -62,17 +61,14 @@ export function CaseField({ label, value, tone = 'plain' }: { label: string; val
   const blocks = caseTextBlocks(value);
   if (!blocks.length) return null;
   return <section className={`worker-case-field is-${tone}`} aria-label={label}>
-    <h4>{tone === 'warning' && <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />}{label}</h4>
+    <h4>{label}</h4>
     <ReadableCaseText value={value} />
   </section>;
 }
 export function CaseCard({ error }: { error: ErrorCandidate }) {
   return <article className="worker-case-card">
     <header>
-      <span className="worker-kicker"><AlertTriangle className="h-3.5 w-3.5" />관련 오류 사례</span>
       <h3>{error.case_title || error.case_id}</h3>
-      {error.data_origin === 'SYNTHETIC' && <span className="tag bg-amber-100 text-amber-900">가상 테스트 사례</span>}
-      {error.data_origin === 'USER_REPORTED' && <span className="tag bg-slate-100 text-slate-700">사용자 등록 사례</span>}
     </header>
     <div className="space-y-2.5 p-3">
       <CaseField label="측정 전 주의사항" value={error.precaution} tone="warning" />
@@ -82,8 +78,9 @@ export function CaseCard({ error }: { error: ErrorCandidate }) {
       <CaseField label="적용 조건" value={error.applicable_condition} />
       <CaseField label="제외·확인 조건" value={error.exclude_condition} tone="warning" />
       <details className="worker-case-details">
-        <summary>측정기 · 영향 · 출처 보기</summary>
+        <summary>상세 정보</summary>
         <div className="space-y-2 pt-2">
+          {error.data_origin && <p className="text-[11px] text-slate-500">데이터 구분: {error.data_origin === 'SYNTHETIC' ? '샘플' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin}</p>}
           <CaseField label="측정기 후보" value={error.recommended_instrument} />
           <CaseField label="영향" value={error.impact} />
           <CaseField label="심각도" value={error.severity} />
