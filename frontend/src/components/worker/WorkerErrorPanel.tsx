@@ -76,13 +76,13 @@ export function CaseField({ label, value, tone = 'plain' }: { label: string; val
   </section>;
 }
 export function CaseCard({ error }: { error: ErrorCandidate }) {
-  return <article className="worker-case-card">
+  return <article className="worker-case-card" aria-label="선택한 사례 상세">
     <header>
       <h3>{error.case_title || error.case_id}</h3>
     </header>
     <div className="space-y-2.5 p-3">
       <CaseField label="측정 전 주의사항" value={error.precaution} tone="warning" />
-      <CaseField label="조치" value={error.corrective_action} tone="action" />
+      <CaseField label="오류 발생 시 조치" value={error.corrective_action} tone="action" />
       {!caseTextBlocks(error.precaution).length && !caseTextBlocks(error.corrective_action).length && <CaseField label="발생 오류" value={error.error_description} />}
       <details className="worker-case-details">
         <summary>오류 내용·원인·적용 조건</summary>

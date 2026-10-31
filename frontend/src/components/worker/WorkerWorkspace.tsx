@@ -67,7 +67,14 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
         <PanelLayoutContext.Provider value={{ ...context, side: 'left' }}>
           <ResizablePanels initialWidth={360} storageScope="worker"
             left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col">{left}</section>}
-            right={<div className="worker-measurement min-h-full">{right}</div>}
+            right={<div className="worker-measurement min-h-full">
+              <ol className="worker-flow-guide" aria-label="측정 작업 순서">
+                <li><span>1</span>도면 번호 선택</li>
+                <li><span>2</span>측정값 입력</li>
+                <li><span>3</span>판정·저장</li>
+              </ol>
+              {right}
+            </div>}
           />
         </PanelLayoutContext.Provider>
       </div>

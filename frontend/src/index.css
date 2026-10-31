@@ -372,3 +372,16 @@
 .worker-case-browser .worker-case-registration .card-header { background: transparent; padding-left: 0; padding-right: 0; }
 .worker-case-browser .worker-case-registration .card-body { padding-left: 0; padding-right: 0; }
 .worker-case-browser .worker-case-registration .card-body p { font-size: 12px; color: #64748b; }
+
+/* The selected reference and its instructions form one reading surface. */
+.worker-case-browser .worker-case-card { background: #fff; border: 1px solid #dce3ea; border-radius: 6px; overflow: hidden; }
+.worker-case-browser .worker-case-card > header { padding: 16px; border-bottom: 1px solid #e7ecf1; }
+.worker-case-browser .worker-case-card h3 { font-size: 15px; line-height: 1.6; }
+.worker-case-browser .worker-case-card > div { padding: 16px; }
+.worker-case-browser .worker-case-field.is-warning > h4,
+.worker-case-browser .worker-case-field.is-action > h4 { color: #334155; font-size: 12px; font-weight: 600; }
+.worker-case-browser .worker-case-field.is-warning { padding: 0; }
+.worker-case-browser .worker-case-field.is-action { border: 1px solid #e5ebf0; background: #f6f8fa; padding: 12px; margin-top: 18px; }
+.worker-flow-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; padding: 10px 12px; border-bottom: 1px solid #dce3ea; background: #fff; color: #536477; font-size: 11px; line-height: 1.5; list-style: none; }
+.worker-flow-guide li { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.worker-flow-guide li > span { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: #edf2f5; color: #40596c; font-size: 10px; font-weight: 600; }
