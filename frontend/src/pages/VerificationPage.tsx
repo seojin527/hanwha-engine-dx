@@ -124,6 +124,12 @@ export function VerificationPage(props: WorkspacePageProps) {
               point={activeOcrPoint}
               total={ocrPoints.length}
               onNavigate={onNavigateOcr}
+              onNextUnmeasured={(() => {
+                const index = ocrPoints.findIndex(p => p.id === activeOcrPoint?.id);
+                const ordered = [...ocrPoints.slice(index + 1), ...ocrPoints.slice(0, Math.max(0, index))];
+                const next = ordered.find(p => p.source.inspection_approved && (!measurementRecords[p.source.id] || measurementRecords[p.source.id].status === 'pending'));
+                return next ? () => onSelectOcrPoint(next.id) : undefined;
+              })()}
               onMeasurementSaved={onMeasurementSaved}
               records={measurementRecords}
               reviewInfo={reviewInfoOf(document)}

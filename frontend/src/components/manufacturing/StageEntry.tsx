@@ -16,6 +16,7 @@ import {
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 interface Props {
+  onNextUnmeasured?: () => void;
   stage: StageKey;
   criteria: StageCriteria;
   /** 도면 표기 (예: Ø400) — 지름이면 직경·반경 보정량을 함께 보여준다 */
@@ -41,7 +42,7 @@ interface Props {
  */
 export default function StageEntry({
   stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked,
-  zeroChecked, onZeroChecked, save,
+  zeroChecked, onZeroChecked, save, onNextUnmeasured,
 }: Props) {
   const mode = criteria.mode;
   const [value, setValue] = useState(record?.measured_value ?? "");
@@ -234,7 +235,7 @@ export default function StageEntry({
           </label>
           </details>
 
-          <div className="worker-entry-actions grid grid-cols-2 gap-2">
+          {current?.confirmed ? <button type="button" className="btn btn-primary btn-lg w-full" disabled={!onNextUnmeasured} onClick={onNextUnmeasured}>{onNextUnmeasured ? '다음 미측정 항목 →' : '미측정 항목 없음'}</button> : <div className="worker-entry-actions grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={!zeroOk || (mode === "numeric" && inRange !== true)}
@@ -251,7 +252,7 @@ export default function StageEntry({
             >
               불합격
             </button>
-          </div>
+          </div>}
           {!zeroOk && <p className="text-[10px] text-amber-800">0점 확인을 체크해야 기록할 수 있습니다.</p>}
 
           {current ? (

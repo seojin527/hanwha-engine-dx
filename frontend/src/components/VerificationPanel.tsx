@@ -31,6 +31,7 @@ export function VerificationPanel({
   point,
   total,
   onNavigate,
+  onNextUnmeasured,
   onMeasurementSaved,
   records = {},
   reviewInfo,
@@ -41,6 +42,7 @@ export function VerificationPanel({
   point?: OcrPoint;
   total: number;
   onNavigate: (delta: number) => void;
+  onNextUnmeasured?: () => void;
   onMeasurementSaved?: (record: SavedMeasurement) => void;
   /** item_id → 저장된 측정 결과 (진행률·상태 표시용) */
   records?: Record<string, MeasurementRecord>;
@@ -88,6 +90,7 @@ export function VerificationPanel({
       <div className="flex-1 space-y-3 p-3">
         {!item.inspection_approved && <CriteriaCard item={item} />}
         <OcrMeasurementEntry
+          onNextUnmeasured={onNextUnmeasured}
           purpose={PURPOSE}
           readOnly={readOnly}
           key={`measurement-${key}`}

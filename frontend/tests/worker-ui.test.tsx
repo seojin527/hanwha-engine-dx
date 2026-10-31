@@ -1,3 +1,4 @@
+import OcrMeasurementEntry from '../src/components/OcrMeasurementEntry';
 import { CaseCard } from '../src/components/worker/WorkerErrorPanel';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -220,5 +221,25 @@ test('사례 탭은 내용 하나만 표시하고 키보드로 이동 가능', a
     assert.equal(panels[2].hidden, false);
     assert.equal(document.activeElement, tabs[2]);
     assert.ok(panels[2].textContent!.includes(example.cause));
+  } finally { await unmount(); }
+});
+
+
+test('확정 저장된 항목은 다음 미측정 버튼을 표시하고 대상이 없으면 비활성', async () => {
+  const record = { drawing_id: doc.drawing_id, revision: 'rev-1', item_id: 'item-1', work_purpose: 'assembly', confirmed: true, status: 'completed', judgement: 'pass', measured_value: '76', instrument: '버니어 캘리퍼스', note: '' };
+  globalThis.fetch = async () => new Response(JSON.stringify({ drawing_id: doc.drawing_id, revision: 'rev-1', work_purpose: 'assembly', records: [record] }));
+  let navigated = 0;
+  const render = (next?: () => void) => <UnsavedChangesProvider registry={registry}><OcrMeasurementEntry purpose="assembly" drawingId={doc.drawing_id} revision="rev-1" item={doc.items[0]} onNextUnmeasured={next} /></UnsavedChangesProvider>;
+  await mount(render(() => navigated++));
+  try {
+    let button = Array.from(document.querySelectorAll('button')).find(b => b.textContent === '다음 미측정 항목 →')!;
+    assert.ok(button);
+    assert.equal(button.disabled, false);
+    await act(async () => button.click());
+    assert.equal(navigated, 1);
+    await act(async () => root.render(render()));
+    button = Array.from(document.querySelectorAll('button')).find(b => b.textContent === '미측정 항목 없음')!;
+    assert.ok(button.disabled);
+    assert.ok(!Array.from(document.querySelectorAll('button')).some(b => b.textContent === '합격'));
   } finally { await unmount(); }
 });

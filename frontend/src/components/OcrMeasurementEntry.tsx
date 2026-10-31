@@ -23,6 +23,7 @@ interface Props {
   onSaved?: (record: SavedMeasurement) => void;
   /** 다른 업무 작업자가 보는 중이면 true: 저장된 값만 보여주고 입력·저장을 막는다. */
   readOnly?: boolean;
+  onNextUnmeasured?: () => void;
 }
 
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
@@ -33,7 +34,7 @@ const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
  * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
  * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
  */
-export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false }: Props) {
+export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false, onNextUnmeasured }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
@@ -262,7 +263,9 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
         </label>
           </details>
 
-        {mode === "numeric" && !hasRange ? (
+        {currentRecord?.confirmed ? (
+          <button type="button" className="btn btn-primary btn-lg w-full" disabled={!onNextUnmeasured} onClick={onNextUnmeasured}>{onNextUnmeasured ? "다음 미측정 항목 →" : "미측정 항목 없음"}</button>
+        ) : mode === "numeric" && !hasRange ? (
           <button
             type="button"
             disabled={numeric === null}

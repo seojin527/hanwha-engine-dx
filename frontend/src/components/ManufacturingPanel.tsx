@@ -39,6 +39,7 @@ export function ManufacturingPanel({
   total,
   labelTotal,
   onNavigate,
+  onNextUnmeasured,
   reviewInfo,
   machining,
   unit = 'mm',
@@ -53,6 +54,7 @@ export function ManufacturingPanel({
   /** 도면 전체 번호 개수 (머리글의 번호/전체 표시용) */
   labelTotal: number;
   onNavigate: (delta: number) => void;
+  onNextUnmeasured?: () => void;
   reviewInfo?: ReviewInfo | null;
   machining: MachiningState;
   unit?: string;
@@ -124,6 +126,7 @@ export function ManufacturingPanel({
           <p className="note note-info">이 항목은 {STAGE_NAME[stage]} 측정 대상이 아닙니다. 도면의 색 번호를 눌러 이번 단계 항목을 재주세요.</p>
         ) : (
           <StageEntry
+          onNextUnmeasured={onNextUnmeasured}
             key={`entry-${key}`}
             stage={stage}
             criteria={criteria}

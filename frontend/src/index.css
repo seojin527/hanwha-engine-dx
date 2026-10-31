@@ -269,7 +269,7 @@
 :is(.worker-measurement, .worker-support) .btn-ghost { color: #4d6074; }
 :is(.worker-measurement, .worker-support) .note-info { border-color: #a2afbd; background: #f2f4f7; color: #4b5a6d; }
 .worker-center { overflow: hidden; }
-.worker-center .dx-drawing-surround { background-color: #e5e9ee; background-image: linear-gradient(#cdd4dd55 1px, transparent 1px), linear-gradient(90deg, #cdd4dd55 1px, transparent 1px); }
+.worker-center .dx-drawing-surround { background-color: #202c3a; background-image: linear-gradient(#ffffff06 1px, transparent 1px), linear-gradient(90deg, #ffffff06 1px, transparent 1px); }
 .worker-center > section:last-child { border-top: 1px solid #b8c3cf; background: #fff; color: #273444; }
 .worker-center > section:last-child :is(.bg-white, .bg-slate-50) { background: #f6f7f9; }
 .worker-center > section:last-child :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #253344; }

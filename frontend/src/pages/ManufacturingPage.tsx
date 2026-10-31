@@ -187,6 +187,12 @@ export function ManufacturingPage(props: WorkspacePageProps) {
               total={stagePoints.length}
               labelTotal={ocrPoints.length}
               onNavigate={navigateStage}
+              onNextUnmeasured={(() => {
+                const index = stagePoints.findIndex(p => p.id === activeOcrPoint?.id);
+                const ordered = [...stagePoints.slice(index + 1), ...stagePoints.slice(0, Math.max(0, index))];
+                const next = ordered.find(p => p.source.inspection_approved && (!machining.stageRecords[p.source.id] || machining.stageRecords[p.source.id].status === 'pending'));
+                return next ? () => onSelectOcrPoint(next.id) : undefined;
+              })()}
               reviewInfo={reviewInfoOf(document)}
               machining={machining}
               unit={document.unit || "mm"}
