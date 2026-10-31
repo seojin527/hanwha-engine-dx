@@ -123,3 +123,36 @@ test('늦게 도착한 이전 항목 오류 응답이 현재 항목을 덮어쓰
     assert.ok(!document.body.textContent!.includes('이전 항목 사례'));
   } finally { await unmount(); }
 });
+
+test('오른쪽 너비 조절: 드래그·방향키·기본값 복원·너비 저장, 치수 표 유지', async () => {
+  narrow = false; mockFetch(); localStorage.removeItem('dx.worker-support-width');
+  const proto = dom.window.HTMLElement.prototype as any;
+  proto.setPointerCapture = () => {};
+  proto.hasPointerCapture = () => true;
+  proto.releasePointerCapture = () => {};
+  await mount(<Fixture Page={AssemblyPage} />);
+  try {
+    const divider = document.querySelector('[aria-label="도면과 오류 사례 너비 조절"]') as HTMLElement;
+    const width = () => Number(divider.getAttribute('aria-valuenow'));
+    assert.equal(width(), 340);
+    await act(async()=>divider.dispatchEvent(new dom.window.KeyboardEvent('keydown', {key:'ArrowLeft',bubbles:true})));
+    assert.equal(width(), 356);
+    const pointer = (type:string,x:number) => {
+      const event = new dom.window.MouseEvent(type,{clientX:x,button:0,bubbles:true});
+      Object.defineProperty(event,'pointerId',{value:1});
+      divider.dispatchEvent(event);
+    };
+    await act(async()=>pointer('pointerdown',900));
+    await act(async()=>pointer('pointermove',850));
+    assert.equal(width(), 406);
+    await act(async()=>pointer('pointerup',850));
+    assert.equal(localStorage.getItem('dx.worker-support-width'),'406');
+    await act(async()=>divider.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'End',bubbles:true})));
+    assert.equal(width(),Number(divider.getAttribute('aria-valuemax')));
+    await act(async()=>divider.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Home',bubbles:true})));
+    assert.equal(width(),Number(divider.getAttribute('aria-valuemin')));
+    await act(async()=>divider.dispatchEvent(new dom.window.MouseEvent('dblclick',{bubbles:true})));
+    assert.equal(width(),340);
+    assert.equal(document.querySelectorAll('.worker-center tbody tr').length,2);
+  } finally { await unmount(); }
+});
