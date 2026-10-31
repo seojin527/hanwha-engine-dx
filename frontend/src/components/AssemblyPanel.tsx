@@ -8,6 +8,7 @@ import type { WorkPurpose } from '../lib/purpose';
 const PURPOSE: WorkPurpose = 'assembly';
 import { type OcrItem, type OcrPoint } from '../lib/ocr';
 import OcrMeasurementEntry from "./OcrMeasurementEntry";
+import AssemblyFitCard from './AssemblyFitCard';
 import {
   measurementStatusLabels,
   type MeasurementRecord,
@@ -121,6 +122,7 @@ export function AssemblyPanel({
 
       <div className="flex-1 space-y-3 p-3">
         <CriteriaCard item={item} />
+        <AssemblyFitCard item={item} drawingId={drawingId} revision={revision} />
         <OcrMeasurementEntry
           purpose={PURPOSE}
           readOnly={readOnly}

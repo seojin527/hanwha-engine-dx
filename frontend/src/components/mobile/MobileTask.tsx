@@ -26,6 +26,7 @@ import {
   type StageKey,
 } from "../../lib/machiningAPI";
 import { formatNumber } from "../../lib/inspection/tolerance";
+import AssemblyFitCard from "../AssemblyFitCard";
 
 const NUMBER_RE = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
 const EPS = 1e-9;
@@ -476,6 +477,7 @@ export function MeasureTask(props: TaskProps) {
         }
       >
         <ItemCard point={point} title={point.feature.name} criteria={criteria} />
+        {purpose === "assembly" && <AssemblyFitCard item={item} drawingId={drawing.drawing_id} revision={revision} />}
 
         {mode === "view" ? (
           <section className="rounded-xl border border-slate-200 bg-white p-3 text-[14px]">
