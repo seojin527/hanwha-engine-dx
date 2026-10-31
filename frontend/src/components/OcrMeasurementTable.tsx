@@ -103,7 +103,7 @@ export function OcrMeasurementTable({
                   <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{FEATURE_LABEL[point.source.feature_type ?? ''] ?? '미확정'}</td>
                   <td className="px-3 py-1.5 tabular-nums text-slate-700">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : compact && typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' ? <>
                     <span className="whitespace-nowrap font-medium">{Number(point.source.lower_limit.toFixed(4))} ~ {Number(point.source.upper_limit.toFixed(4))} {point.source.unit ?? 'mm'}</span>
-                    <details className="worker-table-basis" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><summary>공차 근거</summary><p>{toleranceText(point.source)}</p></details>
+                    {selected && <details key={point.source.id} className="worker-table-basis" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><summary>공차 근거</summary><p>{toleranceText(point.source)}</p></details>}
                   </> : toleranceText(point.source)}</td>
                 </tr>
               );

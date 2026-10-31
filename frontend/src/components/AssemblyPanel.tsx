@@ -69,14 +69,7 @@ export function AssemblyPanel({
           onNavigate={onNavigate}
           chips={
             <>
-              {reviewInfo ? (
-                <Chip tone="ok">
-                  검토 완료 · {reviewInfo.reviewer || '검토자 미기록'}
-                  {reviewInfo.at ? ` ${reviewInfo.at}` : ''}
-                </Chip>
-              ) : (
-                <Chip tone="warn">검토 전</Chip>
-              )}
+              {!reviewInfo && <Chip tone="warn">검토 전</Chip>}
               <Chip tone={record ? STATUS_TONE[record.status] ?? 'neutral' : 'neutral'}>
                 측정: {record
                   ? `${record.judgement === 'pass' ? '적합' : record.judgement === 'fail' ? '부적합' : '판정 보류'} · ${measurementStatusLabels[record.status]}`

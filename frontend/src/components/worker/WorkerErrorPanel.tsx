@@ -39,12 +39,8 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
   const loading = state.key !== key || state.loading;
   const errors = state.key === key ? state.errors : [];
   const selected = errors.find(error => selection.key === key && error.case_id === selection.id) ?? errors[0];
-  return <div className="worker-case-browser">
-    <section className="worker-support-context" aria-label="오류 사례 선택 항목">
-      <span className="worker-kicker">선택 항목 {stage ? `· ${STAGE_NAME[stage]}` : ''}</span>
-      <h2>{point.displayNumber}번 · {point.feature.name}</h2>
-      <p className="font-mono">{point.source.raw_text.replace(/\n/g, ' ')}</p>
-    </section>
+  return <div className="worker-case-browser" aria-label="오류 사례 선택 항목">
+    <p className="worker-case-current">{point.displayNumber}번 · {point.feature.name} <span>{point.source.raw_text.replace(/\n/g, " ")}</span></p>
     <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
       <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
       <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
@@ -53,7 +49,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
       : state.error ? <p role="alert" className="note note-error">조회하지 못했습니다. {state.error}</p>
       : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.<p className="mt-1 text-xs">사례가 없다고 안전함을 의미하지는 않습니다.</p></div>
       : <>
-          <nav className="worker-case-list" aria-label="참고 사례 목록">
+          <nav className={`worker-case-list ${errors.length === 1 ? "worker-single-case" : ""}`} aria-label="참고 사례 목록">
             {errors.map((error, index) => <button type="button" key={error.case_id}
               aria-pressed={selected?.case_id === error.case_id}
               onClick={() => setSelection({ key, id: error.case_id })}>

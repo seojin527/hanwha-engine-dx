@@ -92,11 +92,7 @@ export function ManufacturingPanel({
           onNavigate={onNavigate}
           chips={
             <>
-              {reviewInfo ? (
-                <Chip tone="ok">검토 완료 · {reviewInfo.reviewer || '검토자 미기록'}{reviewInfo.at ? ` ${reviewInfo.at}` : ''}</Chip>
-              ) : (
-                <Chip tone="warn">검토 전</Chip>
-              )}
+              {!reviewInfo && <Chip tone="warn">검토 전</Chip>}
               {position > 0 ? (
                 <Chip tone="info">{STAGE_NAME[stage]} {position}/{total}번째</Chip>
               ) : (

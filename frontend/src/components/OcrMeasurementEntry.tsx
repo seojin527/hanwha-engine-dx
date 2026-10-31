@@ -215,7 +215,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
               />
             </label>
             {trimmed && numeric === null && <p className="text-[11px] text-rose-700">숫자로 입력해주세요.</p>}
-            {inRange === true && <p className="text-[11px] font-medium text-emerald-700">허용 범위 안입니다.</p>}
+
             {inRange === false && (
               <p className="text-[11px] font-medium text-rose-700">허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
             )}
@@ -291,19 +291,17 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             </button>
           </div>
         )}
-        {mode === "numeric" && hasRange && (
-          <p className="text-[10px] text-slate-500">값이 허용 범위 안이면 [합격], 밖이면 [불합격]만 누를 수 있습니다.</p>
-        )}
+
 
         {currentRecord ? (
           <div role="status" className={`space-y-1 rounded p-2.5 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
             <p className="font-semibold">
               {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
               {" · "}
-              {measurementStatusLabels[currentRecord.status]}
+              {currentRecord.confirmed ? "저장됨" : measurementStatusLabels[currentRecord.status]}
               {currentRecord.measured_value ? ` · ${currentRecord.measured_value} ${unit}` : ""}
             </p>
-            <p>{currentRecord.judgement_reason}</p>
+            {currentRecord.judgement !== "pass" && <p>{currentRecord.judgement_reason}</p>}
             {currentRecord.judgement === "fail" && (
               <p>측정 위치와 측정기를 확인한 뒤 다시 측정해주세요. 이전 결과는 기록으로 남습니다.</p>
             )}
