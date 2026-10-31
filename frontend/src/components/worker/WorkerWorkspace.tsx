@@ -105,10 +105,10 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
         }}
       ><span aria-hidden="true" /></div>
       <button ref={toggle} type="button" className="worker-support-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(v => !v)}>
-        <BookOpen aria-hidden="true" className="h-4 w-4" />측정 가이드
+        <BookOpen aria-hidden="true" className="h-4 w-4" />측정 전 유의사항
       </button>
       <aside ref={panel} id={panelId} aria-label="주의사항 및 오류 사례" className={`worker-support ${open ? 'is-open' : ''}`} style={{ '--worker-support-width': `${supportWidth}px` } as CSSProperties}>
-        <PaneHeading icon={<BookOpen aria-hidden="true" size={17} />} title="측정 가이드" description="선택 항목의 주의사항·참고 사례"
+        <PaneHeading icon={<BookOpen aria-hidden="true" size={17} />} title="측정 전 유의사항" description="오류 DB의 참고 사례·예방 및 조치"
           action={<button ref={close} type="button" className="worker-support-close" aria-label="오류 사례 패널 닫기" onClick={() => { setOpen(false); toggle.current?.focus(); }}><X className="h-4 w-4" /></button>} />
         <div className="worker-support-content">{support}</div>
       </aside>

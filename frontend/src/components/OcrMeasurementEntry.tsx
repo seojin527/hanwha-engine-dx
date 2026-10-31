@@ -173,6 +173,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
         <p className="note note-info">이 업무의 담당 작업자만 입력할 수 있습니다. 저장된 결과만 표시합니다.</p>
       )}
       <fieldset disabled={readOnly || loading || saving} className="space-y-3">
+        <p className="worker-entry-instruction">{mode === 'gauge' ? '판정 기준과 측정 전 유의사항을 확인한 뒤, 게이지 검사 결과를 선택하세요.' : '기준치수·허용 범위를 확인하고, 부품을 측정한 뒤 실측값을 입력하세요.'}</p>
         {mode === "gauge" ? (
           <p className="note note-info whitespace-pre-wrap">
             <b className="mr-1 font-semibold">판정 기준</b>
@@ -187,7 +188,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
                   {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
                 </b>
                 {typeof item.nominal_value === "number" && (
-                  <span className="text-[11px] text-slate-500">기준 {formatNumber(item.nominal_value)}</span>
+                  <span className="worker-nominal"><span>기준치수</span><strong>{formatNumber(item.nominal_value)} <small>{unit}</small></strong></span>
                 )}
               </div>
             ) : (

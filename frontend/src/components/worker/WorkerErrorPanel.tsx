@@ -46,7 +46,7 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
       {typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' && <p className="worker-inspection-range">도면 허용 범위 <strong>{point.source.lower_limit} ~ {point.source.upper_limit} {point.source.unit || 'mm'}</strong></p>}
     </section>
     <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
-      <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
+      <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />오류 DB 참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
       <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
     </div>
     {loading ? <p role="status" className="worker-empty">관련 오류·주의사항을 찾고 있습니다…</p>
@@ -93,7 +93,7 @@ function GuidanceSteps({ label, value, kind }: { label: string; value: unknown; 
 export function CaseCard({ error, showTitle = true }: { error: ErrorCandidate; showTitle?: boolean }) {
   const [tab, setTab] = useState(0);
   const tabId = useId();
-  const tabs = ['측정 전 확인', '오류 조치', '사례 상세'];
+  const tabs = ['측정 전 유의사항', '오류 조치', '사례 상세'];
   const origin = error.data_origin === 'SYNTHETIC' ? '예시 데이터' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin;
   const source = error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '출처 미기록';
   return <article className="worker-case-card" aria-label="선택한 사례 상세">

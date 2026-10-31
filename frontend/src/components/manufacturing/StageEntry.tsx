@@ -123,6 +123,7 @@ export default function StageEntry({
       <div className="card-body">
         {locked && <p role="status" className="note note-warn mb-3">{locked}</p>}
         <fieldset disabled={saving || Boolean(locked)} className="space-y-3">
+          <p className="worker-entry-instruction">{mode === 'gauge' ? '단계 판정 기준과 측정기 영점을 확인한 뒤, 게이지 검사 결과를 선택하세요.' : '단계 목표·허용 범위와 측정기 영점을 확인하고, 측정한 실측값을 입력하세요.'}</p>
           {mode === "gauge" ? (
             <p className="note note-info whitespace-pre-wrap">
               <b className="mr-1 font-semibold">판정 기준</b>
@@ -137,7 +138,7 @@ export default function StageEntry({
                 {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
               </b>
               {criteria.target !== null && (
-                <span className="text-[11px] text-slate-500">목표 {formatNumber(criteria.target)}</span>
+                <span className="worker-nominal"><span>단계 목표</span><strong>{formatNumber(criteria.target)} <small>{unit}</small></strong></span>
               )}
             </div>
           ) : (
