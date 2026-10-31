@@ -1,3 +1,4 @@
+import { CaseCard } from '../src/components/worker/WorkerErrorPanel';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { JSDOM } from 'jsdom';
@@ -73,7 +74,7 @@ test('세 업무: 측정은 왼쪽, 기존 도면·표는 가운데, 오류·등
         assert.ok(entry.compareDocumentPosition(criteria) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
         const caseDetails = support.querySelector('details.worker-case-details')!;
         assert.equal(caseDetails.hasAttribute('open'), false);
-        assert.ok(caseDetails.textContent!.includes(example.cause));
+        assert.ok(support.querySelector('[aria-label="오류와 발생 원인"]')!.textContent!.includes(example.cause));
         assert.equal(caseDetails.textContent!.includes(example.corrective_action), false);
         assert.ok(center.querySelector('.worker-table-basis'));
         assert.equal(left.querySelector('[aria-label="이 포인트의 오류 기록"]'), null);
@@ -182,5 +183,21 @@ test('사례 목록에서 하나만 표시하고 사례 변경 시 측정 입력
     assert.ok(document.querySelector('.worker-case-card')!.textContent!.includes('두 번째 사례 주의사항'));
     assert.equal(document.querySelectorAll('.worker-case-card').length, 1);
     assert.equal(document.querySelector('.worker-measurement input[inputmode="decimal"]'), input);
+  } finally { await unmount(); }
+});
+
+
+test('사례 가이드는 저장된 원인·조건·출처를 표시하고 누락된 설명을 생성하지 않음', async () => {
+  await mount(<CaseCard error={{ ...example, applicable_condition: '도면에 지정된 기준면', exclude_condition: '다른 데이텀 지정 시 제외', data_origin: 'SYNTHETIC', corrective_action: '' }} />);
+  try {
+    const card = document.querySelector('[aria-label="선택한 사례 상세"]')!;
+    assert.ok(card.textContent!.includes(example.cause));
+    assert.ok(card.textContent!.includes('도면에 지정된 기준면'));
+    assert.ok(card.textContent!.includes('다른 데이텀 지정 시 제외'));
+    assert.ok(card.textContent!.includes('예시 데이터'));
+    assert.ok(card.textContent!.includes(example.source_file));
+    assert.equal(card.querySelector('[aria-label="오류 발생 시 조치"]')!.textContent!.includes('등록된 설명이 없습니다.'), true);
+    assert.ok(card.querySelectorAll('[aria-label="측정 전 확인"] li').length > 0);
+    assert.ok(!card.textContent!.includes('"condition"'));
   } finally { await unmount(); }
 });

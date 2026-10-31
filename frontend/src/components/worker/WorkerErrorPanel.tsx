@@ -40,7 +40,11 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
   const errors = state.key === key ? state.errors : [];
   const selected = errors.find(error => selection.key === key && error.case_id === selection.id) ?? errors[0];
   return <div className="worker-case-browser" aria-label="오류 사례 선택 항목">
-    <p className="worker-case-current">{point.displayNumber}번 · {point.feature.name} <span>{point.source.raw_text.replace(/\n/g, " ")}</span></p>
+    <section className="worker-inspection-context">
+      <span className="worker-kicker">현재 검사 항목{stage ? ` · ${STAGE_NAME[stage]}` : ''}</span>
+      <p className="worker-case-current">{point.displayNumber}번 · {point.feature.name} <span>{point.source.raw_text.replace(/\n/g, " ")}</span></p>
+      {typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' && <p className="worker-inspection-range">도면 허용 범위 <strong>{point.source.lower_limit} ~ {point.source.upper_limit} {point.source.unit || 'mm'}</strong></p>}
+    </section>
     <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
       <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
       <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
@@ -75,30 +79,47 @@ export function CaseField({ label, value, tone = 'plain' }: { label: string; val
     <ReadableCaseText value={value} />
   </section>;
 }
+function GuidanceSteps({ label, value, kind }: { label: string; value: unknown; kind: 'before' | 'action' }) {
+  const blocks = caseTextBlocks(value);
+  return <section className={`worker-guidance is-${kind}`} aria-label={label}>
+    <h4>{label}</h4>
+    {blocks.length ? <ol>{blocks.map((block, index) => <li key={index}>
+      <span className="worker-guidance-number" aria-hidden="true">{index + 1}</span>
+      <div>{block.label && <span className="worker-guidance-label">{block.label}</span>}<p>{block.text}</p></div>
+    </li>)}</ol> : <p className="worker-guidance-missing">등록된 설명이 없습니다.</p>}
+  </section>;
+}
+
 export function CaseCard({ error }: { error: ErrorCandidate }) {
+  const origin = error.data_origin === 'SYNTHETIC' ? '예시 데이터' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin;
+  const source = error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '출처 미기록';
   return <article className="worker-case-card" aria-label="선택한 사례 상세">
     <header>
+      <span className="worker-kicker">측정 오류 가이드</span>
       <h3>{error.case_title || error.case_id}</h3>
     </header>
-    <div className="space-y-2.5 p-3">
-      <CaseField label="측정 전 주의사항" value={error.precaution} tone="warning" />
-      <CaseField label="오류 발생 시 조치" value={error.corrective_action} tone="action" />
-      {!caseTextBlocks(error.precaution).length && !caseTextBlocks(error.corrective_action).length && <CaseField label="발생 오류" value={error.error_description} />}
+    <div className="worker-case-narrative">
+      {(caseTextBlocks(error.error_description).length > 0 || caseTextBlocks(error.cause).length > 0) && <section className="worker-case-background" aria-label="오류와 발생 원인">
+        <CaseField label="발생할 수 있는 오류" value={error.error_description} />
+        <CaseField label="발생 원인" value={error.cause} />
+      </section>}
+      <GuidanceSteps label="측정 전 확인" value={error.precaution} kind="before" />
+      <GuidanceSteps label="오류 발생 시 조치" value={error.corrective_action} kind="action" />
+      <section className="worker-case-applicability" aria-label="사례 적용 조건">
+        <h4>적용 조건 확인</h4>
+        {caseTextBlocks(error.applicable_condition).length ? <ReadableCaseText value={error.applicable_condition} /> : <p>상세 적용 조건이 등록되지 않았습니다. 현재 항목에 사용할 수 있는지 확인하세요.</p>}
+        <CaseField label="제외·확인 조건" value={error.exclude_condition} />
+      </section>
       <details className="worker-case-details">
-        <summary>오류 내용·원인·적용 조건</summary>
+        <summary>측정기·영향·추가 정보</summary>
         <div className="space-y-3 pt-3">
-          <CaseField label="발생 오류" value={error.error_description} />
-          <CaseField label="원인" value={error.cause} />
-          <CaseField label="적용 조건" value={error.applicable_condition} />
-          <CaseField label="제외·확인 조건" value={error.exclude_condition} tone="warning" />
-          {error.data_origin && <p className="text-[11px] text-slate-500">데이터 구분: {error.data_origin === 'SYNTHETIC' ? '샘플' : error.data_origin === 'USER_REPORTED' ? '사용자 등록' : error.data_origin}</p>}
           <CaseField label="측정기 후보" value={error.recommended_instrument} />
           <CaseField label="영향" value={error.impact} />
           <CaseField label="심각도" value={error.severity} />
           <CaseField label="공정" value={error.process_stage} />
-          <p className="text-[11px] text-slate-500">사례 {error.case_id}<br />출처: {error.source_file === 'user_form' ? '사용자 등록' : error.source_file || '오류사례 DB'}</p>
         </div>
       </details>
+      <footer className="worker-case-source"><span>사례 {error.case_id}{origin ? ` · ${origin}` : ''}</span><span>출처: {source}</span></footer>
     </div>
   </article>;
 }
