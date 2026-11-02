@@ -106,10 +106,10 @@ export function EngineViewer3D({
   return (
     <section
       aria-label="전체 엔진 3D"
-      className={`relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#f7f9fb_0%,#eaeef3_55%,#dde3ea_100%)] ${visible ? "flex" : "hidden"}`}
+      className={`dx-viewer-dark relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#18293b_0%,#0f1c2b_55%,#0b1622_100%)] ${visible ? "flex" : "hidden"}`}
     >
       {/* 장식 배경: 뷰어 바탕이 투명이라 3D 주변까지 이어진다 (입력은 가로채지 않음) */}
-      <EngineeringBackdrop />
+      <EngineeringBackdrop tone="dark" />
       <iframe
         key={attempt}
         ref={frame}
@@ -165,7 +165,7 @@ export function EngineViewer3D({
       {status === "error" && (
         <div role="alert" className="absolute inset-0 flex items-center justify-center bg-dx-bg/85">
           <div className="max-w-sm space-y-3 rounded border border-rose-400/40 bg-dx-panel p-4 text-xs">
-            <p className="flex items-center gap-2 font-semibold text-rose-700">
+            <p className="flex items-center gap-2 font-semibold text-rose-200">
               <AlertTriangle aria-hidden="true" className="h-4 w-4" />
               3D 모델을 표시하지 못했습니다
             </p>
@@ -201,7 +201,7 @@ function ToolButton({
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 whitespace-nowrap rounded px-1.5 text-dx-muted transition-colors hover:bg-slate-900/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 whitespace-nowrap rounded px-1.5 text-dx-muted transition-colors hover:bg-white/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40 ${
         pressed ? "bg-dx-accent/10 text-dx-accent" : ""
       }`}
     >

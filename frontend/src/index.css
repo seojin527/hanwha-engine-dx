@@ -495,3 +495,15 @@
   --color-cyan-600: #7c3aed; --color-cyan-700: #6d28d9; --color-cyan-800: #5b21b6; --color-cyan-900: #4c1d95;
   --wk-accent: #7c3aed; --wk-accent-dark: #5b21b6; --wk-tint: #f3f0ff; --wk-tint-2: #e3dcfd; --wk-border: #b3a3e0;
 }
+
+/*
+ * 3D 뷰어 영역은 어두운 바탕을 쓴다. 이 영역 안의 dx-* 색만 원래 어두운 값으로 되돌린다
+ * (업무별 강조색 대신 청록 강조색 사용: 어두운 바탕에서 대비 확보).
+ */
+.dx-viewer-dark {
+  --color-dx-bg: #0a1420; --color-dx-panel: #0f1c2a; --color-dx-raised: #152638;
+  --color-dx-line: #1f3349; --color-dx-line-strong: #2d4762;
+  --color-dx-text: #dbe5ef; --color-dx-strong: #f1f6fb; --color-dx-muted: #8ca1b6; --color-dx-faint: #5e7489;
+  --color-dx-accent: #22c3dc; --color-dx-accent-strong: #0e9fb8;
+  color: var(--color-dx-text);
+}
