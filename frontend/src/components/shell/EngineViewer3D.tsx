@@ -106,7 +106,7 @@ export function EngineViewer3D({
   return (
     <section
       aria-label="전체 엔진 3D"
-      className={`relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#18293b_0%,#0f1c2b_55%,#0b1622_100%)] ${visible ? "flex" : "hidden"}`}
+      className={`relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#f7f9fb_0%,#eaeef3_55%,#dde3ea_100%)] ${visible ? "flex" : "hidden"}`}
     >
       {/* 장식 배경: 뷰어 바탕이 투명이라 3D 주변까지 이어진다 (입력은 가로채지 않음) */}
       <EngineeringBackdrop />

@@ -117,9 +117,11 @@ html:has(body.embed), body.embed, body.embed .main, body.embed .stage { backgrou
 html:has(body.embed) { color-scheme: normal !important; }
 
 body.embed .hud { left: auto; right: 12px; top: 12px; }
-body.embed .hud .tag { background: rgba(10, 20, 31, 0.85); border-color: #22364a; color: #8ea3b8; }
-body.embed .hud .tag b { color: #dbe6f0; }
-body.embed .toast { background: #dbe6f0; color: #0b1520; }
+body.embed .hud .tag { background: rgba(255, 255, 255, 0.92); border-color: #d6dde6; color: #566678; }
+body.embed .hud .tag b { color: #1c2733; }
+body.embed .toast { background: #1c2733; color: #ffffff; }
+/* 밝은 배경에서도 바닥 격자가 보이도록 앱 안에서는 격자 색을 고정한다 */
+html:root:has(body.embed) { --grid: #aebac7; }
 </style>
 <script>
 /* 앱 안에서 쓸 때 스크립트 오류(WebGL 미지원 등)를 부모에 알린다 */
@@ -688,9 +690,9 @@ assembled.then(() => {
   // 기본: 모든 부품을 같은 불투명 회색으로 통일한다 (부품마다 색이 다르지 않다).
   // 선택: 선택한 부품 종류 전체만 불투명한 빨간색 (윤곽선·발광 없음), 나머지는 같은 불투명 회색 그대로.
   // 마우스를 올림: 회청색 얇은 윤곽선만 → 선택 상태와 구별
-  const SELECT_RED = 0xe5232b, GRAY = 0x9aa5b1;
+  const SELECT_RED = 0xe5232b, GRAY = 0x7d8996;   // 밝은 배경(#eef2f6 안팎)에서 읽히는 대비
   const EDGE_SELECTED = new THREE.LineBasicMaterial({ color: 0x45d6ec, transparent: true, opacity: 0.95 });
-  const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x9db4cb, transparent: true, opacity: 0.6 });
+  const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x3f5368, transparent: true, opacity: 0.75 });
   let hoverKey = null;
   const edgesBuilt = new Set();
   function ensureEdges(key) {
