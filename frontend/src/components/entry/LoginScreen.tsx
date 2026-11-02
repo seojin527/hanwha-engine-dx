@@ -135,7 +135,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
                 value={roleKey}
                 onChange={(event) => setRoleKey(event.target.value)}
                 aria-describedby="login-role-hint"
-                className={`h-11 min-w-0 flex-1 appearance-none bg-transparent pr-9 text-[14px] focus:outline-none [&>option]:bg-white [&>option]:text-slate-900 ${roleKey ? "text-dx-strong" : "text-dx-faint"}`}
+                className={`h-11 min-w-0 flex-1 appearance-none bg-transparent pr-9 text-[14px] focus:outline-none [&>option]:bg-white [&>option]:text-slate-900 ${roleKey ? "text-dx-strong" : "text-dx-muted"}`}
               >
                 <option value="" disabled>
                   역할 선택
@@ -152,7 +152,7 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
             <button
               type="submit"
               disabled={!trimmed || !role}
-              className="!mt-6 h-11 w-full rounded-md bg-dx-accent-strong text-[14px] font-semibold leading-none text-dx-strong transition-colors hover:bg-[#0a5468] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:bg-dx-accent-strong/30 disabled:text-dx-strong"
+              className="!mt-6 h-11 w-full rounded-md bg-dx-accent-strong text-[14px] font-semibold leading-none text-white transition-colors hover:bg-[#0a5468] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               로그인
             </button>
@@ -163,14 +163,14 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               type="button"
               disabled={!role}
               onClick={() => role && onDemo(role)}
-              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-dx-muted underline-offset-4 transition-colors hover:text-dx-strong hover:underline focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:font-normal disabled:text-dx-faint disabled:no-underline"
+              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-dx-muted underline-offset-4 transition-colors hover:text-dx-strong hover:underline focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:font-normal disabled:text-dx-muted disabled:no-underline"
             >
               <PlayCircle aria-hidden="true" className="h-4 w-4" />
               {role ? "데모 도면으로 체험하기" : "역할을 고르면 데모 도면을 볼 수 있습니다"}
             </button>
           </div>
         </div>
-        <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-dx-faint">
+        <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-dx-muted">
           입력한 이름은 화면 표시에만 쓰고 저장하지 않습니다. 로그인하면 전체 엔진 3D 화면에서 시작합니다.
         </p>
       </div>
