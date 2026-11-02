@@ -38,10 +38,10 @@
   .btn-ghost { @apply border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
   .btn-danger { @apply border-rose-300 bg-white text-rose-700 hover:bg-rose-50; }
 
-  /* 어두운 상단 영역용 */
-  .btn-dark { @apply border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:border-slate-500; }
-  .btn-dark-ghost { @apply border-transparent bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white; }
-  .btn-dark-danger { @apply border-rose-900 bg-transparent text-rose-300 hover:bg-rose-950; }
+  /* 상단·도구 영역용 (이름은 예전 어두운 테마의 흔적이며, 지금은 밝은 테마 색이다) */
+  .btn-dark { @apply border-dx-line-strong bg-white text-dx-text hover:bg-dx-raised hover:border-dx-faint; }
+  .btn-dark-ghost { @apply border-transparent bg-transparent text-dx-muted hover:bg-dx-raised hover:text-dx-strong; }
+  .btn-dark-danger { @apply border-rose-300 bg-transparent text-rose-700 hover:bg-rose-50; }
 
   /* ---------- 세그먼트 전환 (작업자/관리자, 부품제작/조립/검증, 선택/이동) ---------- */
   .seg { @apply inline-flex shrink-0 rounded border border-slate-300 bg-slate-100 p-0.5; }
@@ -50,16 +50,16 @@
   }
   .seg-item[aria-pressed="true"] { @apply bg-white font-semibold text-slate-900 shadow-sm ring-1 ring-slate-300; }
 
-  .seg-dark { @apply inline-flex shrink-0 rounded border border-slate-700 bg-slate-950 p-0.5; }
-  .seg-dark .seg-item { @apply text-slate-400 hover:text-white; }
-  .seg-dark .seg-item[aria-pressed="true"] { @apply bg-slate-700 text-white shadow-none ring-0; }
+  .seg-dark { @apply inline-flex shrink-0 rounded border border-dx-line-strong bg-dx-raised p-0.5; }
+  .seg-dark .seg-item { @apply text-dx-muted hover:text-dx-strong; }
+  .seg-dark .seg-item[aria-pressed="true"] { @apply bg-white text-dx-strong shadow-sm ring-1 ring-dx-line-strong; }
 
   /* ---------- 입력창 ---------- */
   .field {
     @apply w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
   }
   .field-dark {
-    @apply rounded border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50;
+    @apply rounded border border-dx-line-strong bg-white px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:opacity-50;
   }
   .field-label { @apply block text-[11px] font-medium text-slate-600; }
 
@@ -71,10 +71,10 @@
 
   /* ---------- 알림 줄 (왼쪽 색 띠 하나로 상태 구분) ---------- */
   .banner { @apply flex shrink-0 items-center gap-3 border-l-4 px-4 py-1.5 text-xs; }
-  .banner-error { @apply border-rose-500 bg-rose-950/80 text-rose-100; }
-  .banner-warn { @apply border-amber-500 bg-amber-950/70 text-amber-100; }
-  .banner-ok { @apply border-emerald-500 bg-emerald-950/70 text-emerald-100; }
-  .banner-info { @apply border-cyan-500 bg-cyan-950/70 text-cyan-100; }
+  .banner-error { @apply border-rose-500 bg-rose-50 text-rose-900; }
+  .banner-warn { @apply border-amber-500 bg-amber-50 text-amber-900; }
+  .banner-ok { @apply border-emerald-500 bg-emerald-50 text-emerald-900; }
+  .banner-info { @apply border-cyan-600 bg-cyan-50 text-cyan-900; }
 
   /* 밝은 패널 안 안내문 */
   .note { @apply rounded border-l-[3px] px-3 py-2 text-xs leading-relaxed; }
@@ -126,45 +126,51 @@
 }
 
 /*
- * 진입 화면(로그인 · 부품·도면 선택) 전용 회색 테마.
- * .entry-gray 안에서만 공통 버튼·입력창 색을 바꾸므로 작업 화면에는 영향이 없다.
- * 바탕 #262626 · 레이어 #303030 · 경계선 #404040 (Carbon Gray 90 계열), 강조색은 작업 화면과 같은 cyan.
+ * 진입 화면(부품·도면 선택)과 셸 안의 관리 화면(부품·도면 목록, 오류 DB, 작업 현황)에 쓰는 영역.
+ * 예전 어두운 회색 테마 때 neutral-* 색 단계로 짠 화면이라, 이 영역 안에서만 neutral-* 변수를 밝은 값으로 다시 정의한다.
+ * (화면 코드는 그대로 두고 색만 바뀐다. 작업 화면에는 영향이 없다.)
  */
+.entry-gray {
+  --color-neutral-100: #1c2733;
+  --color-neutral-200: #253344;
+  --color-neutral-300: #3d4b5c;
+  --color-neutral-400: #566678;
+  --color-neutral-500: #5d6d82;
+  --color-neutral-600: #b9c4d0;
+  --color-neutral-700: #d6dde6;
+  --color-neutral-800: #f4f6f9;
+  --color-neutral-900: #e3e8ee;
+  --color-cyan-400: var(--color-cyan-600);
+}
 @layer components {
   .entry-gray { @apply bg-neutral-800 text-neutral-100; }
-  .entry-gray .btn-secondary { @apply border-neutral-600 bg-neutral-700/50 text-neutral-100 hover:border-neutral-500 hover:bg-neutral-700; }
-  .entry-gray .btn-ghost { @apply text-neutral-300 hover:bg-white/5 hover:text-white; }
-  .entry-gray .field {
-    @apply border-neutral-600 bg-neutral-900/50 text-neutral-100 placeholder:text-neutral-500 hover:border-neutral-500 focus:border-cyan-500 focus:ring-cyan-500 disabled:bg-neutral-800 disabled:text-neutral-500;
-  }
-  .entry-gray .field-label { @apply text-neutral-300; }
-  .entry-gray .card { @apply border-neutral-700 bg-[#2e2e2e]; }
-  .entry-gray .card-header { @apply border-neutral-700; }
-  .entry-gray .note-warn { @apply border-amber-400 bg-amber-400/10 text-amber-100; }
-  .entry-gray .note-error { @apply border-rose-400 bg-rose-400/10 text-rose-100; }
-  .entry-gray .note-ok { @apply border-emerald-400 bg-emerald-400/10 text-emerald-100; }
-  .entry-gray .note-info { @apply border-neutral-500 bg-white/5 text-neutral-200; }
 }
+/* 아래 규칙은 @layer 밖에 둔다. 화면 코드가 직접 쓴 bg-[#2e2e2e] 유틸 클래스보다 우선해야 하기 때문이다. */
+.entry-gray .card,
+.entry-gray .bg-\[\#2e2e2e\] { background-color: #fff; border-color: var(--color-dx-line); }
+.entry-gray .card-header { border-color: var(--color-dx-line); }
 
 /*
  * ENGINE DX 셸 (로그인 · 3D 메인 · 도면 작업) 디자인 규칙
- * - 바탕 dx-bg → 패널 dx-panel → 올린 면 dx-raised 의 3단 네이비. 경계선은 dx-line 한 가지.
- * - 시안(dx-accent)은 선택 상태와 주요 실행 버튼에만 쓴다. 성공·경고·오류는 emerald·amber·rose 작은 아이콘+문구.
+ * - 밝은 테마: 바탕 dx-bg(연회색) → 패널 dx-panel(흰색) → 올린 면 dx-raised 의 3단. 경계선은 dx-line 한 가지.
+ * - 청록(dx-accent)은 선택 상태와 주요 실행 버튼에만 쓴다. 성공·경고·오류는 emerald·amber·rose 작은 아이콘+문구.
  * - 글자: 제목 13~15px semibold · 본문 12px · 보조 11px dx-muted · 숫자는 font-mono tabular.
  * - 모서리 4px, 버튼 높이 28px(큰 버튼 36px). 발광·블러·장식 그라데이션은 쓰지 않는다.
  * - 도면 이미지는 원본 색 그대로 둔다 (흰 바탕).
  */
 @theme {
-  --color-dx-bg: #0a1420;
-  --color-dx-panel: #0f1c2a;
-  --color-dx-raised: #152638;
-  --color-dx-line: #1f3349;
-  --color-dx-line-strong: #2d4762;
-  --color-dx-text: #dbe5ef;
-  --color-dx-muted: #8ca1b6;
-  --color-dx-faint: #5e7489;
-  --color-dx-accent: #22c3dc;
-  --color-dx-accent-strong: #0e9fb8;
+  --color-dx-bg: #f4f6f9;
+  --color-dx-panel: #ffffff;
+  --color-dx-raised: #eaeef3;
+  --color-dx-canvas: #e8ecf1;
+  --color-dx-line: #d6dde6;
+  --color-dx-line-strong: #b9c4d0;
+  --color-dx-text: #1c2733;
+  --color-dx-strong: #0f1a24;
+  --color-dx-muted: #566678;
+  --color-dx-faint: #5d6d82;
+  --color-dx-accent: #0e7490;
+  --color-dx-accent-strong: #0b6177;
 }
 
 @layer components {
@@ -172,15 +178,15 @@
   .dx-panel { @apply border-dx-line bg-dx-panel; }
 
   .dx-btn {
-    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-dx-line-strong bg-dx-raised px-2.5 text-xs font-medium text-dx-text transition-colors hover:border-dx-faint hover:bg-[#1b3047] focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-dx-line-strong bg-dx-raised px-2.5 text-xs font-medium text-dx-text transition-colors hover:border-dx-faint hover:bg-dx-raised focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40;
   }
-  .dx-btn-primary { @apply border-dx-accent-strong bg-dx-accent-strong text-white hover:border-dx-accent hover:bg-[#0b8ca3]; }
-  .dx-btn-ghost { @apply border-transparent bg-transparent text-dx-muted hover:border-transparent hover:bg-white/5 hover:text-dx-text; }
+  .dx-btn-primary { @apply border-dx-accent-strong bg-dx-accent-strong text-white hover:border-[#0a5468] hover:bg-[#0a5468]; }
+  .dx-btn-ghost { @apply border-transparent bg-transparent text-dx-muted hover:border-transparent hover:bg-slate-900/5 hover:text-dx-text; }
   .dx-btn-lg { @apply h-9 px-3.5 text-sm font-semibold; }
   .dx-icon-btn { @apply w-7 px-0; }
 
   .dx-input {
-    @apply w-full rounded border border-dx-line-strong bg-[#0b1724] px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint transition-colors hover:border-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:cursor-not-allowed disabled:opacity-50;
+    @apply w-full rounded border border-dx-line-strong bg-white px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint transition-colors hover:border-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
   .dx-label { @apply block text-[11px] font-medium text-dx-muted; }
   .dx-section-title { @apply text-[11px] font-semibold uppercase tracking-wider text-dx-faint; }
@@ -193,13 +199,13 @@
 
   /* 트리 행: aria-current 로 선택 표시 */
   .dx-tree-row {
-    @apply flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs text-dx-text transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-dx-accent;
+    @apply flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs text-dx-text transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-dx-accent;
   }
-  .dx-tree-row[aria-current="true"] { @apply bg-dx-accent/10 text-white shadow-[inset_2px_0_0_var(--color-dx-accent)]; }
+  .dx-tree-row[aria-current="true"] { @apply bg-dx-accent/10 text-dx-strong shadow-[inset_2px_0_0_var(--color-dx-accent)]; }
 
   /* 좌측 메뉴 레일 */
   .dx-rail-btn {
-    @apply relative flex h-10 w-10 items-center justify-center rounded text-dx-muted transition-colors hover:bg-white/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-30;
+    @apply relative flex h-10 w-10 items-center justify-center rounded text-dx-muted transition-colors hover:bg-slate-900/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-30;
   }
   .dx-rail-btn[aria-current="page"] { @apply bg-dx-accent/10 text-dx-accent before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded before:bg-dx-accent before:content-['']; }
 
@@ -207,29 +213,13 @@
   .dx-blueprint-grid {
     background-color: var(--color-dx-bg);
     background-image:
-      linear-gradient(rgba(140, 170, 200, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(140, 170, 200, 0.06) 1px, transparent 1px),
-      linear-gradient(rgba(140, 170, 200, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(140, 170, 200, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(60, 90, 120, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60, 90, 120, 0.07) 1px, transparent 1px),
+      linear-gradient(rgba(60, 90, 120, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60, 90, 120, 0.035) 1px, transparent 1px);
     background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   }
 }
-
-/*
- * 셸 안에 넣은 기존 관리 화면(부품·도면 목록, 오류 DB, 작업 현황)은 원래 회색 톤(.entry-gray)으로 만들어졌다.
- * 화면 구조는 그대로 두고, 셸 안에서만 바탕·카드·경계선 색을 네이비 톤으로 맞춘다.
- */
-.dx-shell .entry-gray { background-color: var(--color-dx-bg); color: var(--color-dx-text); }
-.dx-shell .entry-gray .card,
-.dx-shell .entry-gray .bg-\[\#2e2e2e\] { background-color: var(--color-dx-panel); border-color: var(--color-dx-line); }
-.dx-shell .entry-gray .card-header,
-.dx-shell .entry-gray .border-neutral-700 { border-color: var(--color-dx-line); }
-.dx-shell .entry-gray .border-neutral-600 { border-color: var(--color-dx-line-strong); }
-.dx-shell .entry-gray .bg-neutral-900\/30,
-.dx-shell .entry-gray .bg-neutral-900\/40 { background-color: rgba(6, 13, 21, 0.4); }
-.dx-shell .entry-gray .bg-neutral-700 { background-color: var(--color-dx-raised); }
-.dx-shell .entry-gray .field { background-color: #0b1724; border-color: var(--color-dx-line-strong); }
-.dx-shell .entry-gray .btn-secondary { background-color: var(--color-dx-raised); border-color: var(--color-dx-line-strong); color: var(--color-dx-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .dx-shell *, .dx-shell *::before { transition-duration: 0s !important; animation-duration: 0s !important; }
@@ -238,15 +228,15 @@
 /* 도면 작업: 도면 바깥 여백에만 아주 옅은 격자 (도면 이미지 위에는 그리지 않는다) */
 .dx-drawing-surround {
   background-image:
-    linear-gradient(rgba(150, 176, 204, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(150, 176, 204, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(60, 90, 120, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 90, 120, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* 한국어 문단·표 칸은 어절 단위로 줄바꿈한다 (Pretendard 로 바꾼 뒤 "적/용", "중간축 외/경" 처럼 단어 중간에서 끊기던 것). 칸보다 긴 파일명·코드만 넘치지 않게 끊는다. */
 .dx-shell :where(p, li, dd, th, td) { word-break: keep-all; overflow-wrap: break-word; }
 
-/* Reading surfaces stay light; dark chrome is limited to navigation and tools. */
+/* 읽는 화면은 밝은 면을 쓴다 (전체 밝은 테마). */
 .worker-workspace { background: #eef0f3; color: #273444; }
 .worker-measurement { background: #f0f2f5; color: #273444; font-size: 13px; }
 .worker-measurement > section, .worker-measurement > div, .worker-measurement > div > div > section { background: transparent; }
@@ -269,7 +259,7 @@
 :is(.worker-measurement, .worker-support) .btn-ghost { color: #4d6074; }
 :is(.worker-measurement, .worker-support) .note-info { border-color: #a2afbd; background: #f2f4f7; color: #4b5a6d; }
 .worker-center { overflow: hidden; }
-.worker-center .dx-drawing-surround { background-color: #202c3a; background-image: linear-gradient(#ffffff06 1px, transparent 1px), linear-gradient(90deg, #ffffff06 1px, transparent 1px); }
+.worker-center .dx-drawing-surround { background-color: var(--color-dx-canvas); background-image: linear-gradient(rgba(60, 90, 120, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(60, 90, 120, 0.06) 1px, transparent 1px); }
 .worker-center > section:last-child { border-top: 1px solid #b8c3cf; background: #fff; color: #273444; }
 .worker-center > section:last-child :is(.bg-white, .bg-slate-50) { background: #f6f7f9; }
 .worker-center > section:last-child :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #253344; }
@@ -465,8 +455,6 @@
 .worker-pane-heading h2 { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; }
 .worker-pane-heading p { margin: 3px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; }
 .worker-pane-heading > button { margin-left: auto; }
-.worker-center > .worker-pane-heading { background: #263444; border-color: #3b4a5b; color: #edf3f8; }
-.worker-center > .worker-pane-heading p, .worker-center > .worker-pane-heading .worker-pane-icon { color: #b1bfce; }
 
 /* Put reference value and acceptable limits in one clear criterion box. */
 .worker-range-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 14px; padding: 14px; border: 1px solid #cddbe5; border-radius: 5px; background: #f1f6fa; }

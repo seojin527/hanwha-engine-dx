@@ -92,8 +92,8 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   }
 
   return (
-    <div ref={viewportRef} aria-busy={isAnalyzing} className="dx-drawing-surround relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
-      <div className="z-20 flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800 bg-slate-900 px-3 text-xs text-slate-200">
+    <div ref={viewportRef} aria-busy={isAnalyzing} className="dx-drawing-surround relative flex min-h-[120px] min-w-0 flex-1 flex-col overflow-hidden bg-dx-canvas">
+      <div className="z-20 flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-dx-line bg-dx-panel px-3 text-xs text-dx-text">
         <div role="group" aria-label="도면 조작 모드" className="seg-dark">
           <button
             type="button"
@@ -117,7 +117,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           </button>
         </div>
 
-        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-slate-700" />
+        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-dx-line" />
 
         <div role="group" aria-label="확대·축소" className="flex shrink-0 items-center">
           <button
@@ -130,7 +130,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
             <Minus aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
 
-          <span className="min-w-[68px] text-center font-mono text-[11px] tabular-nums text-slate-300">{isPdf ? "PDF" : `${fitMode ? "맞춤 " : ""}${Math.round(displayScale*100)}%`}</span>
+          <span className="min-w-[68px] text-center font-mono text-[11px] tabular-nums text-dx-text">{isPdf ? "PDF" : `${fitMode ? "맞춤 " : ""}${Math.round(displayScale*100)}%`}</span>
 
           <button
             type="button"
@@ -223,7 +223,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
           }}
         >
           {imageError ? (
-            <p role="alert" className="p-4 text-sm text-rose-300">
+            <p role="alert" className="p-4 text-sm text-rose-700">
               도면 이미지를 불러오지 못했습니다.
             </p>
           ) : (
@@ -315,7 +315,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
                 ))}
 
               {coordinateSize && imageSize.width > 0 && (coordinateSize.width !== imageSize.width || coordinateSize.height !== imageSize.height) &&
-                <div role="alert" className="absolute left-2 top-2 bg-rose-950 p-2 text-xs text-white">JSON과 이미지의 크기가 달라 마커를 표시하지 않습니다.</div>}
+                <div role="alert" className="absolute left-2 top-2 border border-rose-300 bg-rose-50 p-2 text-xs text-rose-800">JSON과 이미지의 크기가 달라 마커를 표시하지 않습니다.</div>}
               {imageSize.width > 0 && (!coordinateSize || (coordinateSize.width === imageSize.width && coordinateSize.height === imageSize.height)) &&
                 points.map((point) => {
                   const id = point.id ?? point.displayNumber;

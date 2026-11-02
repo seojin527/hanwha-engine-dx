@@ -416,7 +416,7 @@ export function DrawingLibrary({
   )?.original_filename;
 
   return (
-    <section ref={rootRef} className={`shrink-0 border-b border-slate-800 bg-slate-900 text-white ${floating ? "relative z-30" : ""}`}>
+    <section ref={rootRef} className={`shrink-0 border-b border-dx-line bg-dx-panel text-dx-strong ${floating ? "relative z-30" : ""}`}>
       <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5">
         <button
           type="button"
@@ -426,40 +426,40 @@ export function DrawingLibrary({
           title="부품·도면 변경 및 등록"
           className={`flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] ${
             libraryOpen
-              ? "border-slate-500 bg-slate-800"
-              : "border-slate-700 hover:border-slate-500 hover:bg-slate-800"
+              ? "border-dx-faint bg-dx-raised"
+              : "border-dx-line-strong hover:border-dx-faint hover:bg-dx-raised"
           }`}
         >
-          <FolderOpen aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <FolderOpen aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-dx-muted" />
           <span className="min-w-0 truncate">
-            <span className={selectedPartName ? "text-slate-100" : "text-slate-400"}>
+            <span className={selectedPartName ? "text-dx-text" : "text-dx-muted"}>
               {selectedPartName || "부품 미선택"}
             </span>
             <span className="px-1.5 text-slate-600">/</span>
-            <span className={selectedDrawingName ? "text-slate-100" : "text-slate-400"}>
+            <span className={selectedDrawingName ? "text-dx-text" : "text-dx-muted"}>
               {selectedDrawingName || "도면 미선택"}
             </span>
           </span>
           <ChevronDown
             aria-hidden="true"
-            className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${libraryOpen ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-dx-muted transition-transform ${libraryOpen ? "rotate-180" : ""}`}
           />
         </button>
 
-        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400">{status}</div>}
+        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-dx-muted">{status}</div>}
 
         {actions && (
           <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
         )}
       </div>
 
-      <div id="drawing-library-controls" hidden={!libraryOpen} className={`border-t border-slate-800 ${floating ? "absolute left-0 right-0 top-full max-h-[65vh] overflow-y-auto bg-slate-900 shadow-xl" : ""}`}>
+      <div id="drawing-library-controls" hidden={!libraryOpen} className={`border-t border-dx-line ${floating ? "absolute left-0 right-0 top-full max-h-[65vh] overflow-y-auto bg-dx-panel shadow-xl" : ""}`}>
       <div className="grid gap-x-6 gap-y-3 px-3 py-3 lg:grid-cols-2">
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-part"
-              className="text-[11px] font-medium text-slate-400"
+              className="text-[11px] font-medium text-dx-muted"
             >
               부품
             </label>
@@ -545,7 +545,7 @@ export function DrawingLibrary({
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-drawing"
-              className="text-[11px] font-medium text-slate-400"
+              className="text-[11px] font-medium text-dx-muted"
             >
               등록 도면
             </label>
@@ -611,18 +611,18 @@ export function DrawingLibrary({
       </div>
 
       {selectedPartId && (
-        <details className="mx-3 mb-3 rounded border border-slate-700">
-          <summary className="cursor-pointer px-3 py-1.5 text-xs text-slate-300 hover:text-white">
+        <details className="mx-3 mb-3 rounded border border-dx-line-strong">
+          <summary className="cursor-pointer px-3 py-1.5 text-xs text-dx-text hover:text-dx-strong">
             도면 등록 내역 · {drawings.length}개
           </summary>
 
-          <div className="max-h-44 overflow-y-auto border-t border-slate-700">
+          <div className="max-h-44 overflow-y-auto border-t border-dx-line-strong">
             {loadingDrawings ? (
-              <p className="p-3 text-xs text-slate-400">
+              <p className="p-3 text-xs text-dx-muted">
                 등록 내역을 불러오는 중…
               </p>
             ) : drawings.length === 0 ? (
-              <p className="p-3 text-xs text-slate-400">
+              <p className="p-3 text-xs text-dx-muted">
                 등록된 도면이 없습니다.
               </p>
             ) : (
@@ -641,8 +641,8 @@ export function DrawingLibrary({
                     onClick={() => selectDrawing(drawing.drawing_id)}
                     className={`flex w-full items-center justify-between gap-3 border-b border-l-2 border-b-slate-800 px-3 py-1.5 text-left last:border-b-0 disabled:opacity-40 ${
                       isSelected
-                        ? "border-l-cyan-500 bg-slate-800 text-white"
-                        : "border-l-transparent text-slate-200 hover:bg-slate-800/60"
+                        ? "border-l-cyan-500 bg-dx-raised text-dx-strong"
+                        : "border-l-transparent text-dx-text hover:bg-dx-raised/60"
                     }`}
                   >
                     <span className="min-w-0">
@@ -657,7 +657,7 @@ export function DrawingLibrary({
                       </span>
                     </span>
 
-                    <span className="shrink-0 text-[11px] text-slate-400">
+                    <span className="shrink-0 text-[11px] text-dx-muted">
                       {isSelected ? "선택됨" : "열기"}
                     </span>
                   </button>

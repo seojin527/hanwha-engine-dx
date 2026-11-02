@@ -36,9 +36,9 @@ interface DrawingSelectScreenProps {
 const OCR_STATUS_LABEL: Record<string, { label: string; className: string }> = {
   not_started: { label: "OCR 미실행", className: "bg-neutral-700 text-neutral-300" },
   queued: { label: "OCR 대기", className: "bg-neutral-700 text-neutral-200" },
-  running: { label: "OCR 진행 중", className: "bg-cyan-400/10 text-cyan-300" },
-  completed: { label: "OCR 완료", className: "bg-emerald-400/10 text-emerald-300" },
-  failed: { label: "OCR 실패", className: "bg-rose-400/10 text-rose-300" },
+  running: { label: "OCR 진행 중", className: "bg-cyan-100 text-cyan-800" },
+  completed: { label: "OCR 완료", className: "bg-emerald-100 text-emerald-800" },
+  failed: { label: "OCR 실패", className: "bg-rose-100 text-rose-800" },
 };
 
 function formatSize(bytes: number) {
@@ -134,16 +134,16 @@ export function DrawingSelectScreen({
 
   return (
     <div className={`entry-gray flex break-keep flex-col overflow-hidden ${embedded ? "min-h-0 min-w-0 flex-1" : "h-screen w-screen"}`}>
-      {!embedded && <header className="flex h-11 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 text-white">
+      {!embedded && <header className="flex h-11 shrink-0 items-center gap-4 border-b border-dx-line bg-dx-bg px-4 text-dx-strong">
         <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded bg-cyan-700 text-white">
           <Ruler className="h-3.5 w-3.5" />
         </span>
         <h1 className="-ml-2 whitespace-nowrap text-[13px] font-semibold tracking-tight">도면 측정 가이드</h1>
         <span className="hidden text-[11px] text-slate-500 sm:inline">엔진 부품 품질검사</span>
         <div className="ml-auto flex items-center gap-2">
-          <span className="max-w-[160px] truncate text-xs text-slate-200">{userLabel}</span>
-          <span className="tag bg-slate-800 text-slate-300">시연</span>
-          <span aria-hidden="true" className="mx-1 h-4 w-px bg-slate-800" />
+          <span className="max-w-[160px] truncate text-xs text-dx-text">{userLabel}</span>
+          <span className="tag bg-dx-raised text-dx-text">시연</span>
+          <span aria-hidden="true" className="mx-1 h-4 w-px bg-dx-raised" />
           <button type="button" onClick={onExit} className="btn btn-dark-ghost">
             <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
             처음 화면
@@ -160,7 +160,7 @@ export function DrawingSelectScreen({
               aria-current={view === key ? "page" : undefined}
               onClick={() => adminMenu.onChange(key)}
               className={`-mb-px inline-flex h-9 items-center gap-1.5 border-b-2 px-1 text-xs font-medium ${
-                view === key ? "border-cyan-400 text-white" : "border-transparent text-neutral-400 hover:text-neutral-100"
+                view === key ? "border-cyan-400 text-dx-strong" : "border-transparent text-neutral-400 hover:text-neutral-100"
               }`}
             >
               <Icon aria-hidden="true" className="h-3.5 w-3.5" />
@@ -181,7 +181,7 @@ export function DrawingSelectScreen({
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:overflow-hidden lg:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-white">부품·도면 선택</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
             <p className="mt-0.5 text-xs text-neutral-400">부품을 고른 뒤 작업할 도면을 선택하고 「작업 시작」을 눌러주세요.</p>
           </div>
           <button type="button" onClick={onDemo} className="btn btn-ghost">
@@ -194,7 +194,7 @@ export function DrawingSelectScreen({
           {/* 부품 */}
           <section aria-labelledby="select-parts-title" className="card flex min-h-[200px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-parts-title" className="text-xs font-semibold text-white">부품</h3>
+              <h3 id="select-parts-title" className="text-xs font-semibold text-dx-strong">부품</h3>
               {parts.status === "ready" && <span className="text-[11px] text-neutral-400">{partList.length}개</span>}
             </header>
 
@@ -234,11 +234,11 @@ export function DrawingSelectScreen({
                           aria-current={active || undefined}
                           onClick={() => selectPart(part.part_id)}
                           className={`flex w-full items-center gap-3 px-3 py-2 text-left text-xs ${
-                            active ? "bg-cyan-400/10 shadow-[inset_3px_0_0_var(--color-cyan-400)]" : "hover:bg-white/5"
+                            active ? "bg-cyan-400/10 shadow-[inset_3px_0_0_var(--color-cyan-400)]" : "hover:bg-slate-900/5"
                           }`}
                         >
                           <span className="min-w-0 flex-1">
-                            <span className={`block truncate ${active ? "font-semibold text-white" : "text-neutral-100"}`}>
+                            <span className={`block truncate ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
                               {part.name}
                             </span>
                             <span className="mt-0.5 block text-[11px] text-neutral-400">등록 {part.created_at || "—"}</span>
@@ -256,7 +256,7 @@ export function DrawingSelectScreen({
           {/* 도면 */}
           <section aria-labelledby="select-drawings-title" className="card flex min-h-[280px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-drawings-title" className="min-w-0 truncate text-xs font-semibold text-white">
+              <h3 id="select-drawings-title" className="min-w-0 truncate text-xs font-semibold text-dx-strong">
                 {selectedPart ? `${selectedPart.name} 도면` : "도면"}
               </h3>
               {selectedPart && drawingState.status === "ready" && (
@@ -331,14 +331,14 @@ export function DrawingSelectScreen({
                           className={`cursor-pointer outline-none [&>td]:border-b [&>td]:border-neutral-700 [&>td]:px-3 [&>td]:py-2 focus-visible:[&>td]:bg-neutral-700 ${
                             active
                               ? "[&>td]:bg-cyan-400/10 [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-cyan-400)]"
-                              : "hover:[&>td]:bg-white/5"
+                              : "hover:[&>td]:bg-slate-900/5"
                           }`}
                         >
                           <td>
                             <span className="flex min-w-0 items-center gap-2">
                               <FileText aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
                               <span className="min-w-0">
-                                <span className={`block truncate ${active ? "font-semibold text-white" : "text-neutral-100"}`}>
+                                <span className={`block truncate ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
                                   {drawing.original_filename || drawing.name}
                                 </span>
                                 <span className="block font-mono text-[11px] text-neutral-500">{drawing.drawing_id.slice(0, 8)}</span>
@@ -363,7 +363,7 @@ export function DrawingSelectScreen({
               <p className="min-w-0 truncate text-xs text-neutral-300">
                 {selectedDrawing ? (
                   <>
-                    선택: <b className="font-semibold text-white">{selectedDrawing.original_filename || selectedDrawing.name}</b>
+                    선택: <b className="font-semibold text-dx-strong">{selectedDrawing.original_filename || selectedDrawing.name}</b>
                   </>
                 ) : (
                   "도면을 선택해주세요."

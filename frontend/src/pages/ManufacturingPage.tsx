@@ -153,11 +153,11 @@ export function ManufacturingPage(props: WorkspacePageProps) {
           reviewed={document.review_status === "reviewed"}
         />
       ) : (
-        <section className="flex shrink-0 items-baseline gap-3 border-t border-slate-800 bg-slate-900 px-3 py-2">
-          <h2 className="text-xs font-semibold text-slate-200">
+        <section className="flex shrink-0 items-baseline gap-3 border-t border-dx-line bg-dx-panel px-3 py-2">
+          <h2 className="text-xs font-semibold text-dx-text">
             측정항목
           </h2>
-          <p className="min-w-0 text-[11px] text-slate-400">
+          <p className="min-w-0 text-[11px] text-dx-muted">
             {selectedDrawing
               ? (ocrStatus === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
               : "도면을 선택하거나 등록해주세요."}

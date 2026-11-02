@@ -50,7 +50,7 @@ export function ResizablePanels({left, right, initialWidth, storageScope = ''}: 
       aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(panelWidth)}
       aria-valuetext={`${onLeft ? '왼쪽' : '오른쪽'} 패널 ${Math.round(panelWidth)}픽셀`} tabIndex={0}
       title="좌우로 드래그 · 방향키로 조절 · 두 번 클릭하면 기본 너비"
-      className={`group relative z-50 flex w-1.5 shrink-0 touch-none cursor-col-resize items-center justify-center outline-none transition-colors before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-[''] focus-visible:bg-cyan-600 ${dragging ? 'bg-cyan-600' : onLeft ? 'bg-dx-line hover:bg-dx-accent-strong' : 'bg-slate-700 hover:bg-cyan-700'}`}
+      className={`group relative z-50 flex w-1.5 shrink-0 touch-none cursor-col-resize items-center justify-center outline-none transition-colors before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-[''] focus-visible:bg-cyan-600 ${dragging ? 'bg-cyan-600' : onLeft ? 'bg-dx-line hover:bg-dx-accent-strong' : 'bg-dx-line hover:bg-dx-accent-strong'}`}
       onPointerDown={e => {if(e.button!==0)return; e.preventDefault();e.currentTarget.focus();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,x:e.clientX,width:panelWidth};setDragging(true);}}
       onPointerMove={e => {const d=drag.current;if(d?.id===e.pointerId)setRequested(clamp(d.width+direction*(e.clientX-d.x),bounds.min,bounds.max));}}
       onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={()=>{drag.current=null;setDragging(false);}}

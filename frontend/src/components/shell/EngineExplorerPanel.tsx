@@ -61,7 +61,7 @@ export function reviewLabel(drawing: Pick<Drawing, "review_status" | "ocr_status
 
 export function StatusText({ tone, children }: { tone: "ok" | "warn" | "bad" | "muted"; children: ReactNode }) {
   const Icon = tone === "ok" ? CheckCircle2 : tone === "bad" ? AlertTriangle : tone === "warn" ? Clock3 : Clock3;
-  const color = tone === "ok" ? "text-emerald-300" : tone === "bad" ? "text-rose-300" : tone === "warn" ? "text-amber-200" : "text-dx-faint";
+  const color = tone === "ok" ? "text-emerald-700" : tone === "bad" ? "text-rose-700" : tone === "warn" ? "text-amber-700" : "text-dx-faint";
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] ${color}`}>
       <Icon aria-hidden="true" className="h-3 w-3" />
@@ -339,7 +339,7 @@ export function EngineExplorerPanel({
     if (load.status === "error") {
       return (
         <TreeNote depth={depth}>
-          <span className="text-rose-300">{load.message}</span>
+          <span className="text-rose-700">{load.message}</span>
           <button type="button" className="underline" onClick={() => { setDrawingLoads((p) => { const n = { ...p }; delete n[part.part_id]; return n; }); loadDrawings(part.part_id); }}>
             다시
           </button>
@@ -403,7 +403,7 @@ export function EngineExplorerPanel({
         </button>
         {treeOpen && (
           <div ref={treeRef} role="tree" aria-label="엔진 · 부품 · 도면" className="min-h-0 overflow-y-auto px-2 pb-2">
-            {partsError && <p role="alert" className="px-2 py-1 text-[11px] text-rose-300">부품 조회 실패: {partsError} <button type="button" className="underline" onClick={() => setPartsVersion((v) => v + 1)}>다시</button></p>}
+            {partsError && <p role="alert" className="px-2 py-1 text-[11px] text-rose-700">부품 조회 실패: {partsError} <button type="button" className="underline" onClick={() => setPartsVersion((v) => v + 1)}>다시</button></p>}
             <TreeRow
               depth={0}
               expandable
@@ -463,8 +463,8 @@ export function EngineExplorerPanel({
       {(drag || moveNotice) && (
         <div role="status" aria-live="polite" className={`shrink-0 border-b px-3 py-2 text-[11px] ${
           drag ? "border-dx-accent/40 bg-dx-accent/10 text-dx-text"
-            : moveNotice?.tone === "ok" ? "border-dx-line text-emerald-300"
-              : moveNotice?.tone === "bad" ? "border-dx-line text-rose-300" : "border-dx-line text-amber-200"
+            : moveNotice?.tone === "ok" ? "border-dx-line text-emerald-700"
+              : moveNotice?.tone === "bad" ? "border-dx-line text-rose-700" : "border-dx-line text-amber-700"
         }`}>
           {drag ? (
             <>
@@ -475,7 +475,7 @@ export function EngineExplorerPanel({
                 {drag.overPartId
                   ? drag.overPartId === drag.drawing.part_id
                     ? "같은 부품 (변경 없음)"
-                    : <b className="text-white">{partPath((parts ?? []).find((p) => p.part_id === drag.overPartId))}</b>
+                    : <b className="text-dx-strong">{partPath((parts ?? []).find((p) => p.part_id === drag.overPartId))}</b>
                   : "옮길 등록 부품 위에 놓으세요 (3D 부품 종류 위에 잠시 머물면 펼쳐집니다)"}
               </p>
             </>
@@ -503,7 +503,7 @@ export function EngineExplorerPanel({
       <section aria-label="선택 대상" className="flex min-h-0 flex-1 flex-col">
         <div className="shrink-0 px-3 pt-2.5">
           <p className="text-[11px] text-dx-faint">선택 대상</p>
-          <h2 className="truncate text-[15px] font-semibold text-white">
+          <h2 className="truncate text-[15px] font-semibold text-dx-strong">
             {selectedModelPart?.name ?? selectedPart?.name ?? engineTitle}
             {selectedModelPart && selectedPart && <span className="ml-1.5 text-xs font-normal text-dx-muted">› {selectedPart.name}</span>}
           </h2>
@@ -515,7 +515,7 @@ export function EngineExplorerPanel({
           {tab === "register" && <Tab id="register" current={tab} onSelect={setTab}>도면 등록</Tab>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto" role="tabpanel">
-          {actionError && <p role="alert" className="mx-3 mt-2 text-[11px] text-rose-300">{actionError}</p>}
+          {actionError && <p role="alert" className="mx-3 mt-2 text-[11px] text-rose-700">{actionError}</p>}
           {tab === "info" && (
             <InfoTab
               engineTitle={engineTitle}
@@ -639,7 +639,7 @@ function InfoTab({
           <dt className="text-dx-muted">등록 부품</dt><dd className="text-dx-text">{part.name}</dd>
           <dt className="text-dx-muted">등록일</dt><dd className="font-mono text-dx-text">{part.created_at}</dd>
           <dt className="text-dx-muted">도면</dt><dd className="font-mono text-dx-text">{part.drawing_count}</dd>
-          <dt className="text-dx-muted">3D 연결</dt><dd className="text-amber-200">연결 안 됨 — 3D 화면에서 강조할 수 없습니다.</dd>
+          <dt className="text-dx-muted">3D 연결</dt><dd className="text-amber-700">연결 안 됨 — 3D 화면에서 강조할 수 없습니다.</dd>
         </dl>
         {canManage ? (
           <div className="space-y-2 rounded border border-dx-line p-2.5">
@@ -765,7 +765,7 @@ function DrawingsTab({
         return (
           <section key={part.part_id} aria-label={`${part.name} 도면`} className="space-y-2">
             <header className="flex items-center gap-2">
-              <h3 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{part.name}</h3>
+              <h3 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-dx-strong">{part.name}</h3>
               {canManage && (
                 <button type="button" className="dx-btn" onClick={() => onRegister(part.part_id)}>
                   <Plus className="h-3.5 w-3.5" />도면 추가
@@ -775,7 +775,7 @@ function DrawingsTab({
             {!load || load.status === "loading" ? (
               <p role="status" className="flex items-center gap-1.5 text-dx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" />도면 불러오는 중…</p>
             ) : load.status === "error" ? (
-              <p role="alert" className="text-rose-300">{load.message}</p>
+              <p role="alert" className="text-rose-700">{load.message}</p>
             ) : load.drawings.length === 0 ? (
               <div className="rounded border border-dashed border-dx-line-strong px-3 py-4 text-center text-dx-muted">
                 <FileText aria-hidden="true" className="mx-auto mb-1.5 h-5 w-5 text-dx-faint" />

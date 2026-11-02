@@ -82,11 +82,11 @@ export function FlowCard({
 }
 
 const TONES = {
-  ok: "bg-emerald-400/10 text-emerald-300",
-  warn: "bg-amber-400/10 text-amber-300",
-  bad: "bg-rose-400/10 text-rose-300",
+  ok: "bg-emerald-100 text-emerald-800",
+  warn: "bg-amber-100 text-amber-800",
+  bad: "bg-rose-100 text-rose-800",
   muted: "bg-neutral-700 text-neutral-300",
-  info: "bg-cyan-400/10 text-cyan-300",
+  info: "bg-cyan-100 text-cyan-800",
 } as const;
 
 export function Tag({ tone, children }: { tone: keyof typeof TONES; children: ReactNode }) {

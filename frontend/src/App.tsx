@@ -683,16 +683,16 @@ export function App() {
 
   const toolbarStatus = demoMode ? (
     <>
-      <span className="tag bg-slate-700 text-slate-200">데모</span>
+      <span className="tag bg-dx-line text-dx-text">데모</span>
       <span className="truncate">샘플 도면 · 샘플 측정항목</span>
     </>
   ) : selectedDrawing ? (
     <>
       {document ? (
         documentReviewed ? (
-          <span className="tag bg-emerald-900/70 text-emerald-200">검토 완료</span>
+          <span className="tag bg-emerald-100 text-emerald-800">검토 완료</span>
         ) : (
-          <span className="tag bg-amber-900/70 text-amber-200">검토 전</span>
+          <span className="tag bg-amber-100 text-amber-800">검토 전</span>
         )
       ) : null}
       <span className="truncate">
@@ -707,12 +707,12 @@ export function App() {
     <span className="truncate">등록된 도면을 선택해주세요</span>
   );
 
-  const divider = <span aria-hidden="true" className="hidden h-4 w-px bg-slate-700 sm:block" />;
+  const divider = <span aria-hidden="true" className="hidden h-4 w-px bg-dx-line sm:block" />;
 
   const toolbarActions = (
     <>
       {isAdmin ? (
-        <span className="tag bg-cyan-900/70 text-cyan-100">통합 관리자</span>
+        <span className="tag bg-cyan-100 text-cyan-800">통합 관리자</span>
       ) : (
         <div role="group" aria-label="작업 페이지" className="seg-dark">
           {WORK_PURPOSES.map((entry) => (
@@ -1001,7 +1001,7 @@ export function App() {
     <div className="flex shrink-0 items-center gap-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-dx-faint">데모</p>
-        <p className="truncate text-[13px] font-semibold text-white">샘플 도면 · 샘플 측정항목</p>
+        <p className="truncate text-[13px] font-semibold text-dx-strong">샘플 도면 · 샘플 측정항목</p>
       </div>
       <button type="button" onClick={backTo3D} className="dx-btn"><Box aria-hidden="true" className="h-3.5 w-3.5" />3D로</button>
     </div>
@@ -1140,7 +1140,7 @@ export function App() {
           )}
           {stage === "workspace" && (
     <PanelLayoutContext.Provider value={{ side: "left", header: drawingContext }}>
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-dx-bg">
       <DrawingLibrary
         uploadRequest={uploadRequest}
         status={toolbarStatus}
@@ -1204,8 +1204,8 @@ export function App() {
       )}
 
       {showFileBar && (
-        <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-800 bg-slate-900 px-3 py-1 text-xs">
-          <span className="text-[11px] text-slate-400">
+        <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-dx-line bg-dx-panel px-3 py-1 text-xs">
+          <span className="text-[11px] text-dx-muted">
             {!documentReviewed
               ? "검수 결과 파일은 관리자 검토 완료 때 자동으로 만들어집니다."
               : loadingFiles
@@ -1237,7 +1237,7 @@ export function App() {
           ))}
 
           {fileError && (
-            <p role="alert" className="w-full text-[11px] text-rose-300">
+            <p role="alert" className="w-full text-[11px] text-rose-700">
               {fileError}
             </p>
           )}
@@ -1248,7 +1248,7 @@ export function App() {
         <section aria-label="도면 선택 안내" className="flex min-h-0 flex-1 items-center justify-center bg-dx-bg p-6 text-center">
           <div className="max-w-md rounded-xl border border-dx-line bg-dx-panel p-8">
             <ScanText aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-dx-accent" />
-            <h1 className="text-lg font-semibold text-white">작업할 부품과 도면을 선택하세요</h1>
+            <h1 className="text-lg font-semibold text-dx-strong">작업할 부품과 도면을 선택하세요</h1>
             <p className="mt-2 text-sm leading-relaxed text-dx-muted">선택한 도면의 측정항목과 작업 화면이 여기에 표시됩니다.</p>
             <button type="button" onClick={() => navigate("library")} className="dx-btn dx-btn-primary mt-6">도면 선택</button>
           </div>
