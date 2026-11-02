@@ -35,7 +35,7 @@ function lookup(table: Array<[number, number | null, number]>, nominal: number) 
   return null;
 }
 
-export type DimensionKind = "LINEAR_DIMENSION" | "DIAMETER" | "CHAMFER_SIZE" | "RADIUS" | "THREAD_SPEC";
+export type DimensionKind = "LINEAR_DIMENSION" | "DIAMETER" | "CHAMFER_SIZE" | "RADIUS" | "THREAD_SPEC" | "SURFACE_ROUGHNESS";
 
 export function generalDeviation(kind: DimensionKind | null, nominal: number | null): number | null {
   if (nominal === null || !Number.isFinite(nominal)) return null;
@@ -45,10 +45,15 @@ export function generalDeviation(kind: DimensionKind | null, nominal: number | n
 }
 
 const NUM = String.raw`\d+(?:\.\d+)?`;
-const SIGNED = String.raw`[+-]\d+(?:\.\d+)?`;
 const THREAD_RE = new RegExp(String.raw`^M\s*(${NUM})(?:\s*[x×]\s*(${NUM}))?$`);
+// 표면 거칠기: Ra 0.8 (OCR이 앞자리 0을 뺀 .8 포함). 백엔드 ocr_metadata.parse_dimension 과 같은 규칙.
+const ROUGHNESS_RE = new RegExp(String.raw`^Ra\s*(\d+(?:\.\d+)?|\.\d+)$`);
+// 공차 한쪽 값: 부호 있는 숫자(OCR이 앞자리 0을 뺀 +.08 포함) 또는 부호 없는 0.
+// 부호 없는 0 이 아닌 값(0.07)은 상·하한 구분이 불가능해 읽지 않는다. (백엔드 ocr_metadata.DEVIATION 과 같은 규칙)
+const DEV = String.raw`(?:[+-](?:\d+(?:\.\d+)?|\.\d+)|0(?:\.0+)?)`;
+// 공차 표기: ±0.05 / +0.02/-0.01 / (+0.08/0) 괄호
 const PLAIN_RE = new RegExp(
-  String.raw`^([⌀Øø]|R|C)?\s*(${NUM})(?:\s*±\s*(${NUM})|\s*(${SIGNED})\s*/\s*(${SIGNED}))?$`,
+  String.raw`^([⌀Øø]|R|C)?\s*(${NUM})(?:\s*±\s*(${NUM})|\s*\(\s*(${DEV})\s*/\s*(${DEV})\s*\)|\s*(${DEV})\s*/\s*(${DEV}))?$`,
 );
 
 export interface ParsedDimension {
@@ -59,6 +64,8 @@ export interface ParsedDimension {
   drawing: { upper: number; lower: number } | null;
   /** 개별 공차가 없을 때 적용할 일반공차 ± (적용 불가면 null) */
   general: number | null;
+  /** 표면 거칠기 Ra 값 (µm). 표면 거칠기 표기일 때만 */
+  roughness?: number;
 }
 
 export function parseDimension(text: string): ParsedDimension {
@@ -66,6 +73,10 @@ export function parseDimension(text: string): ParsedDimension {
   const thread = value.match(THREAD_RE);
   if (thread) {
     return { valid: true, kind: "THREAD_SPEC", nominal: Number(thread[1]), drawing: null, general: null };
+  }
+  const rough = value.match(ROUGHNESS_RE);
+  if (rough) {
+    return { valid: true, kind: "SURFACE_ROUGHNESS", nominal: null, drawing: null, general: null, roughness: Number(rough[1]) };
   }
   const match = value.match(PLAIN_RE);
   if (!match) return { valid: false, kind: null, nominal: null, drawing: null, general: null };
@@ -82,9 +93,10 @@ export function parseDimension(text: string): ParsedDimension {
   let drawing: ParsedDimension["drawing"] = null;
   if (match[3]) {
     drawing = { upper: Number(match[3]), lower: -Number(match[3]) };
-  } else if (match[4]) {
-    const a = Number(match[4]);
-    const b = Number(match[5]);
+  } else if (match[4] || match[6]) {
+    // 괄호 표기(4·5번 그룹)와 괄호 없는 표기(6·7번 그룹) 중 하나
+    const a = Number(match[4] ?? match[6]);
+    const b = Number(match[5] ?? match[7]);
     drawing = { upper: Math.max(a, b), lower: Math.min(a, b) };
   }
   return {
@@ -94,6 +106,19 @@ export function parseDimension(text: string): ParsedDimension {
     drawing,
     general: drawing ? null : generalDeviation(kind, nominal),
   };
+}
+
+/**
+ * 괄호 공차가 붙은 치수 표기를 기준치수와 공차로 나눈다: '⌀680(+.08/0)' → { base: '⌀680', upper: 0.08, lower: 0 }.
+ * 괄호 공차가 없거나(±, 괄호 없는 +x/-y 포함) 해석할 수 없으면 null. 원문은 바꾸지 않고 화면 초기값에만 쓴다.
+ */
+export function splitParenTolerance(text: string): { base: string; upper: number; lower: number } | null {
+  const value = text.trim();
+  const match = value.match(PLAIN_RE);
+  if (!match || !match[4]) return null;
+  const parsed = parseDimension(value);
+  if (!parsed.valid || !parsed.drawing) return null;
+  return { base: value.slice(0, value.indexOf("(")).trim(), upper: parsed.drawing.upper, lower: parsed.drawing.lower };
 }
 
 /**
@@ -122,7 +147,7 @@ export function normalizeGdtValueText(text: string): string {
   return normalized === match[2] && parseDecimal(match[2]) === null ? text : `${match[1]}${normalized.replace(/^\+/, "")}`;
 }
 
-export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, R5, C0.5, M16";
+export const DIMENSION_EXAMPLES = "26, ⌀12±0.01, 26 +0.02/-0.01, ⌀680(+0.08/0), R5, C0.5, M16, Ra 0.8";
 
 /** 기하공차 공차값: 숫자만 (0.01, 1). 쉼표·글자가 섞이면 무효. */
 /** 기하공차 값: 숫자, 또는 지름 공차역 표시가 붙은 숫자 (⌀0.2 — 위치도 등) */
@@ -147,6 +172,12 @@ export function formatNumber(value: number): string {
 
 export function formatRange(nominal: number, upper: number, lower: number, unit = "mm"): string {
   return `${formatNumber(nominal + lower)} ~ ${formatNumber(nominal + upper)} ${unit}`.trim();
+}
+
+/** 상·하한 편차 입력칸에 채울 부호 포함 문자열 (+0.08 / 0 / -0.16) */
+export function deviationText(value: number): string {
+  if (value === 0) return "0";
+  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value);
 }
 
 export function formatDeviationPair(upper: number, lower: number): string {

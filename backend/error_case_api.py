@@ -102,7 +102,7 @@ def validate_input(payload):
 
     allowed_features = {
         "UNKNOWN", "HOLE", "SHAFT", "PLANE", "SLOT",
-        "THREAD", "EDGE", "RADIUS", "CHAMFER",
+        "THREAD", "EDGE", "RADIUS", "CHAMFER", "SURFACE",
     }
 
     if data["feature_type"] not in allowed_features:

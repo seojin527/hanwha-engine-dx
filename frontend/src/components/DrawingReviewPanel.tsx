@@ -15,6 +15,7 @@ import {
   GENERAL_LABEL,
   droppedZeroCandidate,
   formatDeviationPair,
+  deviationText,
   formatNumber,
   formatRange,
   isValidGdtValue,
@@ -22,6 +23,7 @@ import {
   normalizeGdtValueText,
   parseDecimal,
   parseDimension,
+  splitParenTolerance,
   type ParsedDimension,
   type ToleranceSource,
 } from "../lib/inspection/tolerance";
@@ -114,6 +116,7 @@ function characteristicName(item: OcrItem) {
     RADIUS: "반지름",
     LINEAR_DIMENSION: "길이",
     GEOMETRIC_TOLERANCE: "기하공차",
+    SURFACE_ROUGHNESS: "표면 거칠기",
   };
   return names[item.measurement_characteristic ?? ""] ?? (item.category === "GDT" ? "기하공차" : "치수");
 }
@@ -253,15 +256,41 @@ export default function DrawingReviewPanel({
   // 저장된 관리자 설정(inspection_approved)은 기본값으로 덮어쓰지 않는다.
   useEffect(() => {
     const reviewed = source.result.review_status === "reviewed";
-    setDimensions(Object.fromEntries(source.review.dimensions.map((item) => [item.item_id, item.text])));
+    // 표제란 범례(R1 = Ra 0.8)로 거칠기로 읽은 항목은 확정 표기를 "Ra 0.8"로 시작한다. OCR 원문(R1)은 아래 "OCR 원문" 표시로 확인한다.
+    const roughnessByNo = new Map(
+      source.result.items
+        .filter((item) => item.category === "DIMENSION" && item.surface_roughness)
+        .map((item) => [itemNumber(item), item.surface_roughness as string]),
+    );
+    // 괄호 공차 ⌀680(+.08/0)는 확정 표기를 "⌀680"으로 시작하고, 공차는 특별 공차 칸에 미리 채운다 (OCR 원문은 화면의 "OCR 원문" 표시로 확인).
+    // 이미 승인된 항목은 저장된 표기를 그대로 보여준다.
+    const approvedNos = new Set(
+      source.result.items
+        .filter((item) => reviewed && item.inspection_approved === true)
+        .map((item) => itemNumber(item)),
+    );
+    const parenByNo = new Map<number, NonNullable<ReturnType<typeof splitParenTolerance>>>();
+    for (const dim of source.review.dimensions) {
+      if (roughnessByNo.has(dim.no) || approvedNos.has(dim.no)) continue;
+      const split = splitParenTolerance(dim.text);
+      if (split) parenByNo.set(dim.no, split);
+    }
+    setDimensions(
+      Object.fromEntries(
+        source.review.dimensions.map((item) => [
+          item.item_id,
+          roughnessByNo.get(item.no) ?? parenByNo.get(item.no)?.base ?? item.text,
+        ]),
+      ),
+    );
     setGdtValues(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.value])));
     setGdtSymbols(Object.fromEntries(source.review.gdt.map((row) => [row.item_id, row.symbol])));
 
     const nextDrafts: Record<string, Draft> = {};
     for (const item of source.result.items) {
       const approved = reviewed && item.inspection_approved === true;
-      const parsed = parseDimension(item.raw_text);
-      const isGauge = item.category === "GDT" || parsed.kind === "THREAD_SPEC";
+      const parsed = parseDimension(item.surface_roughness ?? item.raw_text);
+      const isGauge = item.category === "GDT" || parsed.kind === "THREAD_SPEC" || parsed.kind === "SURFACE_ROUGHNESS";
       const savedSource = item.tolerance_source?.toLowerCase() as ToleranceSource | undefined;
       const rowSymbols = source.review.gdt
         .filter((entry) => item.category === "GDT" && entry.entry_no === itemNumber(item))
@@ -290,7 +319,8 @@ export default function DrawingReviewPanel({
       const defaults: string[] = [];
       const { feature, isDefault } = defaultFeature(item, allowed, parsed.kind);
       if (isDefault) defaults.push("feature_type");
-      const toleranceSource = isGauge ? "" : defaultToleranceSource(parsed);
+      const paren = parenByNo.get(itemNumber(item));
+      const toleranceSource = isGauge ? "" : paren ? "special" : defaultToleranceSource(parsed);
       if (toleranceSource === "general") defaults.push("tolerance_source");
       // 해석은 됐지만 일반공차 표 범위 밖인 치수: 실측 판정 기준이 없으므로 합격·불합격 기록으로 기본 설정
       const gaugeFallback = !isGauge && parsed.valid && toleranceSource === "";
@@ -300,8 +330,8 @@ export default function DrawingReviewPanel({
         mode: isGauge || gaugeFallback ? "gauge" : "numeric",
         feature,
         toleranceSource,
-        upper: "",
-        lower: "",
+        upper: paren && !isGauge ? deviationText(paren.upper) : "",
+        lower: paren && !isGauge ? deviationText(paren.lower) : "",
         unit,
         instrument: savedInstrument || defaultInstrument(feature, rowSymbols),
         instrumentAuto: !savedInstrument,
@@ -428,6 +458,8 @@ export default function DrawingReviewPanel({
       } else if (parsed.valid) {
         if (parsed.kind === "THREAD_SPEC") {
           issues.push("나사는 합격·불합격 기록 방식(게이지)으로 지정해주세요.");
+        } else if (parsed.kind === "SURFACE_ROUGHNESS") {
+          issues.push("표면 거칠기는 합격·불합격 기록 방식으로 지정해주세요.");
         } else if (draft.toleranceSource === "") {
           issues.push(`허용 공차를 정해주세요. 도면에 개별 공차가 없고 ${GENERAL_LABEL} 표 범위 밖입니다 (특별 공차 또는 합격·불합격 기록).`);
         } else if (draft.toleranceSource === "drawing" && !parsed.drawing) {
@@ -573,8 +605,12 @@ export default function DrawingReviewPanel({
     const draft = drafts[item.id];
     if (parsed.valid) {
       syncFeature(item.id, allowedFeatures({ dimensionKind: parsed.kind }));
-      if (parsed.kind === "THREAD_SPEC" && draft?.mode === "numeric") {
+      if ((parsed.kind === "THREAD_SPEC" || parsed.kind === "SURFACE_ROUGHNESS") && draft?.mode === "numeric") {
         setDrafts((previous) => ({ ...previous, [item.id]: { ...previous[item.id], mode: "gauge" } }));
+      }
+      // 거칠기로 읽었던 항목을 R1 같은 반지름 표기로 되돌리면 실측값 방식으로 돌아간다.
+      if (parsed.kind !== "SURFACE_ROUGHNESS" && parsed.kind !== "THREAD_SPEC" && draft?.feature === "SURFACE") {
+        setDrafts((previous) => ({ ...previous, [item.id]: { ...previous[item.id], mode: "numeric" } }));
       }
     }
     if (parsed.valid && draft && draft.toleranceSource !== "special") {
@@ -1100,6 +1136,7 @@ function SelectedItem({
 }: SelectedProps) {
   const parsed = parseDimension(dimText);
   const isGdt = item.category === "GDT";
+  const isSurface = parsed.kind === "SURFACE_ROUGHNESS";
   const unit = draft?.unit || "mm";
 
   return (
@@ -1239,10 +1276,15 @@ function SelectedItem({
               )}
               {dimText !== dim.text && (
                 <p className="text-[11px] text-slate-500">
-                  OCR 원문: <span className="font-mono">{dim.text}</span>{" "}
-                  <button type="button" className="underline" onClick={() => onDimension(dim.text)}>
-                    되돌리기
-                  </button>
+                  OCR 원문: <span className="font-mono">{dim.text}</span>
+                </p>
+              )}
+              {isSurface && (
+                <p className="text-[11px] text-slate-600">
+                  표면 거칠기 <b>{dimText}</b> µm
+                  {item.roughness_symbol
+                    ? ` · 표제란 범례 ${item.roughness_symbol}로 읽음. 반지름이면 확정 표기를 ${item.roughness_symbol}로 고치세요.`
+                    : " · 도면에 적힌 Ra 표기"}
                 </p>
               )}
               {parsed.valid && parsed.nominal !== null && (
@@ -1275,7 +1317,7 @@ function SelectedItem({
               ["numeric", "실측값 입력 · 자동 판정"],
               ["gauge", "합격 / 불합격 기록"],
             ] as const).map(([mode, label]) => {
-              const disabled = mode === "numeric" && (isGdt || parsed.kind === "THREAD_SPEC");
+              const disabled = mode === "numeric" && (isGdt || parsed.kind === "THREAD_SPEC" || isSurface);
               return (
                 <button
                   key={mode}
@@ -1298,6 +1340,11 @@ function SelectedItem({
           {(isGdt || parsed.kind === "THREAD_SPEC") && (
             <p className="text-[10px] text-slate-500">
               {isGdt ? "기하공차" : "나사"}는 게이지·CMM 결과를 합격/불합격으로 기록합니다.
+            </p>
+          )}
+          {isSurface && (
+            <p className="text-[10px] text-slate-500">
+              표면 거칠기는 측정기 결과를 합격/불합격으로 기록합니다. 합격 기준은 도면을 보고 직접 입력해주세요.
             </p>
           )}
 
@@ -1355,7 +1402,10 @@ function SelectedItem({
                     name={`tolerance-${item.id}`}
                     disabled={!available}
                     checked={draft.toleranceSource === value}
-                    onChange={() => onDraft({ toleranceSource: value })}
+                    onChange={() =>
+                      // 특별 공차로 바꾸면 지금 보이는(도면에서 읽은) 편차에서 시작한다.
+                      onDraft(value === "special" ? { toleranceSource: value, ...shownDeviation(draft, parsed) } : { toleranceSource: value })
+                    }
                   />
                   <span className="font-semibold">{label}</span>
                   {value === "general" && draft.toleranceSource === "general" && draft.defaults.includes("tolerance_source") && (
@@ -1412,7 +1462,11 @@ function SelectedItem({
               <textarea
                 className={editClass}
                 rows={3}
-                placeholder="사용할 게이지 규격과 합격·불합격 조건을 입력하세요."
+                placeholder={
+                  isSurface
+                    ? "도면의 Ra 표기와 측정 조건을 확인해 합격·불합격 기준을 직접 입력하세요."
+                    : "사용할 게이지 규격과 합격·불합격 조건을 입력하세요."
+                }
                 value={criteria}
                 onChange={(event) => onDraft({ criteria: event.target.value, criteriaEdited: true })}
               />
@@ -1458,6 +1512,17 @@ function SelectedItem({
       )}
     </div>
   );
+}
+
+/** 상·하한 편차 입력칸에 보여줄 값: 도면 공차·일반공차면 읽은 값, 특별 공차면 입력한 값. */
+function shownDeviation(draft: Draft, parsed: ParsedDimension): { upper: string; lower: string } {
+  if (draft.toleranceSource === "drawing" && parsed.drawing) {
+    return { upper: deviationText(parsed.drawing.upper), lower: deviationText(parsed.drawing.lower) };
+  }
+  if (draft.toleranceSource === "general" && parsed.general !== null) {
+    return { upper: deviationText(parsed.general), lower: deviationText(-parsed.general) };
+  }
+  return { upper: draft.upper, lower: draft.lower };
 }
 
 function RangePreview({ parsed, draft, unit }: { parsed: ParsedDimension; draft: Draft; unit: string }) {
