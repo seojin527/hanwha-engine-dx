@@ -509,15 +509,22 @@
 }
 
 /*
- * 관리자 화면 테마: 주황.
+ * 관리자 화면 테마: 한화 오렌지(#F37321, 로고 사이트 기준값 - 공식 브랜드 가이드 값은 확인하지 못함).
  * 업무별 강조색과 같은 방식으로 강조색 변수와 cyan-* 단계를 바꾼다(관리자 화면은 data-role="admin").
+ * - 면(상단 바, 아이콘, 연한 배경): 브랜드 오렌지 그대로.
+ * - 흰 글씨 버튼과 글자색: 대비 4.5:1 이상이 되도록 한 단계 진한 오렌지(#c2570f).
  * 합격(emerald)·주의(amber)·불합격(rose) 상태색은 그대로다. 3D 뷰어 영역(.dx-viewer-dark)은 자체 강조색을 쓴다.
  */
 .dx-shell[data-role="admin"] {
   position: relative;
-  --color-dx-accent: #c2410c; --color-dx-accent-strong: #9a3412;
-  --color-cyan-50: #fff7ed; --color-cyan-100: #ffedd5; --color-cyan-200: #fed7aa; --color-cyan-400: #fb923c; --color-cyan-500: #f97316;
-  --color-cyan-600: #ea580c; --color-cyan-700: #c2410c; --color-cyan-800: #9a3412; --color-cyan-900: #7c2d12;
+  --color-dx-accent: #f37321; --color-dx-accent-strong: #c2570f;
+  --color-cyan-50: #fff4ec; --color-cyan-100: #ffe6d3; --color-cyan-200: #fccba8; --color-cyan-400: #f89b6c; --color-cyan-500: #f37321;
+  --color-cyan-600: #cf5a12; --color-cyan-700: #b94c0c; --color-cyan-800: #96400a; --color-cyan-900: #78330a;
 }
 .dx-shell[data-role="admin"]::before { content: ''; position: absolute; inset: 0 0 auto 0; z-index: 60; height: 3px; background: var(--color-dx-accent); pointer-events: none; }
 .dx-shell[data-role="admin"] .seg-dark .seg-item[aria-pressed="true"] { background: var(--color-dx-accent-strong); color: #fff; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+.dx-shell[data-role="admin"] .text-dx-accent:not(.dx-viewer-dark *) { color: var(--color-dx-accent-strong); }
+
+/* 기본 버튼 hover 가 청록(#0a5468)으로 고정돼 있어 업무·관리자 테마에서도 각 테마의 가장 진한 단계(cyan-900)를 쓰게 한다 */
+.dx-shell[data-role] .dx-btn-primary:hover,
+.dx-shell[data-purpose] .dx-btn-primary:hover { background-color: var(--color-cyan-900); border-color: var(--color-cyan-900); }
