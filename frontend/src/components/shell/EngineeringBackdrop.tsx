@@ -7,26 +7,16 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 
-export function EngineeringBackdrop({ strength = 1, shapes = true, tone = "light" }: {
-  strength?: number;
-  /** false 면 격자만 */
-  shapes?: boolean;
-  /** light: 밝은 바탕(로그인 등) · dark: 어두운 바탕(3D 뷰어) */
-  tone?: "light" | "dark";
-}) {
-  const dark = tone === "dark";
-  const line = dark ? `rgba(176, 198, 220, ${Math.min(0.32, 0.2 * strength)})` : `rgba(70, 100, 130, ${Math.min(0.30, 0.18 * strength)})`;
-  const faint = dark ? `rgba(176, 198, 220, ${Math.min(0.2, 0.11 * strength)})` : `rgba(70, 100, 130, ${Math.min(0.18, 0.1 * strength)})`;
-  const cyan = dark ? `rgba(34, 195, 220, ${Math.min(0.8, 0.6 * strength)})` : `rgba(14, 116, 144, ${Math.min(0.7, 0.5 * strength)})`;
-  const g1 = dark ? "150, 176, 204" : "60, 90, 120";
-  const g1a = dark ? 0.075 : 0.07;
-  const g2a = 0.035;
+export function EngineeringBackdrop({ strength = 1, shapes = true }: { strength?: number; /** false 면 격자만 */ shapes?: boolean }) {
+  const line = `rgba(70, 100, 130, ${Math.min(0.30, 0.18 * strength)})`;
+  const faint = `rgba(70, 100, 130, ${Math.min(0.18, 0.1 * strength)})`;
+  const cyan = `rgba(14, 116, 144, ${Math.min(0.7, 0.5 * strength)})`;
   const grid: CSSProperties = {
     backgroundImage: [
-      `linear-gradient(rgba(${g1}, ${g1a * strength}) 1px, transparent 1px)`,
-      `linear-gradient(90deg, rgba(${g1}, ${g1a * strength}) 1px, transparent 1px)`,
-      `linear-gradient(rgba(${g1}, ${g2a * strength}) 1px, transparent 1px)`,
-      `linear-gradient(90deg, rgba(${g1}, ${g2a * strength}) 1px, transparent 1px)`,
+      `linear-gradient(rgba(60, 90, 120, ${0.07 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(90deg, rgba(60, 90, 120, ${0.07 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(rgba(60, 90, 120, ${0.035 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(90deg, rgba(60, 90, 120, ${0.035 * strength}) 1px, transparent 1px)`,
     ].join(","),
     backgroundSize: "120px 120px, 120px 120px, 24px 24px, 24px 24px",
     backgroundPosition: "center center",
