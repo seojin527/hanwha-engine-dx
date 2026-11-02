@@ -507,3 +507,17 @@
   --color-dx-accent: #22c3dc; --color-dx-accent-strong: #0e9fb8;
   color: var(--color-dx-text);
 }
+
+/*
+ * 관리자 화면 테마: 주황.
+ * 업무별 강조색과 같은 방식으로 강조색 변수와 cyan-* 단계를 바꾼다(관리자 화면은 data-role="admin").
+ * 합격(emerald)·주의(amber)·불합격(rose) 상태색은 그대로다. 3D 뷰어 영역(.dx-viewer-dark)은 자체 강조색을 쓴다.
+ */
+.dx-shell[data-role="admin"] {
+  position: relative;
+  --color-dx-accent: #c2410c; --color-dx-accent-strong: #9a3412;
+  --color-cyan-50: #fff7ed; --color-cyan-100: #ffedd5; --color-cyan-200: #fed7aa; --color-cyan-400: #fb923c; --color-cyan-500: #f97316;
+  --color-cyan-600: #ea580c; --color-cyan-700: #c2410c; --color-cyan-800: #9a3412; --color-cyan-900: #7c2d12;
+}
+.dx-shell[data-role="admin"]::before { content: ''; position: absolute; inset: 0 0 auto 0; z-index: 60; height: 3px; background: var(--color-dx-accent); pointer-events: none; }
+.dx-shell[data-role="admin"] .seg-dark .seg-item[aria-pressed="true"] { background: var(--color-dx-accent-strong); color: #fff; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }

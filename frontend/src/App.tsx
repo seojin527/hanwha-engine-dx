@@ -1036,7 +1036,7 @@ export function App() {
 
   return (
     <UnsavedChangesProvider registry={unsavedRegistry}>
-    <div className="dx-shell flex h-screen w-screen overflow-hidden font-sans" data-purpose={shellView === "drawing" ? purpose : undefined}>
+    <div className="dx-shell flex h-screen w-screen overflow-hidden font-sans" data-purpose={!isAdmin && shellView === "drawing" ? purpose : undefined} data-role={isAdmin ? "admin" : undefined}>
       <ShellRail
         view={shellView}
         isAdmin={isAdmin}
