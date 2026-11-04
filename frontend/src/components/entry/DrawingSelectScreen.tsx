@@ -254,7 +254,8 @@ export function DrawingSelectScreen({
               )}
             </header>
 
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div className="flex min-h-0 flex-1 overflow-hidden" data-drawing-browser="side-by-side">
+            <div className="min-h-0 min-w-0 flex-1 overflow-auto">
               {!selectedPart ? (
                 <p className="p-8 text-center text-lg text-neutral-400">
                   {parts.status === "ready" && partList.length ? "왼쪽에서 부품을 선택해주세요." : ""}
@@ -345,11 +346,14 @@ export function DrawingSelectScreen({
               )}
             </div>
 
-            {selectedDrawing && (
-              <section aria-label="선택 도면 미리보기" className="max-h-[42vh] shrink-0 overflow-y-auto border-t border-dx-line bg-dx-panel p-3">
-                <DrawingPreview drawing={selectedDrawing} onStart={onStart} wide />
-              </section>
-            )}
+            <aside aria-label="선택 도면 미리보기" className="min-h-0 w-[320px] max-w-[35%] shrink-0 overflow-y-auto border-l border-dx-line bg-dx-panel p-3">
+              {selectedDrawing ? (
+                <DrawingPreview drawing={selectedDrawing} onStart={onStart} />
+              ) : (
+                <p className="py-8 text-center text-base text-dx-muted">도면을 선택하면 여기에서 미리 볼 수 있습니다.</p>
+              )}
+            </aside>
+            </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-700 bg-neutral-900/30 px-3 py-2">
               <p className="min-w-0 truncate text-lg text-neutral-300">
