@@ -1,5 +1,4 @@
-import { renderPdfPreview } from "../../lib/pdfPreview";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowRight, ExternalLink, FileText, Loader2 } from "lucide-react";
 import { drawingFileUrl, drawingThumbnailUrl, type Drawing } from "../../lib/drawingAPI";
 type Tone = "ok" | "warn" | "bad" | "info" | "muted";
@@ -61,43 +60,27 @@ export function DrawingThumb(props: { drawing: Drawing; size?: "sm" | "lg"; clas
 }
 
 function DrawingThumbImage({ drawing, size = "sm", className = "" }: { drawing: Drawing; size?: "sm" | "lg"; className?: string }) {
-  const [state, setState] = useState<"loading" | "ready" | "fallback" | "error">("loading");
-  const [fallbackUrl, setFallbackUrl] = useState("");
-  const [message, setMessage] = useState("");
-  useEffect(() => {
-    if (state !== "fallback") return;
-    let cancelled = false;
-    const url = drawingFileUrl(drawing);
-    const load = drawing.media_type === "application/pdf"
-      ? renderPdfPreview(url, size === "lg" ? 1400 : 360)
-      : fetch(url).then(response => {
-          if (!response.ok) throw new Error(response.status === 404 ? "원본 도면 파일을 찾을 수 없습니다. 업로드 폴더를 확인해주세요." : "원본 도면을 불러오지 못했습니다.");
-          return url;
-        });
-    load.then(src => { if (!cancelled) { setFallbackUrl(src); setState("loading"); } })
-      .catch(cause => { if (!cancelled) { setMessage(cause instanceof Error ? cause.message : "도면을 불러오지 못했습니다."); setState("error"); } });
-    return () => { cancelled = true; };
-  }, [state, drawing.drawing_id, size]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
   return (
     <span className={`relative flex items-center justify-center overflow-hidden bg-white/[0.04] ${className}`}>
-      {state !== "error" && state !== "fallback" && (
+      {state !== "error" && (
         <img
-          src={fallbackUrl || drawingThumbnailUrl(drawing, size)}
+          src={drawingThumbnailUrl(drawing, size)}
           alt=""
           loading="lazy"
           decoding="async"
           draggable={false}
           onLoad={() => setState("ready")}
-          onError={() => { if (fallbackUrl) { setMessage("원본 도면을 표시하지 못했습니다."); setState("error"); } else setState("fallback"); }}
+          onError={() => setState("error")}
           className={`h-full w-full bg-white object-contain transition-opacity ${state === "ready" ? "opacity-100" : "opacity-0"}`}
         />
       )}
-      {(state === "loading" || state === "fallback") && <Loader2 aria-hidden="true" className="absolute h-4 w-4 animate-spin text-dx-faint" />}
+      {state === "loading" && <Loader2 aria-hidden="true" className="absolute h-4 w-4 animate-spin text-dx-faint" />}
       {state === "error" && (
-        <span role="status" title={message} className="flex flex-col items-center gap-1 p-1 text-center text-[10px] text-dx-faint">
+        <span className="flex flex-col items-center gap-1 text-[10px] text-dx-faint">
           <FileText aria-hidden="true" className="h-5 w-5" />
-          {size === "lg" ? message : "도면 확인 필요"}
+          미리보기 없음
         </span>
       )}
     </span>
