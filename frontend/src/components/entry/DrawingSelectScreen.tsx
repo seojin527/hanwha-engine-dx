@@ -1,3 +1,4 @@
+import { DrawingPreview, DrawingThumb, StatusBadges } from "../drawings/DrawingParts";
 import { useEffect, useState, type ReactNode } from "react";
 import { Activity, ArrowRight, Database, FileText, Loader2, LogOut, PlayCircle, RotateCw, Ruler } from "lucide-react";
 import { fetchDrawings, fetchParts, type Drawing, type Part } from "../../lib/drawingAPI";
@@ -32,14 +33,6 @@ interface DrawingSelectScreenProps {
   /** ENGINE DX 셸 안에 넣을 때: 자체 머리글(이름·처음 화면)을 숨긴다. 셸의 상단 바가 같은 정보를 보여준다. */
   embedded?: boolean;
 }
-
-const OCR_STATUS_LABEL: Record<string, { label: string; className: string }> = {
-  not_started: { label: "OCR 미실행", className: "bg-neutral-700 text-neutral-300" },
-  queued: { label: "OCR 대기", className: "bg-neutral-700 text-neutral-200" },
-  running: { label: "OCR 진행 중", className: "bg-cyan-100 text-cyan-800" },
-  completed: { label: "OCR 완료", className: "bg-emerald-100 text-emerald-800" },
-  failed: { label: "OCR 실패", className: "bg-rose-100 text-rose-800" },
-};
 
 function formatSize(bytes: number) {
   if (!Number.isFinite(bytes)) return "—";
@@ -297,17 +290,13 @@ export function DrawingSelectScreen({
                       <th scope="col">도면</th>
                       <th scope="col" className="w-24">형식</th>
                       <th scope="col" className="w-28 text-right">크기</th>
-                      <th scope="col" className="w-32">OCR</th>
+                      <th scope="col" className="w-56">OCR · 관리자 검토</th>
                       <th scope="col" className="w-56 whitespace-nowrap">등록일</th>
                     </tr>
                   </thead>
                   <tbody>
                     {drawingList.map((drawing) => {
                       const active = drawing.drawing_id === drawingId;
-                      const ocr = OCR_STATUS_LABEL[drawing.ocr_status] ?? {
-                        label: drawing.ocr_status || "—",
-                        className: "bg-neutral-700 text-neutral-300",
-                      };
                       return (
                         <tr
                           key={drawing.drawing_id}
@@ -333,7 +322,7 @@ export function DrawingSelectScreen({
                         >
                           <td>
                             <span className="flex min-w-0 items-center gap-2">
-                              <FileText aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
+                              <DrawingThumb drawing={drawing} className="h-14 w-20 shrink-0 rounded border border-dx-line" />
                               <span className="min-w-0">
                                 <span className={`block truncate text-lg ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
                                   {drawing.original_filename || drawing.name}
@@ -345,7 +334,7 @@ export function DrawingSelectScreen({
                           <td className="text-neutral-300">{formatType(drawing.media_type)}</td>
                           <td className="text-right tabular-nums text-neutral-300">{formatSize(drawing.size_bytes)}</td>
                           <td>
-                            <span className={`tag px-2.5 py-1 text-sm ${ocr.className}`}>{ocr.label}</span>
+                            <StatusBadges drawing={drawing} />
                           </td>
                           <td className="whitespace-nowrap tabular-nums text-neutral-300">{drawing.created_at || "—"}</td>
                         </tr>
@@ -355,6 +344,12 @@ export function DrawingSelectScreen({
                 </table>
               )}
             </div>
+
+            {selectedDrawing && (
+              <section aria-label="선택 도면 미리보기" className="max-h-[42vh] shrink-0 overflow-y-auto border-t border-dx-line bg-dx-panel p-3">
+                <DrawingPreview drawing={selectedDrawing} onStart={onStart} wide />
+              </section>
+            )}
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-700 bg-neutral-900/30 px-3 py-2">
               <p className="min-w-0 truncate text-lg text-neutral-300">

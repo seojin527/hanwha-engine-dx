@@ -225,3 +225,8 @@ export async function fetchItemErrors(purpose: WorkPurpose, drawingId: string, i
     `${API_BASE}/api/purposes/${purpose}/drawings/${encodeURIComponent(drawingId)}/items/${encodeURIComponent(itemId)}/errors`, { signal }
   ));
 }
+
+/** 저장된 원본 첫 페이지 미리보기. OCR을 실행하지 않는다. */
+export function drawingThumbnailUrl(drawing: Pick<Drawing, "drawing_id">, size: "sm" | "lg" = "sm") {
+  return apiUrl(`/api/drawings/${encodeURIComponent(drawing.drawing_id)}/thumbnail?size=${size}`);
+}
