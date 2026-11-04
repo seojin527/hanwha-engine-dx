@@ -41,10 +41,11 @@ test('도면 선택은 미리보기만 변경하고 작업 시작은 명시적�
   } finally { await act(async () => root.unmount()); }
 });
 test('미리보기 실패 안내와 도면 변경 후 이미지 복구', async () => {
+  globalThis.fetch = async () => new Response('', { status: 404 });
   const root = createRoot(document.getElementById('root')!);
   await act(async () => root.render(<DrawingThumb drawing={drawings[0] as any} />));
   await act(async () => document.querySelector('img')!.dispatchEvent(new dom.window.Event('error')));
-  assert.match(document.body.textContent!, /미리보기 없음/);
+  assert.match(document.body.textContent!, /도면 확인 필요/);
   await act(async () => root.render(<DrawingThumb drawing={drawings[1] as any} />));
   assert.ok(document.querySelector('img'));
   assert.equal(document.body.textContent!.includes('미리보기 없음'), false);
