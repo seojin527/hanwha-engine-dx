@@ -711,9 +711,7 @@ export function App() {
 
   const toolbarActions = (
     <>
-      {isAdmin ? (
-        <span className="tag bg-cyan-100 text-cyan-800">통합 관리자</span>
-      ) : (
+      {isAdmin ? null : (
         <div role="group" aria-label="작업 페이지" className="seg-dark">
           {WORK_PURPOSES.map((entry) => (
             <button
@@ -1203,41 +1201,45 @@ export function App() {
         />
       )}
 
-      {showFileBar && (
-        <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-dx-line bg-dx-panel px-3 py-1 text-xs">
-          <span className="text-[11px] text-dx-muted">
-            {!documentReviewed
-              ? "검수 결과 파일은 관리자 검토 완료 때 자동으로 만들어집니다."
-              : loadingFiles
-                ? "검수 결과 파일 불러오는 중…"
-                : reviewFiles.length
-                  ? "검수 결과 파일"
-                  : ""}
-          </span>
-
-          {reviewFiles.map((file) => file.kind === "history_csv" ? (
-            <a
-              key={file.kind}
-              href={apiUrl(file.url)}
-              download
-              className="btn btn-dark h-6"
-            >
-              <Download aria-hidden="true" className="h-3 w-3" />
-              {file.label}
-            </a>
-          ) : (
-            <button
-              key={file.kind}
-              type="button"
-              onClick={() => setPreviewFile(file)}
-              className="btn btn-dark h-6"
-            >
-              {file.label}
-            </button>
-          ))}
+      {showFileBar && (reviewFiles.length > 0 || fileError) && (
+        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-dx-line bg-dx-panel px-3 py-1">
+          {reviewFiles.length > 0 && (
+            <details className="relative">
+              <summary className="btn btn-dark h-8 cursor-pointer list-none px-3 text-sm">
+                <Download aria-hidden="true" className="h-3.5 w-3.5" />
+                검수 결과 파일 ▾
+              </summary>
+              <div className="absolute right-0 top-full z-50 mt-1 flex min-w-[280px] flex-col gap-0.5 rounded border border-dx-line bg-dx-panel p-1 shadow-lg">
+                {reviewFiles.map((file) => file.kind === "history_csv" ? (
+                  <a
+                    key={file.kind}
+                    href={apiUrl(file.url)}
+                    download
+                    onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                    className="btn btn-dark-ghost h-9 justify-start px-3 text-sm"
+                  >
+                    <Download aria-hidden="true" className="h-3.5 w-3.5" />
+                    {file.label}
+                  </a>
+                ) : (
+                  <button
+                    key={file.kind}
+                    type="button"
+                    onClick={(event) => {
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                      setPreviewFile(file);
+                    }}
+                    className="btn btn-dark-ghost h-9 justify-start px-3 text-sm"
+                  >
+                    {file.label}
+                  </button>
+                ))}
+              </div>
+            </details>
+          )}
 
           {fileError && (
-            <p role="alert" className="w-full text-[11px] text-rose-700">
+            <p role="alert" className="text-xs text-rose-700">
               {fileError}
             </p>
           )}

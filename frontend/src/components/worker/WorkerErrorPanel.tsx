@@ -45,13 +45,13 @@ export function WorkerErrorPanel({ purpose, drawingId, revision, point, readOnly
       <p className="worker-case-current">{point.displayNumber}번 · {point.feature.name} <span>{point.source.raw_text.replace(/\n/g, " ")}</span></p>
       {typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' && <p className="worker-inspection-range">도면 허용 범위 <strong>{point.source.lower_limit} ~ {point.source.upper_limit} {point.source.unit || 'mm'}</strong></p>}
     </section>
-    <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
+    <div className="worker-case-heading flex items-center justify-between gap-2 text-xs text-slate-600">
       <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />오류 DB 참고 사례 {!loading && !state.error && `· ${errors.length}건`}</span>
       <button type="button" className="btn btn-secondary h-7" onClick={() => setRetry(v => v + 1)} disabled={loading} aria-label="오류 사례 다시 조회"><RefreshCw className="h-3 w-3" /></button>
     </div>
     {loading ? <p role="status" className="worker-empty">관련 오류·주의사항을 찾고 있습니다…</p>
       : state.error ? <p role="alert" className="note note-error">조회하지 못했습니다. {state.error}</p>
-      : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.<p className="mt-1 text-xs">사례가 없다고 안전함을 의미하지는 않습니다.</p></div>
+      : !errors.length ? <div className="worker-empty">조건에 맞는 등록 사례가 없습니다.</div>
       : <>
           <nav className={`worker-case-list ${errors.length === 1 ? "worker-single-case" : ""}`} aria-label="참고 사례 목록">
             {errors.map((error, index) => <button type="button" key={error.case_id}

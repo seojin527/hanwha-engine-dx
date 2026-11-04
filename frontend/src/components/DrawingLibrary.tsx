@@ -424,7 +424,7 @@ export function DrawingLibrary({
           aria-controls="drawing-library-controls"
           onClick={() => setLibraryOpen((previous) => !previous)}
           title="부품·도면 변경 및 등록"
-          className={`flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] ${
+          className={`dx-toolbar-select flex h-7 min-w-0 max-w-full items-center gap-2 rounded border px-2.5 text-left text-xs transition-colors sm:max-w-[420px] ${
             libraryOpen
               ? "border-dx-faint bg-dx-raised"
               : "border-dx-line-strong hover:border-dx-faint hover:bg-dx-raised"
@@ -446,10 +446,10 @@ export function DrawingLibrary({
           />
         </button>
 
-        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-dx-muted">{status}</div>}
+        {status && <div className="dx-toolbar-lg flex min-w-0 items-center gap-2 text-xs text-dx-muted">{status}</div>}
 
         {actions && (
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
+          <div className="dx-toolbar-lg ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
         )}
       </div>
 

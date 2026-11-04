@@ -310,7 +310,7 @@
 
 /* Worker detail hierarchy: keep entry and immediate guidance visible. */
 .worker-disclosure { margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-.worker-disclosure > summary { cursor: pointer; color: #475569; font-size: 12px; font-weight: 600; }
+.worker-disclosure > summary { cursor: pointer; padding: 4px 0; color: #334155; font-size: 15px; font-weight: 600; }
 .worker-disclosure[open] > summary { margin-bottom: 10px; }
 .worker-disclosure > .card { margin-top: 8px; }
 .worker-memo label { margin-top: 10px; }
@@ -452,7 +452,8 @@
 .worker-pane-heading { display: flex; align-items: center; gap: 10px; height: 60px; min-height: 60px; flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid #d4dde6; background: #f2f5f8; color: #24374a; }
 .worker-pane-heading .worker-pane-icon { display: inline-flex; flex: none; color: #63798d; }
 .worker-pane-heading > div { min-width: 0; }
-.worker-pane-heading h2 { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; }
+.worker-pane-heading h2 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 700; }
+.worker-pane-heading .worker-pane-icon svg { width: 24px; height: 24px; }
 .worker-pane-heading p { margin: 3px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; }
 .worker-pane-heading > button { margin-left: auto; }
 
@@ -520,3 +521,76 @@
 /* 관리자 화면 버튼 hover: 브랜드 오렌지보다 살짝 진하게 */
 .dx-shell[data-role="admin"] .dx-btn-primary:hover,
 .dx-shell[data-role="admin"] .btn-primary:hover { background-color: #dc6419; border-color: #dc6419; }
+
+/*
+ * 시연 영상용 가독성: 작업자 화면(부품제작·조립·검증)의 핵심 값(항목명·기준치수·허용 범위·입력·판정 버튼·오류사례 본문)을
+ * 크게 보이게 한다. 위의 같은 선택자 규칙보다 뒤에 둬서 우선한다.
+ */
+.worker-measurement header:not(.worker-pane-heading) h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
+.worker-measurement header p.break-all { font-size: 20px; }
+.worker-measurement header span.bg-slate-900 { font-size: 15px; padding: 2px 8px; }
+.worker-measurement header .btn-icon { width: 32px; height: 32px; }
+.worker-measurement header .min-w-\[44px\] { font-size: 14px; }
+.worker-measurement header span.rounded-sm { font-size: 13px; padding: 3px 8px; }
+.worker-range-summary > span:first-child { font-size: 14px; }
+.worker-range-summary > b { font-size: 26px; }
+.worker-nominal > span { font-size: 14px; }
+.worker-nominal strong { font-size: 30px; }
+@media (max-width: 1400px) { .worker-range-summary > b { font-size: 22px; } .worker-nominal strong { font-size: 26px; } }
+.worker-measurement input[inputmode="decimal"] { height: 56px; font-size: 22px; }
+.worker-measurement input[inputmode="decimal"]::placeholder { font-size: 15px; }
+:is(.worker-measurement, .worker-support) .field { min-height: 44px; font-size: 15px; }
+.worker-measurement .field-label { font-size: 14px; }
+.worker-measurement .btn-lg { min-height: 52px; font-size: 18px; }
+.worker-measurement .note { font-size: 14px; }
+.worker-center > section:last-child table { font-size: 14px; }
+.worker-center > section:last-child th { font-size: 13px; }
+.worker-support-context h2 { font-size: 18px; }
+.worker-inspection-range { font-size: 13px; }
+.worker-case-browser .worker-case-caption { font-size: 12px; }
+.worker-case-browser .worker-case-card h3 { font-size: 16px; }
+.worker-case-browser .worker-case-list-title { font-size: 14px; }
+.worker-case-browser .worker-case-field { font-size: 15px; }
+.worker-case-narrative .worker-guidance li p { font-size: 16px; line-height: 1.8; }
+.worker-guide-tabs button { min-height: 44px; font-size: 14px; }
+
+/* 관리자 검토 화면: 영상에서 읽히도록 입력·버튼·안내 글자를 키운다 */
+
+.admin-review .field-label { font-size: 14px; }
+.admin-review .field { min-height: 44px; font-size: 15px; }
+.admin-review .note { font-size: 14px; }
+.admin-review .btn-lg { min-height: 52px; font-size: 18px; }
+.admin-review ul[role="alert"] { font-size: 14px; }
+.admin-review header h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
+.admin-review header p.break-all { font-size: 20px; }
+
+/* 오른쪽 '측정 전 유의사항' 패널: 현재 검사 항목·오류 DB·오류 기록 글자 키움 */
+.worker-inspection-context .worker-kicker { font-size: 16px; font-weight: 600; color: #3f5064; }
+.worker-inspection-context .worker-case-current { font-size: 22px; padding: 6px 0; }
+.worker-inspection-context .worker-case-current span { font-size: 20px; }
+.worker-inspection-range { font-size: 17px; }
+.worker-inspection-range strong { font-size: 20px; font-weight: 700; }
+.worker-case-heading { font-size: 18px; font-weight: 600; color: #334155; }
+.worker-case-heading svg { width: 20px; height: 20px; }
+.worker-case-browser .worker-case-caption { font-size: 16px; padding: 10px 0 16px; }
+.worker-case-registration .card-header h3 { font-size: 19px; font-weight: 700; }
+.worker-case-registration .card-header h3 span { font-size: 16px; }
+.worker-case-registration .card-header .tag { font-size: 15px; padding: 4px 10px; }
+.worker-case-registration .card-header .btn { height: 38px; font-size: 16px; padding: 0 14px; }
+.worker-case-registration article { font-size: 16px; }
+.worker-case-registration article h4 { font-size: 17px; }
+.worker-case-registration .divide-y > p { font-size: 16px; line-height: 1.7; }
+.worker-case-browser .worker-case-registration .card-body p { font-size: 15px; }
+.worker-case-registration .note { font-size: 15px; }
+.worker-empty { font-size: 16px; }
+
+/* 도면 선택 줄(도면 드롭다운·상태·작업 탭·수정 이력·3D에서 보기·데모 화면) 크게 */
+.dx-toolbar-select { height: 46px; max-width: 620px; padding: 0 16px; font-size: 18px; font-weight: 600; }
+.dx-toolbar-select svg { width: 22px; height: 22px; }
+.dx-toolbar-lg { font-size: 17px; }
+.dx-toolbar-lg .tag { font-size: 16px; padding: 5px 11px; }
+.dx-toolbar-lg .btn { height: 46px; padding: 0 18px; font-size: 17px; gap: 8px; }
+.dx-toolbar-lg .btn svg { width: 20px; height: 20px; }
+.dx-toolbar-lg .seg-dark { padding: 3px; }
+.dx-toolbar-lg .seg-item { height: 42px; padding: 0 18px; font-size: 17px; }
+.dx-toolbar-lg .seg-item > span { font-size: 13px; margin-left: 6px; }

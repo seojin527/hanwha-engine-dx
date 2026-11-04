@@ -399,7 +399,6 @@ export function EngineExplorerPanel({
         <button type="button" onClick={() => setTreeOpen((v) => !v)} aria-expanded={treeOpen} className="flex h-9 shrink-0 items-center gap-1.5 px-3 text-left">
           {treeOpen ? <ChevronDown className="h-3.5 w-3.5 text-dx-faint" /> : <ChevronRight className="h-3.5 w-3.5 text-dx-faint" />}
           <span className="dx-section-title">탐색</span>
-          <span className="ml-auto text-[11px] text-dx-faint">{parts ? `등록 부품 ${parts.length}` : ""}</span>
         </button>
         {treeOpen && (
           <div ref={treeRef} role="tree" aria-label="엔진 · 부품 · 도면" className="min-h-0 overflow-y-auto px-2 pb-2">
@@ -617,12 +616,10 @@ function InfoTab({
         <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5">
           <dt className="text-dx-muted">엔진</dt>
           <dd className="text-dx-text">{engineTitle}</dd>
-          {model?.pn && (<><dt className="text-dx-muted">조립품 번호</dt><dd className="font-mono text-dx-text">{model.pn}</dd></>)}
           <dt className="text-dx-muted">3D 부품 종류</dt>
           <dd className="font-mono text-dx-text">{modelParts.length}</dd>
           <dt className="text-dx-muted">등록 부품</dt>
           <dd className="text-dx-text"><span className="font-mono">{parts.length}</span> (3D 연결 {linkedCount} · 미연결 {parts.length - linkedCount})</dd>
-          {model?.source && (<><dt className="text-dx-muted">3D 모델</dt><dd className="text-dx-muted">{model.source}</dd></>)}
         </dl>
         <p className="rounded border border-dx-line bg-dx-raised px-2.5 py-2 text-dx-muted">
           3D 화면에서 부품을 클릭하거나 위 트리에서 부품을 고르면 연결된 도면을 볼 수 있습니다.
@@ -813,7 +810,6 @@ function DrawingsTab({
                           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-dx-muted">
                             <span className="font-mono">{drawing.created_at?.slice(0, 16)}</span>
                             <span>{OCR_LABEL[drawing.ocr_status] ?? drawing.ocr_status}</span>
-                            {drawing.ocr_revision && <span className="font-mono" title="OCR 결과 버전 (도면 개정 번호가 아님)">OCR v.{drawing.ocr_revision.slice(0, 6)}</span>}
                             <StatusText tone={review.tone}>{review.text}</StatusText>
                           </span>
                         </button>

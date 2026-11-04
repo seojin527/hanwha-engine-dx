@@ -5,7 +5,7 @@
 import type { ReactNode } from "react";
 import { Activity, Box, ChevronRight, Database, FileStack, LogOut, PenTool, Ruler, Search } from "lucide-react";
 import type { Drawing } from "../../lib/drawingAPI";
-import { StatusText, reviewLabel } from "./EngineExplorerPanel";
+import { reviewLabel } from "./EngineExplorerPanel";
 
 export type ShellView = "engine" | "drawing" | "library" | "progress" | "errors";
 
@@ -137,7 +137,6 @@ export function DrawingContextHeader({
   onBackTo3D: () => void;
   extra?: ReactNode;
 }) {
-  const review = reviewed ? { text: "검토 완료", tone: "ok" as const } : reviewLabel({ review_status: revision ? "pending" : null, ocr_status: drawing.ocr_status });
   if (compact) return <div className="worker-drawing-context">
     <span className="truncate" title={partName}>{partName}</span>
     <button type="button" onClick={onBackTo3D} className="dx-btn"><Box aria-hidden="true" className="h-3.5 w-3.5" />3D 보기</button>
@@ -146,15 +145,7 @@ export function DrawingContextHeader({
     <div className="shrink-0 space-y-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] text-dx-faint">
-            {enginePartName ? `${enginePartName} › ` : "3D 미연결 › "}
-            {partName}
-          </p>
-          <p className="truncate text-[13px] font-semibold text-dx-strong">{drawing.original_filename || drawing.name}</p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-dx-muted">
-            {revision ? <span className="font-mono" title="OCR 결과 버전 (도면 개정 번호가 아님)">OCR v.{revision.slice(0, 6)}</span> : <span>OCR 결과 없음</span>}
-            <StatusText tone={review.tone}>{review.text}</StatusText>
-          </p>
+          <p className="truncate text-[16px] font-semibold text-dx-strong">{drawing.original_filename || drawing.name}</p>
         </div>
         <button type="button" onClick={onBackTo3D} className="dx-btn shrink-0">
           <Box aria-hidden="true" className="h-3.5 w-3.5" />

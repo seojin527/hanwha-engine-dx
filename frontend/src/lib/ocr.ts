@@ -93,7 +93,7 @@ export function toleranceText(item: OcrItem): string {
       basis = `${fmt(item.nominal_value)} ${dev} → `;
     }
     const source = item.tolerance_source
-      ? `${SOURCE_LABEL[item.tolerance_source]}${item.tolerance_basis === 'project_default' ? ' · 프로젝트 기본 정책, 도면 표기 아님' : ''}`
+      ? `${SOURCE_LABEL[item.tolerance_source]}${item.tolerance_basis === 'project_default' ? ' · 기본 정책' : ''}`
       : '';
     return `${basis}${range}${source ? ` (${source})` : ''}`;
   }

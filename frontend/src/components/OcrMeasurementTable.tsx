@@ -44,9 +44,9 @@ export function OcrMeasurementTable({
     : 0;
   return (
     <section className={`${collapsed ? "" : compact ? "h-[200px] max-h-[32%] min-h-[120px]" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white ${compact ? "worker-compact-table" : ""}`}>
-      <div className="flex h-8 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
-        <h3 className="min-w-0 truncate text-xs font-semibold text-slate-900">{title} 측정항목</h3>
-        <span className="shrink-0 text-[11px] text-slate-500">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
+        <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900">{title} 측정항목</h3>
+        <span className="shrink-0 text-base text-slate-500">
           {reviewed ? <>완료 <b className="font-mono font-medium text-slate-700">{completed}</b> / {points.length}</> : <>추출 {points.length}건</>}
         </span>
         <button
@@ -54,10 +54,10 @@ export function OcrMeasurementTable({
           aria-expanded={!collapsed}
           aria-controls="ocr-measurement-body"
           onClick={() => setCollapsed((v) => !v)}
-          className="btn btn-ghost ml-auto h-6"
+          className="btn btn-ghost ml-auto h-9 px-3 text-base"
         >
           {collapsed ? '펼치기' : '접기'}
-          <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
         </button>
       </div>
       <div id="ocr-measurement-body" hidden={collapsed} className="min-h-0 flex-1 overflow-auto">

@@ -36,7 +36,7 @@ import {
   recommendedInstruments,
   threadCriteria,
 } from "../lib/inspection/instruments";
-import ItemHeader, { Chip, ProgressBar } from "./review/ItemHeader";
+import ItemHeader, { Chip } from "./review/ItemHeader";
 import InstrumentSelect from "./review/InstrumentSelect";
 import OcrCrop, { dimensionCropBox, gdtCropBox } from "./review/OcrCrop";
 
@@ -170,14 +170,6 @@ const DRAFT_FIELD: Partial<Record<keyof Draft, string>> = {
   criteria: "gauge_criteria",
 };
 
-function formatReviewedAt(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 export default function DrawingReviewPanel({
   source,
   selectedItemId,
@@ -240,15 +232,6 @@ export default function DrawingReviewPanel({
     }
     return map;
   }, [points, source.review.gdt]);
-
-  const reviewedInfo = useMemo(() => {
-    if (source.result.review_status !== "reviewed") return null;
-    const last = source.result.review_history?.[source.result.review_history.length - 1];
-    return {
-      reviewer: source.result.reviewer || last?.log.reviewer || "",
-      at: formatReviewedAt(last?.log.reviewed_at),
-    };
-  }, [source.result]);
 
   const generalEvidence = source.general_tolerance;
 
@@ -775,7 +758,7 @@ export default function DrawingReviewPanel({
   const blocked = selected && confirmBlocked?.itemId === selected.id ? selectedIssues : [];
 
   return (
-    <section className="flex min-h-full flex-col bg-slate-50 text-slate-900">
+    <section className="admin-review flex min-h-full flex-col bg-slate-50 text-slate-900">
       <div className="sticky top-0 z-10 shadow-sm">
         {selected && (
           <ItemHeader
@@ -799,30 +782,16 @@ export default function DrawingReviewPanel({
           />
         )}
         {/* 확인 동작: 스크롤 없이 「확인 후 다음」을 반복할 수 있게 상단에 고정 */}
-        {selected && (
+        {selected && !allConfirmed && (
           <div className="border-b border-slate-200 bg-white px-3 pb-2">
-            {allConfirmed ? (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs font-semibold text-emerald-700">✓ 전체 {points.length}개 항목 확인 완료</span>
-                <button type="button" disabled={saving || picking} onClick={() => void save()} className="btn btn-primary btn-lg">
-                  {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-[11px] text-slate-500">
-                  {confirmed[selected.id] ? "이 항목은 확인했습니다. 값을 바꾸면 다시 확인해야 합니다." : "값이 맞으면 확인하고 다음 미확인 항목으로 넘어갑니다."}
-                </span>
-                <button
-                  type="button"
-                  disabled={saving || picking}
-                  onClick={() => confirmAndNext(selected)}
-                  className="btn btn-primary btn-lg"
-                >
-                  {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              disabled={saving || picking}
+              onClick={() => confirmAndNext(selected)}
+              className="btn btn-primary btn-lg w-full"
+            >
+              {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
+            </button>
             {blocked.length > 0 && (
               <ul role="alert" className="note note-error mt-2 space-y-0.5 text-[11px]">
                 <li className="font-semibold">입력 오류가 있어 확인하지 않았습니다. 고친 뒤 다시 눌러주세요.</li>
@@ -831,35 +800,24 @@ export default function DrawingReviewPanel({
             )}
           </div>
         )}
-        <ProgressBar
-          label="확인"
-          done={confirmedCount}
-          total={points.length}
-          chips={
-            <>
-              {invalidItems.length > 0 && (
-                <Chip tone="error" onClick={() => selectItem(invalidItems[0].id)}>
-                  형식 오류 {invalidItems.length} → 이동
-                </Chip>
-              )}
-              {needsItems.length > 0 && (
-                <Chip tone="warn" onClick={() => selectItem(needsItems[0].id)}>
-                  설정 필요 {needsItems.length} → 이동
-                </Chip>
-              )}
-              {unconfirmedItems.length > 0 && (
-                <Chip tone="neutral" onClick={() => selectItem(unconfirmedItems[0].id)}>
-                  미확인 {unconfirmedItems.length} → 이동
-                </Chip>
-              )}
-            </>
-          }
-        />
-        {reviewedInfo && (
-          <p className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
-            저장된 검토 · {reviewedInfo.reviewer || "검토자 미기록"}
-            {reviewedInfo.at ? ` · ${reviewedInfo.at}` : ""} — 값이나 기준을 바꾼 항목은 다시 확인해야 합니다.
-          </p>
+        {(invalidItems.length > 0 || needsItems.length > 0 || unconfirmedItems.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 border-b border-slate-200 bg-slate-50 px-3 py-2">
+          {invalidItems.length > 0 && (
+            <Chip tone="error" onClick={() => selectItem(invalidItems[0].id)}>
+              형식 오류 {invalidItems.length} → 이동
+            </Chip>
+          )}
+          {needsItems.length > 0 && (
+            <Chip tone="warn" onClick={() => selectItem(needsItems[0].id)}>
+              설정 필요 {needsItems.length} → 이동
+            </Chip>
+          )}
+          {unconfirmedItems.length > 0 && (
+            <Chip tone="neutral" onClick={() => selectItem(unconfirmedItems[0].id)}>
+              미확인 {unconfirmedItems.length} → 이동
+            </Chip>
+          )}
+          </div>
         )}
       </div>
 
@@ -869,22 +827,6 @@ export default function DrawingReviewPanel({
             {warning}
           </p>
         ))}
-
-        <p className="note note-info">
-          {generalEvidence?.applies ? (
-            <>
-              개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
-            </>
-          ) : (
-            <>
-              개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
-              {generalEvidence?.found && (
-                <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
-              )}
-            </>
-          )}{" "}
-          측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
-        </p>
 
         {selected && (
           <SelectedItem
@@ -1094,11 +1036,7 @@ export default function DrawingReviewPanel({
             {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
           </button>
         </div>
-        <p className="text-[11px] text-slate-500">
-          {allConfirmed
-            ? `전체 ${points.length}개 항목을 확인했습니다. 저장해야 검토 완료가 되고 작업자에게 공개됩니다.`
-            : `모든 항목을 확인해야 저장할 수 있습니다 · 미확인 ${unconfirmedItems.length}개 (확인은 서버에 저장되지 않습니다)`}
-        </p>
+        {!allConfirmed && <p className="text-[13px] text-slate-600">{`모든 항목을 확인해야 저장할 수 있습니다 · 미확인 ${unconfirmedItems.length}개`}</p>}
       </footer>
     </section>
   );
@@ -1499,17 +1437,7 @@ function SelectedItem({
             <li key={issue}>• {issue}</li>
           ))}
         </ul>
-      ) : (
-        <p className="text-[11px] text-slate-500">
-          {confirmed
-            ? "확인한 항목입니다. 값·기준을 바꾸면 미확인으로 돌아갑니다."
-            : status === "default"
-              ? "인식값과 추천 규칙으로 채운 기본값입니다. 맞으면 위의 「확인 후 다음」을, 틀리면 고친 뒤 확인해주세요."
-              : status === "saved"
-                ? "이전에 저장한 관리자 설정입니다. 위의 「확인 후 다음」으로 확인해주세요."
-                : "수정한 내용을 위의 「확인 후 다음」으로 확인해주세요."}
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -139,7 +139,6 @@ export function DrawingSelectScreen({
           <Ruler className="h-3.5 w-3.5" />
         </span>
         <h1 className="-ml-2 whitespace-nowrap text-[13px] font-semibold tracking-tight">도면 측정 가이드</h1>
-        <span className="hidden text-[11px] text-slate-500 sm:inline">엔진 부품 품질검사</span>
         <div className="ml-auto flex items-center gap-2">
           <span className="max-w-[160px] truncate text-xs text-dx-text">{userLabel}</span>
           <span className="tag bg-dx-raised text-dx-text">시연</span>
@@ -159,7 +158,7 @@ export function DrawingSelectScreen({
               type="button"
               aria-current={view === key ? "page" : undefined}
               onClick={() => adminMenu.onChange(key)}
-              className={`-mb-px inline-flex h-9 items-center gap-1.5 border-b-2 px-1 text-xs font-medium ${
+              className={`-mb-px inline-flex h-11 items-center gap-1.5 border-b-2 px-1 text-base font-medium ${
                 view === key ? "border-cyan-400 text-dx-strong" : "border-transparent text-neutral-400 hover:text-neutral-100"
               }`}
             >
@@ -181,26 +180,25 @@ export function DrawingSelectScreen({
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:overflow-hidden lg:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
-            <p className="mt-0.5 text-xs text-neutral-400">부품을 고른 뒤 작업할 도면을 선택하고 「작업 시작」을 눌러주세요.</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
           </div>
-          <button type="button" onClick={onDemo} className="btn btn-ghost">
-            <PlayCircle aria-hidden="true" className="h-3.5 w-3.5" />
+          <button type="button" onClick={onDemo} className="btn btn-ghost h-11 px-4 text-lg">
+            <PlayCircle aria-hidden="true" className="h-5 w-5" />
             데모 도면으로 보기
           </button>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(220px,300px)_1fr]">
+        <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(260px,360px)_1fr]">
           {/* 부품 */}
           <section aria-labelledby="select-parts-title" className="card flex min-h-[200px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-parts-title" className="text-xs font-semibold text-dx-strong">부품</h3>
-              {parts.status === "ready" && <span className="text-[11px] text-neutral-400">{partList.length}개</span>}
+              <h3 id="select-parts-title" className="text-lg font-semibold text-dx-strong">부품</h3>
+              {parts.status === "ready" && <span className="text-base text-neutral-400">{partList.length}개</span>}
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {parts.status === "loading" ? (
-                <p role="status" className="flex items-center gap-2 p-3 text-xs text-neutral-400">
+                <p role="status" className="flex items-center gap-2 p-4 text-base text-neutral-400">
                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                   부품을 불러오는 중…
                 </p>
@@ -213,7 +211,7 @@ export function DrawingSelectScreen({
                   </button>
                 </div>
               ) : partList.length === 0 ? (
-                <div className="space-y-2 p-3 text-xs text-neutral-300">
+                <div className="space-y-2 p-4 text-base text-neutral-300">
                   <p>등록된 부품이 없습니다.</p>
                   {onRegister ? (
                     <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
@@ -233,7 +231,7 @@ export function DrawingSelectScreen({
                           type="button"
                           aria-current={active || undefined}
                           onClick={() => selectPart(part.part_id)}
-                          className={`flex w-full items-center gap-3 px-3 py-2 text-left text-xs ${
+                          className={`flex w-full items-center gap-3 px-4 py-3.5 text-left text-lg ${
                             active ? "bg-cyan-400/10 shadow-[inset_3px_0_0_var(--color-cyan-400)]" : "hover:bg-slate-900/5"
                           }`}
                         >
@@ -241,9 +239,8 @@ export function DrawingSelectScreen({
                             <span className={`block truncate ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
                               {part.name}
                             </span>
-                            <span className="mt-0.5 block text-[11px] text-neutral-400">등록 {part.created_at || "—"}</span>
                           </span>
-                          <span className="shrink-0 text-[11px] tabular-nums text-neutral-400">도면 {part.drawing_count}</span>
+                          <span className="shrink-0 text-base tabular-nums text-neutral-400">도면 {part.drawing_count}</span>
                         </button>
                       </li>
                     );
@@ -256,21 +253,21 @@ export function DrawingSelectScreen({
           {/* 도면 */}
           <section aria-labelledby="select-drawings-title" className="card flex min-h-[280px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-drawings-title" className="min-w-0 truncate text-xs font-semibold text-dx-strong">
+              <h3 id="select-drawings-title" className="min-w-0 truncate text-lg font-semibold text-dx-strong">
                 {selectedPart ? `${selectedPart.name} 도면` : "도면"}
               </h3>
               {selectedPart && drawingState.status === "ready" && (
-                <span className="text-[11px] text-neutral-400">{drawingList.length}개</span>
+                <span className="text-base text-neutral-400">{drawingList.length}개</span>
               )}
             </header>
 
             <div className="min-h-0 flex-1 overflow-auto">
               {!selectedPart ? (
-                <p className="p-6 text-center text-xs text-neutral-400">
+                <p className="p-8 text-center text-lg text-neutral-400">
                   {parts.status === "ready" && partList.length ? "왼쪽에서 부품을 선택해주세요." : ""}
                 </p>
               ) : drawingState.status === "loading" ? (
-                <p role="status" className="flex items-center gap-2 p-3 text-xs text-neutral-400">
+                <p role="status" className="flex items-center gap-2 p-4 text-base text-neutral-400">
                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                   도면을 불러오는 중…
                 </p>
@@ -283,7 +280,7 @@ export function DrawingSelectScreen({
                   </button>
                 </div>
               ) : drawingList.length === 0 ? (
-                <div className="space-y-2 p-3 text-xs text-neutral-300">
+                <div className="space-y-2 p-4 text-base text-neutral-300">
                   <p>이 부품에 등록된 도면이 없습니다.</p>
                   {onRegister ? (
                     <button type="button" onClick={() => onRegister(partId)} className="btn btn-secondary">
@@ -294,14 +291,14 @@ export function DrawingSelectScreen({
                   )}
                 </div>
               ) : (
-                <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-xs">
-                  <thead className="sticky top-0 z-10 bg-[#2e2e2e] text-[11px] text-neutral-400">
-                    <tr className="[&>th]:border-b [&>th]:border-neutral-700 [&>th]:px-3 [&>th]:py-1.5 [&>th]:font-medium">
+                <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-base">
+                  <thead className="sticky top-0 z-10 bg-[#2e2e2e] text-base text-neutral-400">
+                    <tr className="[&>th]:border-b [&>th]:border-neutral-700 [&>th]:px-4 [&>th]:py-2.5 [&>th]:font-medium">
                       <th scope="col">도면</th>
-                      <th scope="col" className="w-16">형식</th>
-                      <th scope="col" className="w-20 text-right">크기</th>
-                      <th scope="col" className="w-24">OCR</th>
-                      <th scope="col" className="w-40 whitespace-nowrap">등록일</th>
+                      <th scope="col" className="w-24">형식</th>
+                      <th scope="col" className="w-28 text-right">크기</th>
+                      <th scope="col" className="w-32">OCR</th>
+                      <th scope="col" className="w-56 whitespace-nowrap">등록일</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -328,7 +325,7 @@ export function DrawingSelectScreen({
                               else setDrawingId(drawing.drawing_id);
                             }
                           }}
-                          className={`cursor-pointer outline-none [&>td]:border-b [&>td]:border-neutral-700 [&>td]:px-3 [&>td]:py-2 focus-visible:[&>td]:bg-neutral-700 ${
+                          className={`cursor-pointer outline-none [&>td]:border-b [&>td]:border-neutral-700 [&>td]:px-4 [&>td]:py-3.5 focus-visible:[&>td]:bg-neutral-700 ${
                             active
                               ? "[&>td]:bg-cyan-400/10 [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-cyan-400)]"
                               : "hover:[&>td]:bg-slate-900/5"
@@ -336,19 +333,19 @@ export function DrawingSelectScreen({
                         >
                           <td>
                             <span className="flex min-w-0 items-center gap-2">
-                              <FileText aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+                              <FileText aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
                               <span className="min-w-0">
-                                <span className={`block truncate ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
+                                <span className={`block truncate text-lg ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>
                                   {drawing.original_filename || drawing.name}
                                 </span>
-                                <span className="block font-mono text-[11px] text-neutral-500">{drawing.drawing_id.slice(0, 8)}</span>
+                                <span className="block font-mono text-sm text-neutral-500">{drawing.drawing_id.slice(0, 8)}</span>
                               </span>
                             </span>
                           </td>
                           <td className="text-neutral-300">{formatType(drawing.media_type)}</td>
                           <td className="text-right tabular-nums text-neutral-300">{formatSize(drawing.size_bytes)}</td>
                           <td>
-                            <span className={`tag ${ocr.className}`}>{ocr.label}</span>
+                            <span className={`tag px-2.5 py-1 text-sm ${ocr.className}`}>{ocr.label}</span>
                           </td>
                           <td className="whitespace-nowrap tabular-nums text-neutral-300">{drawing.created_at || "—"}</td>
                         </tr>
@@ -360,7 +357,7 @@ export function DrawingSelectScreen({
             </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-700 bg-neutral-900/30 px-3 py-2">
-              <p className="min-w-0 truncate text-xs text-neutral-300">
+              <p className="min-w-0 truncate text-lg text-neutral-300">
                 {selectedDrawing ? (
                   <>
                     선택: <b className="font-semibold text-dx-strong">{selectedDrawing.original_filename || selectedDrawing.name}</b>

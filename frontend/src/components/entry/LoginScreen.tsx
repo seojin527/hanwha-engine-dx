@@ -109,7 +109,6 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               htmlFor="login-password"
               icon={<Lock className="h-4 w-4" />}
               disabled
-              hint="시연 환경에서는 입력하지 않습니다. 인증 서버가 연결되면 사용합니다."
             >
               {/* 시연용: 값을 받지 않도록 비활성화하고 name 도 두지 않는다. */}
               <input
@@ -128,7 +127,6 @@ export function LoginScreen({ onLogin, onDemo }: LoginScreenProps) {
               label="역할"
               htmlFor="login-role"
               icon={<Users className="h-4 w-4" />}
-              hint="작업자는 자기 업무만 입력하고 다른 업무는 조회만 합니다. 도면 등록과 OCR 검토는 관리자만 합니다."
             >
               <select
                 id="login-role"

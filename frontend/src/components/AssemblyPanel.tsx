@@ -131,7 +131,6 @@ function CriteriaCard({ item }: { item: OcrItem }) {
     <section aria-label="검사 기준" className="card text-xs">
       <header className="card-header">
         <h3 className="text-xs font-semibold text-slate-900">검사 기준</h3>
-        <span className="text-[11px] text-slate-500">관리자 지정 · 읽기 전용</span>
       </header>
       <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 p-3">
         <dt className="text-slate-500">측정 방식</dt>

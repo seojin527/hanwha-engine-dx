@@ -29,6 +29,8 @@ interface Props {
   record: MachiningRecord | null;
   /** 잠긴 단계면 이유 문구 */
   locked?: string;
+  /** 담당이 아닌 작업자가 조회만 하는 중 (안내 문구는 띄우지 않고 입력만 잠근다) */
+  readOnly?: boolean;
   zeroChecked: (instrument: string) => boolean;
   onZeroChecked: (instrument: string, checked: boolean) => void;
   save: (body: StageRecordBody) => Promise<MachiningRecord>;
@@ -41,7 +43,7 @@ interface Props {
  * - 범위 안이면 [합격], 밖이면 [불합격]만 눌린다. 서버도 같은 기준으로 다시 판정한다.
  */
 export default function StageEntry({
-  stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked,
+  stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked, readOnly = false,
   zeroChecked, onZeroChecked, save, onNextUnmeasured,
 }: Props) {
   const mode = criteria.mode;
@@ -121,9 +123,8 @@ export default function StageEntry({
         <h3 className="text-xs font-semibold text-slate-900">{stageName} 측정 입력</h3>
       </header>
       <div className="card-body">
-        {locked && <p role="status" className="note note-warn mb-3">{locked}</p>}
+        {locked && !readOnly && <p role="status" className="note note-warn mb-3">{locked}</p>}
         <fieldset disabled={saving || Boolean(locked)} className="space-y-3">
-          <p className="worker-entry-instruction">{mode === 'gauge' ? '단계 판정 기준과 측정기 영점을 확인한 뒤, 게이지 검사 결과를 선택하세요.' : '단계 목표·허용 범위와 측정기 영점을 확인하고, 측정한 실측값을 입력하세요.'}</p>
           {mode === "gauge" ? (
             <p className="note note-info whitespace-pre-wrap">
               <b className="mr-1 font-semibold">판정 기준</b>
@@ -219,22 +220,6 @@ export default function StageEntry({
               )}
             </>
           )}
-
-          <details className="worker-memo worker-disclosure">
-            <summary>측정 메모 추가</summary>
-            <label className="block space-y-1">
-            <span className="field-label">측정 메모</span>
-            <textarea
-              className="field"
-              rows={2}
-              value={note}
-              onChange={(event) => {
-                setNote(event.target.value);
-                changed();
-              }}
-            />
-          </label>
-          </details>
 
           {current?.confirmed ? <button type="button" className="btn btn-primary btn-lg w-full" disabled={!onNextUnmeasured} onClick={onNextUnmeasured}>{onNextUnmeasured ? '다음 미측정 항목 →' : '미측정 항목 없음'}</button> : <div className="worker-entry-actions grid grid-cols-2 gap-2">
             <button

@@ -66,9 +66,9 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
       <div className="worker-main flex min-h-0 min-w-0 flex-1">
         <PanelLayoutContext.Provider value={{ ...context, side: 'left' }}>
           <ResizablePanels initialWidth={360} storageScope="worker"
-            left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col"><PaneHeading icon={<ScanLine aria-hidden="true" size={17} />} title="도면·측정 위치" description="도면 번호를 눌러 항목 선택" />{left}</section>}
+            left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col"><PaneHeading icon={<ScanLine aria-hidden="true" size={17} />} title="도면·측정 위치" />{left}</section>}
             right={<div className="worker-measurement min-h-full">
-              <PaneHeading icon={<Ruler aria-hidden="true" size={17} />} title="측정·판정" description="실측값 입력과 결과 저장" />
+              <PaneHeading icon={<Ruler aria-hidden="true" size={17} />} title="측정·판정" />
               {right}
             </div>}
           />
@@ -108,7 +108,7 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
         <BookOpen aria-hidden="true" className="h-4 w-4" />측정 전 유의사항
       </button>
       <aside ref={panel} id={panelId} aria-label="주의사항 및 오류 사례" className={`worker-support ${open ? 'is-open' : ''}`} style={{ '--worker-support-width': `${supportWidth}px` } as CSSProperties}>
-        <PaneHeading icon={<BookOpen aria-hidden="true" size={17} />} title="측정 전 유의사항" description="오류 DB의 참고 사례·예방 및 조치"
+        <PaneHeading icon={<BookOpen aria-hidden="true" size={17} />} title="측정 전 유의사항"
           action={<button ref={close} type="button" className="worker-support-close" aria-label="오류 사례 패널 닫기" onClick={() => { setOpen(false); toggle.current?.focus(); }}><X className="h-4 w-4" /></button>} />
         <div className="worker-support-content">{support}</div>
       </aside>
@@ -117,10 +117,10 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
   );
 }
 
-function PaneHeading({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
+function PaneHeading({ icon, title, description, action }: { icon: ReactNode; title: string; description?: string; action?: ReactNode }) {
   return <header className="worker-pane-heading">
     <span className="worker-pane-icon">{icon}</span>
-    <div><h2>{title}</h2><p>{description}</p></div>
+    <div><h2>{title}</h2>{description && <p>{description}</p>}</div>
     {action}
   </header>;
 }
