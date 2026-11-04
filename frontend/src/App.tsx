@@ -1017,10 +1017,10 @@ export function App() {
         startWorkspace(next);
       }}
       onBackTo3D={backTo3D}
-      extra={isAdmin && (
+      headerAction={isAdmin && (
         <button
           type="button"
-          className="dx-btn w-full"
+          className="dx-btn shrink-0"
           onClick={() => {
             if (!allParts.length) fetchParts().then((data) => setAllParts(data.parts)).catch(() => {});
             setMoveOpen(true);

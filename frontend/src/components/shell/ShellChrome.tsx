@@ -125,6 +125,7 @@ export function DrawingContextHeader({
   onSwitchDrawing,
   onBackTo3D,
   extra,
+  headerAction,
 }: {
   compact?: boolean;
   enginePartName: string | null;
@@ -136,6 +137,8 @@ export function DrawingContextHeader({
   onSwitchDrawing: (drawing: Drawing) => void;
   onBackTo3D: () => void;
   extra?: ReactNode;
+  /** 파일명 줄 오른쪽(3D로 버튼 앞)에 놓을 작은 버튼 (예: 소속 부품 변경) */
+  headerAction?: ReactNode;
 }) {
   if (compact) return <div className="worker-drawing-context">
     <span className="truncate" title={partName}>{partName}</span>
@@ -147,6 +150,7 @@ export function DrawingContextHeader({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[16px] font-semibold text-dx-strong">{drawing.original_filename || drawing.name}</p>
         </div>
+        {headerAction}
         <button type="button" onClick={onBackTo3D} className="dx-btn shrink-0">
           <Box aria-hidden="true" className="h-3.5 w-3.5" />
           3D로

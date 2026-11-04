@@ -40,7 +40,7 @@ export function AdminPage(props: AdminPageProps) {
   );
 
   return (
-    <ResizablePanels left={<>
+    <ResizablePanels initialWidth={820} storageScope="admin" left={<>
       {reviewing && pickingPosition && (
         <PositionPickBanner onCancel={onCancelPositionPick} />
       )}

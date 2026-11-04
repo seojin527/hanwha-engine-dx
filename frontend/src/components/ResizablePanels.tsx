@@ -8,7 +8,7 @@ export const PanelLayoutContext = createContext<{ side: 'left' | 'right'; header
 
 const STORAGE_KEY = 'drawing-workspace-panel-width-v1';
 export function panelBounds(width: number) {
-  const max = Math.max(120, Math.min(680, width * 0.65, width - 220));
+  const max = Math.max(120, Math.min(900, width * 0.65, width - 220));
   return {min: Math.min(260, max), max};
 }
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -21,7 +21,7 @@ export function ResizablePanels({left, right, initialWidth, storageScope = ''}: 
   const container = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [requested, setRequested] = useState(() => {
-    try {const saved = Number(localStorage.getItem(storageKey)); if (saved >= 120 && saved <= 680) return saved;} catch {}
+    try {const saved = Number(localStorage.getItem(storageKey)); if (saved >= 120 && saved <= 900) return saved;} catch {}
     return defaultWidth;
   });
   const [dragging, setDragging] = useState(false);

@@ -594,3 +594,12 @@
 .dx-toolbar-lg .seg-dark { padding: 3px; }
 .dx-toolbar-lg .seg-item { height: 42px; padding: 0 18px; font-size: 17px; }
 .dx-toolbar-lg .seg-item > span { font-size: 13px; margin-left: 6px; }
+
+/* 관리자 검토: 패널이 넓으면 '치수 확인'과 '작업자 검사 기준'을 가로로 나란히 (좁으면 세로) */
+.review-pair-wrap { container-type: inline-size; }
+.review-pair { display: grid; gap: 12px; align-items: start; }
+.review-pair > * { min-width: 0; }
+@container (min-width: 680px) {
+  .review-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .review-pair > .review-pair-wide { grid-column: 1 / -1; }
+}

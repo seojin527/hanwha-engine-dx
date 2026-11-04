@@ -1078,7 +1078,8 @@ function SelectedItem({
   const unit = draft?.unit || "mm";
 
   return (
-    <div className="space-y-3">
+    <div className="review-pair-wrap">
+    <div className="review-pair">
       {/* ① OCR 값 확인 */}
       {isGdt ? (
         <div className={`${cardClass} ${rows.some((row) => !isValidGdtValue(gdtValue(row))) ? "border-rose-300 bg-rose-50/40" : ""}`}>
@@ -1432,12 +1433,13 @@ function SelectedItem({
 
       {/* ③ 저장 전 검증 결과 (항목별 확인 버튼은 없다. 저장할 때 전체를 한 번에 확정한다) */}
       {issues.length > 0 ? (
-        <ul className="note note-warn space-y-0.5 text-[11px]">
+        <ul className="note note-warn review-pair-wide space-y-0.5 text-[11px]">
           {issues.map((issue) => (
             <li key={issue}>• {issue}</li>
           ))}
         </ul>
       ) : null}
+    </div>
     </div>
   );
 }
