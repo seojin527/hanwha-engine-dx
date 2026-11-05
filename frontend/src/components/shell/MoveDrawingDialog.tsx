@@ -75,7 +75,7 @@ export function MoveDrawingDialog({
       className="fixed inset-0 m-auto w-[min(480px,92vw)] rounded-md border border-dx-line-strong bg-dx-panel p-0 text-dx-text shadow-2xl backdrop:bg-black/60"
     >
       <div className="space-y-3 p-4 text-xs">
-        <h2 id="move-drawing-title" className="text-[14px] font-semibold text-dx-strong">소속 부품 변경</h2>
+        <h2 id="move-drawing-title" className="text-[14px] font-semibold text-white">소속 부품 변경</h2>
         <p className="truncate text-dx-muted">도면: <b className="text-dx-text">{drawing.original_filename || drawing.name}</b></p>
 
         {!initialTarget && (
@@ -95,15 +95,15 @@ export function MoveDrawingDialog({
         <p className="flex flex-wrap items-center gap-1.5 rounded border border-dx-line bg-dx-raised px-2.5 py-2">
           <span className="text-dx-muted">{partPath(source)}</span>
           <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 text-dx-accent" />
-          <span className="font-medium text-dx-strong">{target ? partPath(target) : "—"}</span>
+          <span className="font-medium text-white">{target ? partPath(target) : "—"}</span>
         </p>
 
-        {samePart && <p role="status" className="text-amber-700">이미 이 부품에 속한 도면입니다. 변경하지 않습니다.</p>}
+        {samePart && <p role="status" className="text-amber-200">이미 이 부품에 속한 도면입니다. 변경하지 않습니다.</p>}
         {loading && <p role="status" className="flex items-center gap-1.5 text-dx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" />영향을 확인하는 중…</p>}
 
         {impact && (
           <div className="space-y-2">
-            <p className="flex items-start gap-1.5 text-emerald-700">
+            <p className="flex items-start gap-1.5 text-emerald-300">
               <CheckCircle2 aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
                 그대로 유지: OCR 결과·관리자 검토{impact.review_status === "reviewed" ? "(검토 완료)" : ""} · 측정 기록 {impact.kept.measurements}건 · 가공 단계 기록 {impact.kept.machining_records}건 · 오류사례 연결 {impact.kept.error_case_links}건.
@@ -121,7 +121,7 @@ export function MoveDrawingDialog({
           </div>
         )}
 
-        {error && <p role="alert" className="flex items-start gap-1.5 text-rose-700"><AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />{error}</p>}
+        {error && <p role="alert" className="flex items-start gap-1.5 text-rose-300"><AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />{error}</p>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" className="dx-btn" disabled={saving} onClick={onCancel}>취소</button>

@@ -39,8 +39,8 @@ export function ShellRail({
       className={compact ? "dx-rail-row flex shrink-0 items-center gap-0.5" : "flex w-14 shrink-0 flex-col items-center gap-1 border-r border-dx-line bg-dx-bg py-2"}
     >
       {!compact && (
-      <span aria-hidden="true" className="mb-2 flex h-9 w-9 items-center justify-center rounded bg-dx-accent-strong text-white">
-        <Ruler className="h-4 w-4" />
+        <span aria-hidden="true" className="mb-2 flex h-9 w-9 items-center justify-center rounded bg-dx-accent-strong text-white">
+          <Ruler className="h-4 w-4" />
         </span>
       )}
       {ITEMS.filter((item) => !item.adminOnly || isAdmin).map(({ view: key, label, icon: Icon }) => (
@@ -94,7 +94,7 @@ export function ShellTopBar({
           ) : (
             <p className="text-[11px] font-semibold tracking-tight text-dx-muted">ENGINE DX · {roleLabel}</p>
           )}
-          <p className="truncate text-[13px] font-semibold text-dx-strong">{current?.label}</p>
+          <p className="truncate text-[13px] font-semibold text-white">{current?.label}</p>
         </div>
         {nav}
       </header>
@@ -102,7 +102,7 @@ export function ShellTopBar({
   }
   return (
     <header className="flex h-12 shrink-0 items-center gap-4 border-b border-dx-line bg-dx-panel px-4">
-      <p className="shrink-0 text-[13px] font-semibold tracking-tight text-dx-strong">
+      <p className="shrink-0 text-[13px] font-semibold tracking-tight text-white">
         ENGINE DX <span className="ml-1 hidden font-normal text-dx-muted xl:inline">도면 측정 가이드</span>
       </p>
       <span aria-hidden="true" className="h-4 w-px bg-dx-line" />
@@ -111,11 +111,11 @@ export function ShellTopBar({
           <span key={index} className={`flex min-w-0 items-center gap-1 ${index === path.length - 1 ? "shrink-0 max-w-[45%]" : "max-w-[30%]"}`}>
             {index > 0 && <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 text-dx-faint" />}
             {entry.onClick ? (
-              <button type="button" onClick={entry.onClick} className="truncate rounded px-1 text-dx-muted hover:text-dx-strong focus-visible:outline-2 focus-visible:outline-dx-accent">
+              <button type="button" onClick={entry.onClick} className="truncate rounded px-1 text-dx-muted hover:text-white focus-visible:outline-2 focus-visible:outline-dx-accent">
                 {entry.label}
               </button>
             ) : (
-              <span className={`truncate px-1 ${index === path.length - 1 ? "font-medium text-dx-strong" : "text-dx-muted"}`}>{entry.label}</span>
+              <span className={`truncate px-1 ${index === path.length - 1 ? "font-medium text-white" : "text-dx-muted"}`}>{entry.label}</span>
             )}
           </span>
         ))}
@@ -135,7 +135,7 @@ export function ShellTopBar({
       <div className="flex shrink-0 items-center gap-2 text-xs">
         <span className="max-w-[160px] truncate text-dx-text">{userLabel}</span>
         <span className="rounded border border-dx-line-strong px-1.5 py-0.5 text-[11px] text-dx-muted">{roleLabel}</span>
-        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-800" title="서버 인증이 없는 시연용 로그인입니다">
+        <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] text-amber-200" title="서버 인증이 없는 시연용 로그인입니다">
           시연 로그인
         </span>
       </div>
@@ -174,7 +174,7 @@ export function DrawingContextHeader({
             {enginePartName ? `${enginePartName} › ` : "3D 미연결 › "}
             {partName}
           </p>
-          <p className="truncate text-[16px] font-semibold text-dx-strong">{drawing.original_filename || drawing.name}</p>
+          <p className="truncate text-[13px] font-semibold text-white">{drawing.original_filename || drawing.name}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-dx-muted">
             {revision ? <span className="font-mono" title="OCR 결과 버전 (도면 개정 번호가 아님)">OCR v.{revision.slice(0, 6)}</span> : <span>OCR 결과 없음</span>}
             <StatusText tone={review.tone}>{review.text}</StatusText>

@@ -307,7 +307,7 @@ function CaseDetailView({
   return (
     <>
       <header className="card-header">
-        <h3 className="min-w-0 truncate text-xs font-semibold text-dx-strong">{row.case_title}</h3>
+        <h3 className="min-w-0 truncate text-xs font-semibold text-white">{row.case_title}</h3>
         <span className="flex shrink-0 gap-1">{activeTag(row.active)}{vectorTag(row.vector_status)}</span>
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 text-xs">
@@ -502,7 +502,7 @@ function CaseForm({
       }}
     >
       <header className="card-header">
-        <h3 className="text-xs font-semibold text-dx-strong">{caseId ? "사례 수정" : `${schema.label} 사례 등록`}</h3>
+        <h3 className="text-xs font-semibold text-white">{caseId ? "사례 수정" : `${schema.label} 사례 등록`}</h3>
         {caseId && <span className="truncate font-mono text-[11px] text-neutral-400">{caseId}</span>}
       </header>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
@@ -513,7 +513,7 @@ function CaseForm({
           <label key={field.key} className="block space-y-1">
             <span className="field-label">
               {field.label}
-              {field.required && <span className="ml-0.5 text-rose-700">*</span>}
+              {field.required && <span className="ml-0.5 text-rose-300">*</span>}
               <span className="ml-1 font-mono text-[10px] text-neutral-500">{field.key}</span>
             </span>
             {field.key === "feature_type" ? (

@@ -16,7 +16,6 @@ import {
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 interface Props {
-  onNextUnmeasured?: () => void;
   stage: StageKey;
   criteria: StageCriteria;
   /** 도면 표기 (예: Ø400) — 지름이면 직경·반경 보정량을 함께 보여준다 */
@@ -29,8 +28,6 @@ interface Props {
   record: MachiningRecord | null;
   /** 잠긴 단계면 이유 문구 */
   locked?: string;
-  /** 담당이 아닌 작업자가 조회만 하는 중 (안내 문구는 띄우지 않고 입력만 잠근다) */
-  readOnly?: boolean;
   zeroChecked: (instrument: string) => boolean;
   onZeroChecked: (instrument: string, checked: boolean) => void;
   save: (body: StageRecordBody) => Promise<MachiningRecord>;
@@ -43,8 +40,8 @@ interface Props {
  * - 범위 안이면 [합격], 밖이면 [불합격]만 눌린다. 서버도 같은 기준으로 다시 판정한다.
  */
 export default function StageEntry({
-  stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked, readOnly = false,
-  zeroChecked, onZeroChecked, save, onNextUnmeasured,
+  stage, criteria, rawText, unit, defaultInstrument, featureType, gdtSymbols = [], record, locked,
+  zeroChecked, onZeroChecked, save,
 }: Props) {
   const mode = criteria.mode;
   const [value, setValue] = useState(record?.measured_value ?? "");
@@ -119,11 +116,11 @@ export default function StageEntry({
 
   return (
     <section aria-label={`${stageName} 측정 입력`} className="card">
-      <header className="sr-only">
+      <header className="card-header">
         <h3 className="text-xs font-semibold text-slate-900">{stageName} 측정 입력</h3>
       </header>
       <div className="card-body">
-        {locked && !readOnly && <p role="status" className="note note-warn mb-3">{locked}</p>}
+        {locked && <p role="status" className="note note-warn mb-3">{locked}</p>}
         <fieldset disabled={saving || Boolean(locked)} className="space-y-3">
           {mode === "gauge" ? (
             <p className="note note-info whitespace-pre-wrap">
@@ -131,7 +128,7 @@ export default function StageEntry({
               {criteria.text}
             </p>
           ) : hasRange ? (
-            <div className="worker-range-summary">
+            <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
               <span className="text-[11px] text-slate-500">
                 {criteria.role === "allowance" ? `${stageName} 목표 범위` : "허용 범위"}
               </span>
@@ -139,7 +136,7 @@ export default function StageEntry({
                 {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
               </b>
               {criteria.target !== null && (
-                <span className="worker-nominal"><span>단계 목표</span><strong>{formatNumber(criteria.target)} <small>{unit}</small></strong></span>
+                <span className="text-[11px] text-slate-500">목표 {formatNumber(criteria.target)}</span>
               )}
             </div>
           ) : (
@@ -233,7 +230,8 @@ export default function StageEntry({
               }}
             />
           </label>
-          <div className="worker-entry-actions grid grid-cols-2 gap-2">
+
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={!zeroOk || (mode === "numeric" && inRange !== true)}

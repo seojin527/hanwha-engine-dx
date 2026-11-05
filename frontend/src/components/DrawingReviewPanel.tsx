@@ -773,7 +773,7 @@ export default function DrawingReviewPanel({
   const blocked = selected && confirmBlocked?.itemId === selected.id ? selectedIssues : [];
 
   return (
-    <section className="admin-review flex min-h-full flex-col bg-slate-50 text-slate-900">
+    <section className="flex min-h-full flex-col bg-slate-50 text-slate-900">
       <div className="sticky top-0 z-10 shadow-sm">
         {selected && (
           <ItemHeader
@@ -815,7 +815,7 @@ export default function DrawingReviewPanel({
                   type="button"
                   disabled={saving || picking}
                   onClick={() => confirmAndNext(selected)}
-              className="btn btn-primary btn-lg w-full"
+                  className="btn btn-primary btn-lg"
                 >
                   {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
                 </button>
@@ -1145,7 +1145,7 @@ function SelectedItem({
   const unit = draft?.unit || "mm";
 
   return (
-    <div className="review-pair">
+    <div className="space-y-3">
       {/* ① OCR 값 확인 */}
       {isGdt ? (
         <div className={`${cardClass} ${rows.some((row) => !isValidGdtValue(gdtValue(row))) ? "border-rose-300 bg-rose-50/40" : ""}`}>
@@ -1482,7 +1482,7 @@ function SelectedItem({
 
       {/* ③ 저장 전 검증 결과 (항목별 확인 버튼은 없다. 저장할 때 전체를 한 번에 확정한다) */}
       {issues.length > 0 ? (
-        <ul className="note note-warn review-pair-wide space-y-0.5 text-[11px]">
+        <ul className="note note-warn space-y-0.5 text-[11px]">
           {issues.map((issue) => (
             <li key={issue}>• {issue}</li>
           ))}

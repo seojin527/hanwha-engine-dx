@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useCompactLayout } from '../hooks/useCompactLayout';
 import { ChevronDown } from 'lucide-react';
 import { toleranceText, type OcrPoint } from '../lib/ocr';
 import {
@@ -24,7 +25,6 @@ export function OcrMeasurementTable({
   title,
   records = {},
   reviewed = false,
-  compact = false,
 }: {
   points: OcrPoint[];
   selectedId: number;
@@ -32,9 +32,10 @@ export function OcrMeasurementTable({
   title: string;
   records?: Record<string, MeasurementRecord>;
   reviewed?: boolean;
-  compact?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // 휴대폰은 도면을 넓게 보도록 접어서 시작한다 (항목 상세는 작업 패널에서도 본다)
+  const compact = useCompactLayout();
+  const [collapsed, setCollapsed] = useState(compact);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   useEffect(() => {
     bodyRef.current?.querySelector(`[data-point="${selectedId}"]`)?.scrollIntoView({ block: 'nearest' });
@@ -43,10 +44,10 @@ export function OcrMeasurementTable({
     ? points.filter((point) => records[point.source.id]?.status === 'completed').length
     : 0;
   return (
-    <section className={`${collapsed ? "" : compact ? "h-[200px] max-h-[32%] min-h-[120px]" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white ${compact ? "worker-compact-table" : ""}`}>
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
-        <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900">{title} 측정항목</h3>
-        <span className="shrink-0 text-base text-slate-500">
+    <section className={`${collapsed ? "" : "h-[240px] max-h-[42%] min-h-[120px]"} flex shrink-0 flex-col border-t border-slate-300 bg-white`}>
+      <div className="flex h-8 shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 px-3">
+        <h3 className="min-w-0 truncate text-xs font-semibold text-slate-900">{title} 측정항목</h3>
+        <span className="shrink-0 text-[11px] text-slate-500">
           {reviewed ? <>완료 <b className="font-mono font-medium text-slate-700">{completed}</b> / {points.length}</> : <>추출 {points.length}건</>}
         </span>
         <button
@@ -54,10 +55,10 @@ export function OcrMeasurementTable({
           aria-expanded={!collapsed}
           aria-controls="ocr-measurement-body"
           onClick={() => setCollapsed((v) => !v)}
-          className="btn btn-ghost ml-auto h-9 px-3 text-base"
+          className="btn btn-ghost ml-auto h-6"
         >
           {collapsed ? '펼치기' : '접기'}
-          <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
         </button>
       </div>
       <div id="ocr-measurement-body" hidden={collapsed} className="min-h-0 flex-1 overflow-auto">
@@ -101,10 +102,7 @@ export function OcrMeasurementTable({
                   <td className={`px-3 py-1.5 ${selected ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>{point.feature.name}</td>
                   <td className="px-3 py-1.5 font-mono font-medium text-slate-900">{point.source.raw_text}</td>
                   <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{FEATURE_LABEL[point.source.feature_type ?? ''] ?? '미확정'}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-slate-700">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : compact && typeof point.source.lower_limit === 'number' && typeof point.source.upper_limit === 'number' ? <>
-                    <span className="whitespace-nowrap font-medium">{Number(point.source.lower_limit.toFixed(4))} ~ {Number(point.source.upper_limit.toFixed(4))} {point.source.unit ?? 'mm'}</span>
-                    {selected && <details key={point.source.id} className="worker-table-basis" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><summary>공차 근거</summary><p>{toleranceText(point.source)}</p></details>}
-                  </> : toleranceText(point.source)}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-slate-700">{point.source.inspection_approved && point.source.measurement_mode === 'gauge' ? '합격/불합격 기록' : toleranceText(point.source)}</td>
                 </tr>
               );
             })}

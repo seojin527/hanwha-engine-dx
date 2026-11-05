@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useDeployMode } from '../hooks/useDeployMode';
-import { Lock, Download } from 'lucide-react';
+import { AlertTriangle, Download, Lock } from 'lucide-react';
+import { PointErrorForm } from './PointErrorForm';
+import { useEffect, useRef, useState } from 'react';
+import type { ErrorCandidate } from '../lib/drawingAPI';
+import type { WorkPurpose } from '../lib/purpose';
 import { type OcrItem, type OcrPoint } from '../lib/ocr';
-import ItemHeader, { Chip } from './review/ItemHeader';
+import ItemHeader, { Chip, ProgressBar } from './review/ItemHeader';
 import { FEATURE_LABEL } from '../lib/inspection/instruments';
 import { TOLERANCE_SOURCE_LABEL, formatDeviationPair, formatNumber } from '../lib/inspection/tolerance';
 import StageEntry from './manufacturing/StageEntry';
 import {
   STAGE_KEYS,
   STAGE_NAME,
+  fetchStageErrors,
   saveStageRecord,
   stageReportUrl,
   type MachiningItem,
@@ -16,6 +19,8 @@ import {
   type StageKey,
 } from '../lib/machiningAPI';
 
+/** 이 패널의 오류사례 검색·등록은 manufacturing 저장소만 사용한다. */
+const PURPOSE: WorkPurpose = 'manufacturing';
 
 export interface ReviewInfo {
   reviewer: string;
@@ -29,8 +34,8 @@ const READ_ONLY_MESSAGE = '이 업무의 담당 작업자만 입력할 수 있�
 export const STAGE_DOT: Record<StageKey, string> = { '1': 'bg-orange-500', '2': 'bg-violet-600', '3': 'bg-indigo-600' };
 
 /**
- * 부품제작(가공 중 측정) 왼쪽 측정 패널.
- * 제품 번호 → 단계(황삭·중삭·정삭) → 이 단계에서 잴 항목의 기준·측정 입력. 오류 사례는 오른쪽에서 표시한다.
+ * 부품제작(가공 중 측정) 오른쪽 패널.
+ * 제품 번호 → 단계(황삭·중삭·정삭) → 이 단계에서 잴 항목의 기준·측정 입력·관련 오류사례.
  */
 export function ManufacturingPanel({
   drawingId,
@@ -40,7 +45,6 @@ export function ManufacturingPanel({
   total,
   labelTotal,
   onNavigate,
-  onNextUnmeasured,
   reviewInfo,
   machining,
   unit = 'mm',
@@ -55,7 +59,6 @@ export function ManufacturingPanel({
   /** 도면 전체 번호 개수 (머리글의 번호/전체 표시용) */
   labelTotal: number;
   onNavigate: (delta: number) => void;
-  onNextUnmeasured?: () => void;
   reviewInfo?: ReviewInfo | null;
   machining: MachiningState;
   unit?: string;
@@ -63,7 +66,27 @@ export function ManufacturingPanel({
   readOnly?: boolean;
 }) {
   const { plan, stage } = machining;
-  const key = `${drawingId}/${revision}/${machining.serial}/${stage}/${point?.source.id}`;
+  const itemId = point?.source.id;
+  const key = `${drawingId}/${revision}/${machining.serial}/${stage}/${itemId}`;
+  const [result, setResult] = useState<{ key: string; loading: boolean; errors: ErrorCandidate[]; error: string }>({ key: '', loading: true, errors: [], error: '' });
+  const [retry, setRetry] = useState(0);
+  const sequence = useRef(0);
+  useEffect(() => {
+    if (!itemId) return;
+    const controller = new AbortController();
+    const token = ++sequence.current;
+    setResult({ key, loading: true, errors: [], error: '' });
+    fetchStageErrors(drawingId, itemId, stage, controller.signal).then((response) => {
+      if (controller.signal.aborted || token !== sequence.current) return;
+      setResult({ key, loading: false, errors: response.errors, error: '' });
+    }).catch((error) => {
+      if (!controller.signal.aborted && token === sequence.current) {
+        setResult({ key, loading: false, errors: [], error: error.message || '검색 실패' });
+      }
+    });
+    return () => { controller.abort(); ++sequence.current; };
+  }, [drawingId, revision, itemId, key, retry, stage]);
+
   const status = plan?.status[stage];
   const locked = plan && status && !status.unlocked
     ? lockMessage(plan.status, stage)
@@ -78,6 +101,7 @@ export function ManufacturingPanel({
     );
   }
   const item = point.source;
+  const loading = result.key !== key || result.loading;
   const itemPlan = machining.itemPlan(item.id);
   const criteria = itemPlan?.stages[stage] ?? null;
   const record = machining.stageRecords[item.id] ?? null;
@@ -95,7 +119,11 @@ export function ManufacturingPanel({
           onNavigate={onNavigate}
           chips={
             <>
-              {!reviewInfo && <Chip tone="warn">검토 전</Chip>}
+              {reviewInfo ? (
+                <Chip tone="ok">검토 완료 · {reviewInfo.reviewer || '검토자 미기록'}{reviewInfo.at ? ` ${reviewInfo.at}` : ''}</Chip>
+              ) : (
+                <Chip tone="warn">검토 전</Chip>
+              )}
               {position > 0 ? (
                 <Chip tone="info">{STAGE_NAME[stage]} {position}/{total}번째</Chip>
               ) : (
@@ -109,17 +137,25 @@ export function ManufacturingPanel({
             </>
           }
         />
+        {status && (
+          <ProgressBar
+            label={`${machining.serial} · ${STAGE_NAME[stage]} 합격`}
+            done={status.passed}
+            total={status.required}
+            chips={status.failed > 0 ? <Chip tone="error">불합격 {status.failed}</Chip> : null}
+          />
+        )}
       </div>
 
       <div className="flex-1 space-y-3 p-3">
-        {!item.inspection_approved && (!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
-      {!plan ? (
+        {itemPlan && <StageCriteriaCard itemPlan={itemPlan} stage={stage} stageLabel={plan!.stage_labels[stage]} />}
+        {(!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
+        {!plan ? (
           <p className="note note-info">가공 단계 정보를 불러오는 중입니다.</p>
         ) : !criteria ? (
           <p className="note note-info">이 항목은 {STAGE_NAME[stage]} 측정 대상이 아닙니다. 도면의 색 번호를 눌러 이번 단계 항목을 재주세요.</p>
         ) : (
           <StageEntry
-          onNextUnmeasured={onNextUnmeasured}
             key={`entry-${key}`}
             stage={stage}
             criteria={criteria}
@@ -130,7 +166,6 @@ export function ManufacturingPanel({
             gdtSymbols={item.category === 'GDT' ? item.raw_text.split('\n').map((row) => row.split('|')[0]) : []}
             record={record}
             locked={readOnly ? READ_ONLY_MESSAGE : locked}
-            readOnly={readOnly}
             zeroChecked={machining.zeroChecked}
             onZeroChecked={machining.markZeroChecked}
             save={async (body) => {
@@ -141,11 +176,34 @@ export function ManufacturingPanel({
             }}
           />
         )}
-        <details className="worker-disclosure" key={`criteria-${key}`}>
-          <summary>가공·검사 기준</summary>
-          {itemPlan && <StageCriteriaCard itemPlan={itemPlan} stage={stage} stageLabel={plan!.stage_labels[stage]} />}
-          {(!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
-        </details>
+
+        <section aria-label="측정 전 확인 · 관련 오류사례" className="card border-amber-300">
+          <header className="card-header border-amber-200 bg-amber-50">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+              <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
+              {STAGE_NAME[stage]} 측정 전 확인 · 관련 오류사례
+            </h3>
+            {!loading && !result.error && <span className="tag bg-amber-100 text-amber-900">{result.errors.length}건</span>}
+          </header>
+          {loading ? <p role="status" className="p-3 text-xs text-slate-600">관련 오류·주의사항 검색 중…</p>
+            : result.error ? <div role="alert" className="flex flex-wrap items-center gap-2 p-3 text-xs text-rose-700"><span className="min-w-0 flex-1">{result.error}</span><button type="button" onClick={() => setRetry((v) => v + 1)} className="btn btn-secondary h-6">다시 검색</button></div>
+            : !result.errors.length ? <p className="p-3 text-xs text-slate-600">조건에 맞는 등록 사례가 없습니다. 안전함을 의미하지는 않습니다.</p>
+            : <div className="divide-y divide-slate-200">{result.errors.map((error) => <article key={error.case_id} className="space-y-2 p-3 text-xs">
+              <div>
+                <h4 className="text-[13px] font-semibold leading-snug text-slate-900">{error.case_title || error.case_id}</h4>
+                <p className="mt-0.5 text-[11px] text-slate-500">{error.case_id}{error.data_origin === 'SYNTHETIC' ? ' · 가상 테스트 사례' : error.data_origin === 'USER_REPORTED' ? ' · 사용자 등록 사례' : ''} · 적용 조건 확인 필요</p>
+              </div>
+              <p className="leading-relaxed text-slate-800">{error.error_description}</p>
+              {error.precaution && <p className="note note-ok"><b className="mr-1 font-semibold">주의사항</b>{error.precaution}</p>}
+              {(error.cause || error.recommended_instrument) && (
+                <dl className="grid grid-cols-[84px_1fr] gap-x-2 gap-y-1 leading-relaxed">
+                  {error.cause && <><dt className="text-slate-500">원인</dt><dd className="text-slate-800">{error.cause}</dd></>}
+                  {error.recommended_instrument && <><dt className="text-slate-500">측정기 후보</dt><dd className="text-slate-800">{error.recommended_instrument}</dd></>}
+                </dl>
+              )}
+            </article>)}</div>}
+        </section>
+        <PointErrorForm key={`error-form-${key}`} purpose={PURPOSE} readOnly={readOnly} drawingId={drawingId} revision={revision} item={item} number={point.displayNumber} onIndexed={()=>setRetry(v=>v+1)} />
       </div>
     </section>
   );
@@ -161,16 +219,17 @@ function lockMessage(status: Record<StageKey, { passed: number; required: number
 /** 제품 번호 · 단계 선택 · 진행 · 성적서 */
 function StageBar({ machining, drawingId, revision }: { machining: MachiningState; drawingId: string; revision: string }) {
   const { plan, stage, setStage, serial, setSerial, loading, error } = machining;
-  const { readOnly: trial } = useDeployMode();
   const [draft, setDraft] = useState(serial);
   useEffect(() => setDraft(serial), [serial]);
-  const apply = () => { if (draft.trim() && draft.trim() !== serial) setSerial(draft); };
+  const apply = () => {
+    if (draft.trim() && draft.trim() !== serial) setSerial(draft);
+  };
   const current = plan?.status[stage];
   const nextStage = STAGE_KEYS[STAGE_KEYS.indexOf(stage) + 1];
 
   return (
     <div className="space-y-1.5 border-b border-slate-200 bg-white px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
           제품 번호
           <input
@@ -193,17 +252,16 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
           </a>
         )}
       </div>
-      {trial && <p className="note note-info">체험 모드 · 측정 체크 없이 황삭·중삭·정삭 탭으로 이동할 수 있습니다. 합격 처리되지는 않습니다.</p>}
       {!plan ? (
         <p className="text-[11px] text-slate-500">
           {error ? <span className="text-rose-700">가공 단계 조회 실패: {error}</span> : loading ? '가공 단계 불러오는 중…' : '가공 단계 정보 없음'}
         </p>
       ) : (
         <>
-          <div role="group" aria-label="가공 단계 선택" className="seg w-full p-1">
+          <div role="group" aria-label="가공 단계 선택" className="seg w-full">
             {STAGE_KEYS.map((key) => {
               const s = plan.status[key];
-              const disabled = !trial && !s.unlocked;
+              const disabled = !s.unlocked;
               return (
                 <button
                   key={key}
@@ -212,25 +270,35 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
                   disabled={disabled}
                   title={disabled ? '앞 단계 측정이 모두 합격해야 열립니다' : plan.stage_labels[key]}
                   onClick={() => setStage(key)}
-                  className="seg-item h-11 flex-1 justify-center gap-1.5 text-[16px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  className="seg-item flex-1 justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {disabled ? <Lock aria-hidden="true" className="h-4 w-4" /> : <span aria-hidden="true" className={`h-3 w-3 rounded-full ${STAGE_DOT[key]}`} />}
+                  {disabled ? <Lock aria-hidden="true" className="h-3 w-3" /> : <span aria-hidden="true" className={`h-2 w-2 rounded-full ${STAGE_DOT[key]}`} />}
                   {STAGE_NAME[key]}
-                  <span className="font-mono text-[13px] font-medium text-slate-500">{s.passed}/{s.required}</span>
+                  <span className="font-mono text-[10px] text-slate-500">{s.passed}/{s.required}</span>
                 </button>
               );
             })}
           </div>
-          {(trial || current?.complete) && nextStage && (
+          <p className="text-[11px] leading-snug text-slate-600">
+            <b className="font-semibold text-slate-800">{STAGE_NAME[stage]}:</b> {plan.stage_labels[stage]}
+            {!plan.template_found && ' · 부품 기준 템플릿이 없어 모든 항목을 정삭 후 측정으로 표시합니다.'}
+          </p>
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-500" aria-label="도면 번호 색">
+            <Dot className={STAGE_DOT[stage]} label={`${STAGE_NAME[stage]} 측정 대상`} />
+            <Dot className="bg-emerald-600" label="합격" />
+            <Dot className="bg-red-600" label="재측정" />
+            <Dot className="bg-slate-300" label="다른 단계" />
+          </p>
+          {current?.complete && nextStage && (
             <div className="note note-ok flex flex-wrap items-center justify-between gap-2">
-              <span>{trial ? "체험 모드에서는 측정 없이 다음 단계를 볼 수 있습니다." : `${STAGE_NAME[stage]} 측정 ${current?.required ?? 0}건 모두 합격했습니다.`}</span>
+              <span>{STAGE_NAME[stage]} 측정 {current.required}건 모두 합격했습니다.</span>
               <button type="button" className="btn btn-primary h-7" onClick={() => setStage(nextStage)}>
                 {STAGE_NAME[nextStage]}으로 넘어가기
               </button>
             </div>
           )}
           {current?.complete && !nextStage && (
-            <p className="note note-ok">정삭 측정까지 모두 합격 — 가공 중 측정을 모두 마쳤습니다.</p>
+            <p className="note note-ok">정삭 측정까지 모두 합격 — {serial} 가공 중 측정 완료. 자주검사 성적서를 내려받을 수 있습니다.</p>
           )}
           {current && !current.complete && current.failed > 0 && (
             <p className="note note-error">{STAGE_NAME[stage]} 불합격 {current.failed}건 — 재가공·재측정 후 모두 합격해야 다음 단계로 넘어갑니다.</p>
@@ -238,6 +306,15 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
         </>
       )}
     </div>
+  );
+}
+
+function Dot({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span aria-hidden="true" className={`inline-block h-2.5 w-2.5 rounded-full ${className}`} />
+      {label}
+    </span>
   );
 }
 

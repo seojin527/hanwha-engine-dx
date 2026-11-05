@@ -400,7 +400,7 @@ export function DrawingLibrary({
   return (
     <section className="shrink-0 border-b border-slate-800 bg-slate-900 text-white">
       {/* 휴대폰: 줄바꿈 대신 한 줄 가로 스크롤 (도면 영역을 넓게) */}
-      <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5">
+      <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5 compact:flex-nowrap compact:overflow-x-auto">
         <button
           type="button"
           aria-expanded={libraryOpen}
@@ -413,7 +413,7 @@ export function DrawingLibrary({
               : "border-slate-700 hover:border-slate-500 hover:bg-slate-800"
           }`}
         >
-          <FolderOpen aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-dx-muted" />
+          <FolderOpen aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
           <span className="min-w-0 truncate">
             <span className={selectedPartName ? "text-slate-100" : "text-slate-400"}>
               {selectedPartName || "부품 미선택"}
@@ -425,24 +425,24 @@ export function DrawingLibrary({
           </span>
           <ChevronDown
             aria-hidden="true"
-            className={`h-3.5 w-3.5 shrink-0 text-dx-muted transition-transform ${libraryOpen ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${libraryOpen ? "rotate-180" : ""}`}
           />
         </button>
 
-        {status && <div className="dx-toolbar-lg flex min-w-0 items-center gap-2 text-xs text-dx-muted">{status}</div>}
+        {status && <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400 compact:shrink-0 compact:whitespace-nowrap">{status}</div>}
 
         {actions && (
-          <div className="dx-toolbar-lg ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">{actions}</div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 compact:shrink-0 compact:flex-nowrap">{actions}</div>
         )}
       </div>
 
-      <div id="drawing-library-controls" hidden={!libraryOpen} className="border-t border-dx-line">
+      <div id="drawing-library-controls" hidden={!libraryOpen} className="border-t border-slate-800">
       <div className="grid gap-x-6 gap-y-3 px-3 py-3 lg:grid-cols-2">
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-part"
-              className="text-[11px] font-medium text-dx-muted"
+              className="text-[11px] font-medium text-slate-400"
             >
               부품
             </label>
@@ -528,7 +528,7 @@ export function DrawingLibrary({
           <div className="flex items-center justify-between">
             <label
               htmlFor="library-drawing"
-              className="text-[11px] font-medium text-dx-muted"
+              className="text-[11px] font-medium text-slate-400"
             >
               등록 도면
             </label>
@@ -594,18 +594,18 @@ export function DrawingLibrary({
       </div>
 
       {selectedPartId && (
-        <details className="mx-3 mb-3 rounded border border-dx-line-strong">
-          <summary className="cursor-pointer px-3 py-1.5 text-xs text-dx-text hover:text-dx-strong">
+        <details className="mx-3 mb-3 rounded border border-slate-700">
+          <summary className="cursor-pointer px-3 py-1.5 text-xs text-slate-300 hover:text-white">
             도면 등록 내역 · {drawings.length}개
           </summary>
 
-          <div className="max-h-44 overflow-y-auto border-t border-dx-line-strong">
+          <div className="max-h-44 overflow-y-auto border-t border-slate-700">
             {loadingDrawings ? (
-              <p className="p-3 text-xs text-dx-muted">
+              <p className="p-3 text-xs text-slate-400">
                 등록 내역을 불러오는 중…
               </p>
             ) : drawings.length === 0 ? (
-              <p className="p-3 text-xs text-dx-muted">
+              <p className="p-3 text-xs text-slate-400">
                 등록된 도면이 없습니다.
               </p>
             ) : (
@@ -640,7 +640,7 @@ export function DrawingLibrary({
                       </span>
                     </span>
 
-                    <span className="shrink-0 text-[11px] text-dx-muted">
+                    <span className="shrink-0 text-[11px] text-slate-400">
                       {isSelected ? "선택됨" : "열기"}
                     </span>
                   </button>

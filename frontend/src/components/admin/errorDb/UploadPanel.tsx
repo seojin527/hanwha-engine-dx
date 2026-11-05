@@ -108,7 +108,7 @@ export function UploadPanel({
     <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
       <section aria-label="엑셀 업로드" className="card flex min-h-[320px] flex-col overflow-hidden">
         <header className="card-header">
-          <h3 className="text-xs font-semibold text-dx-strong">{label} 엑셀 업로드</h3>
+          <h3 className="text-xs font-semibold text-white">{label} 엑셀 업로드</h3>
           <a href={exportUrl(purpose)} download className="btn btn-secondary">
             <Download aria-hidden="true" className="h-3.5 w-3.5" />
             {label} 사례 내려받기
@@ -162,8 +162,8 @@ export function UploadPanel({
             <section aria-label="미리보기" className="space-y-2">
               <p className="text-neutral-200">
                 검증 통과 · {preview.files?.length}개 파일 · 사례 {preview.rows}건 —
-                <b className="ml-1 text-cyan-700">신규 {preview.created}</b>
-                <b className="ml-2 text-amber-700">갱신 {preview.updated}</b>
+                <b className="ml-1 text-cyan-300">신규 {preview.created}</b>
+                <b className="ml-2 text-amber-300">갱신 {preview.updated}</b>
                 <span className="ml-2 text-neutral-400">변경 없음 {preview.unchanged}</span>
               </p>
               <table className="w-full border-separate border-spacing-0 text-left text-[11px]">
@@ -233,7 +233,7 @@ export function UploadPanel({
 
       <section aria-label="업로드 이력" className="card flex min-h-[320px] flex-col overflow-hidden">
         <header className="card-header">
-          <h3 className="text-xs font-semibold text-dx-strong">업로드 이력</h3>
+          <h3 className="text-xs font-semibold text-white">업로드 이력</h3>
           <span className="text-[11px] text-neutral-400">기능 도입 이후 기록</span>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -259,7 +259,7 @@ export function UploadPanel({
                     </p>
                   ))}
                   {upload.status === "rejected" && (
-                    <p className="text-rose-700">오류 {upload.errors.length}건 · 사례를 저장하지 않음{upload.errors[0] && ` — ${upload.errors[0].message}`}</p>
+                    <p className="text-rose-300">오류 {upload.errors.length}건 · 사례를 저장하지 않음{upload.errors[0] && ` — ${upload.errors[0].message}`}</p>
                   )}
                 </li>
               ))}
@@ -287,7 +287,7 @@ function ErrorTable({ errors }: { errors: UploadError[] }) {
               <td>{entry.sheet || "—"}</td>
               <td className="text-right tabular-nums">{entry.row ?? "—"}</td>
               <td className="break-all font-mono">{entry.case_id || "—"}</td>
-              <td className="text-rose-700">{entry.message}</td>
+              <td className="text-rose-200">{entry.message}</td>
             </tr>
           ))}
         </tbody>

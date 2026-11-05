@@ -1,6 +1,6 @@
 /**
  * 조립 작업자 페이지.
- * 왼쪽 측정 · 가운데 도면/기존 측정표 · 오른쪽 오류 사례를 배치한다.
+ * 도면 뷰어 · 마커 · 하단 측정표 · 오른쪽 패널을 이 파일에서 직접 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
  * 조립 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
@@ -8,8 +8,7 @@ import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";
 import { MeasurementPanel } from "../components/MeasurementPanel";
 import { OcrMeasurementTable } from "../components/OcrMeasurementTable";
-import { WorkerWorkspace } from "../components/worker/WorkerWorkspace";
-import { WorkerErrorPanel } from "../components/worker/WorkerErrorPanel";
+import { ResizablePanels } from "../components/ResizablePanels";
 import { AssemblyPanel } from "../components/AssemblyPanel";
 import { reviewInfoOf } from "../lib/ocr";
 import { WorkerBlockedNotice } from "./WorkspaceShared";
@@ -42,14 +41,7 @@ export function AssemblyPage(props: WorkspacePageProps) {
   }
 
   return (
-    <WorkerWorkspace
-      support={!demoMode && document && selectedDrawing && revision ? (
-        <WorkerErrorPanel
-          purpose="assembly" drawingId={selectedDrawing.drawing_id} revision={revision}
-          point={activeOcrPoint} readOnly={readOnly}
-        />
-      ) : <p className="p-4 text-sm text-slate-500">도면의 측정항목을 선택하면 주의사항과 오류 사례를 확인할 수 있습니다.</p>}
-      left={<>
+    <ResizablePanels left={<>
       <DrawingViewer
         key={
           demoMode
@@ -83,7 +75,6 @@ export function AssemblyPage(props: WorkspacePageProps) {
         />
       ) : document ? (
         <OcrMeasurementTable
-          compact
           points={filteredOcrPoints}
           selectedId={activeOcrPoint?.id || 0}
           onSelect={onSelectOcrPoint}
@@ -92,11 +83,11 @@ export function AssemblyPage(props: WorkspacePageProps) {
           reviewed={document.review_status === "reviewed"}
         />
       ) : (
-        <section className="flex shrink-0 items-baseline gap-3 border-t border-dx-line bg-dx-panel px-3 py-2">
-          <h2 className="text-xs font-semibold text-dx-text">
+        <section className="flex shrink-0 items-baseline gap-3 border-t border-slate-800 bg-slate-900 px-3 py-2">
+          <h2 className="text-xs font-semibold text-slate-200">
             측정항목
           </h2>
-          <p className="min-w-0 text-[11px] text-dx-muted">
+          <p className="min-w-0 text-[11px] text-slate-400">
             {selectedDrawing
               ? (ocrStatus === "applying" ? "OCR 분석 중…" : "원본 도면입니다. OCR 실행을 누르면 분석 후 번호와 측정항목이 표시됩니다.")
               : "도면을 선택하거나 등록해주세요."}
@@ -115,8 +106,8 @@ export function AssemblyPage(props: WorkspacePageProps) {
           onSelectItemId={demo.onSelectItemId}
         />
       ) : document && selectedDrawing && revision ? (
-        <div className="flex min-h-full flex-col">
-          <div className="min-w-0">
+        <div className="flex h-full min-h-0 flex-col bg-white">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <AssemblyPanel
               readOnly={readOnly}
               drawingId={selectedDrawing.drawing_id}
@@ -124,12 +115,6 @@ export function AssemblyPage(props: WorkspacePageProps) {
               point={activeOcrPoint}
               total={ocrPoints.length}
               onNavigate={onNavigateOcr}
-              onNextUnmeasured={(() => {
-                const index = ocrPoints.findIndex(p => p.id === activeOcrPoint?.id);
-                const ordered = [...ocrPoints.slice(index + 1), ...ocrPoints.slice(0, Math.max(0, index))];
-                const next = ordered.find(p => p.source.inspection_approved && (!measurementRecords[p.source.id] || measurementRecords[p.source.id].status === 'pending'));
-                return next ? () => onSelectOcrPoint(next.id) : undefined;
-              })()}
               onMeasurementSaved={onMeasurementSaved}
               records={measurementRecords}
               reviewInfo={reviewInfoOf(document)}
