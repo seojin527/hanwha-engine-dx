@@ -206,6 +206,10 @@ export async function applySampleOcr(drawingId: string) {
   ));
 }
 export interface ErrorCandidate {
+  corrective_action?: string;
+  impact?: string;
+  severity?: string;
+  process_stage?: string;
   case_id: string;
   case_title?: string;
   error_description?: string;

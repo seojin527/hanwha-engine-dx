@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* 휴대폰 화면 (hooks/useCompactLayout.ts 와 같은 조건): 세로 768px 미만 또는 가로(높이 500px 이하) */
 @custom-variant compact {
   @media (max-width: 767px) { @slot; }
   @media (max-height: 500px) and (max-width: 1023px) { @slot; }
@@ -44,10 +43,10 @@
   .btn-ghost { @apply border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
   .btn-danger { @apply border-rose-300 bg-white text-rose-700 hover:bg-rose-50; }
 
-  /* 어두운 상단 영역용 */
-  .btn-dark { @apply border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:border-slate-500; }
-  .btn-dark-ghost { @apply border-transparent bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white; }
-  .btn-dark-danger { @apply border-rose-900 bg-transparent text-rose-300 hover:bg-rose-950; }
+  /* 상단·도구 영역용 (이름은 예전 어두운 테마의 흔적이며, 지금은 밝은 테마 색이다) */
+  .btn-dark { @apply border-dx-line-strong bg-white text-dx-text hover:bg-dx-raised hover:border-dx-faint; }
+  .btn-dark-ghost { @apply border-transparent bg-transparent text-dx-muted hover:bg-dx-raised hover:text-dx-strong; }
+  .btn-dark-danger { @apply border-rose-300 bg-transparent text-rose-700 hover:bg-rose-50; }
 
   /* ---------- 세그먼트 전환 (작업자/관리자, 부품제작/조립/검증, 선택/이동) ---------- */
   .seg { @apply inline-flex shrink-0 rounded border border-slate-300 bg-slate-100 p-0.5; }
@@ -56,16 +55,16 @@
   }
   .seg-item[aria-pressed="true"] { @apply bg-white font-semibold text-slate-900 shadow-sm ring-1 ring-slate-300; }
 
-  .seg-dark { @apply inline-flex shrink-0 rounded border border-slate-700 bg-slate-950 p-0.5; }
-  .seg-dark .seg-item { @apply text-slate-400 hover:text-white; }
-  .seg-dark .seg-item[aria-pressed="true"] { @apply bg-slate-700 text-white shadow-none ring-0; }
+  .seg-dark { @apply inline-flex shrink-0 rounded border border-dx-line-strong bg-dx-raised p-0.5; }
+  .seg-dark .seg-item { @apply text-dx-muted hover:text-dx-strong; }
+  .seg-dark .seg-item[aria-pressed="true"] { @apply bg-white text-dx-strong shadow-sm ring-1 ring-dx-line-strong; }
 
   /* ---------- 입력창 ---------- */
   .field {
     @apply w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
   }
   .field-dark {
-    @apply rounded border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50;
+    @apply rounded border border-dx-line-strong bg-white px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:opacity-50;
   }
   .field-label { @apply block text-[11px] font-medium text-slate-600; }
 
@@ -77,10 +76,10 @@
 
   /* ---------- 알림 줄 (왼쪽 색 띠 하나로 상태 구분) ---------- */
   .banner { @apply flex shrink-0 items-center gap-3 border-l-4 px-4 py-1.5 text-xs; }
-  .banner-error { @apply border-rose-500 bg-rose-950/80 text-rose-100; }
-  .banner-warn { @apply border-amber-500 bg-amber-950/70 text-amber-100; }
-  .banner-ok { @apply border-emerald-500 bg-emerald-950/70 text-emerald-100; }
-  .banner-info { @apply border-cyan-500 bg-cyan-950/70 text-cyan-100; }
+  .banner-error { @apply border-rose-500 bg-rose-50 text-rose-900; }
+  .banner-warn { @apply border-amber-500 bg-amber-50 text-amber-900; }
+  .banner-ok { @apply border-emerald-500 bg-emerald-50 text-emerald-900; }
+  .banner-info { @apply border-cyan-600 bg-cyan-50 text-cyan-900; }
 
   /* 밝은 패널 안 안내문 */
   .note { @apply rounded border-l-[3px] px-3 py-2 text-xs leading-relaxed; }
@@ -132,45 +131,51 @@
 }
 
 /*
- * 진입 화면(로그인 · 부품·도면 선택) 전용 회색 테마.
- * .entry-gray 안에서만 공통 버튼·입력창 색을 바꾸므로 작업 화면에는 영향이 없다.
- * 바탕 #262626 · 레이어 #303030 · 경계선 #404040 (Carbon Gray 90 계열), 강조색은 작업 화면과 같은 cyan.
+ * 진입 화면(부품·도면 선택)과 셸 안의 관리 화면(부품·도면 목록, 오류 DB, 작업 현황)에 쓰는 영역.
+ * 예전 어두운 회색 테마 때 neutral-* 색 단계로 짠 화면이라, 이 영역 안에서만 neutral-* 변수를 밝은 값으로 다시 정의한다.
+ * (화면 코드는 그대로 두고 색만 바뀐다. 작업 화면에는 영향이 없다.)
  */
+.entry-gray {
+  --color-neutral-100: #1c2733;
+  --color-neutral-200: #253344;
+  --color-neutral-300: #3d4b5c;
+  --color-neutral-400: #566678;
+  --color-neutral-500: #5d6d82;
+  --color-neutral-600: #b9c4d0;
+  --color-neutral-700: #d6dde6;
+  --color-neutral-800: #f4f6f9;
+  --color-neutral-900: #e3e8ee;
+  --color-cyan-400: var(--color-cyan-600);
+}
 @layer components {
   .entry-gray { @apply bg-neutral-800 text-neutral-100; }
-  .entry-gray .btn-secondary { @apply border-neutral-600 bg-neutral-700/50 text-neutral-100 hover:border-neutral-500 hover:bg-neutral-700; }
-  .entry-gray .btn-ghost { @apply text-neutral-300 hover:bg-white/5 hover:text-white; }
-  .entry-gray .field {
-    @apply border-neutral-600 bg-neutral-900/50 text-neutral-100 placeholder:text-neutral-500 hover:border-neutral-500 focus:border-cyan-500 focus:ring-cyan-500 disabled:bg-neutral-800 disabled:text-neutral-500;
-  }
-  .entry-gray .field-label { @apply text-neutral-300; }
-  .entry-gray .card { @apply border-neutral-700 bg-[#2e2e2e]; }
-  .entry-gray .card-header { @apply border-neutral-700; }
-  .entry-gray .note-warn { @apply border-amber-400 bg-amber-400/10 text-amber-100; }
-  .entry-gray .note-error { @apply border-rose-400 bg-rose-400/10 text-rose-100; }
-  .entry-gray .note-ok { @apply border-emerald-400 bg-emerald-400/10 text-emerald-100; }
-  .entry-gray .note-info { @apply border-neutral-500 bg-white/5 text-neutral-200; }
 }
+/* 아래 규칙은 @layer 밖에 둔다. 화면 코드가 직접 쓴 bg-[#2e2e2e] 유틸 클래스보다 우선해야 하기 때문이다. */
+.entry-gray .card,
+.entry-gray .bg-\[\#2e2e2e\] { background-color: #fff; border-color: var(--color-dx-line); }
+.entry-gray .card-header { border-color: var(--color-dx-line); }
 
 /*
  * ENGINE DX 셸 (로그인 · 3D 메인 · 도면 작업) 디자인 규칙
- * - 바탕 dx-bg → 패널 dx-panel → 올린 면 dx-raised 의 3단 네이비. 경계선은 dx-line 한 가지.
- * - 시안(dx-accent)은 선택 상태와 주요 실행 버튼에만 쓴다. 성공·경고·오류는 emerald·amber·rose 작은 아이콘+문구.
+ * - 밝은 테마: 바탕 dx-bg(연회색) → 패널 dx-panel(흰색) → 올린 면 dx-raised 의 3단. 경계선은 dx-line 한 가지.
+ * - 청록(dx-accent)은 선택 상태와 주요 실행 버튼에만 쓴다. 성공·경고·오류는 emerald·amber·rose 작은 아이콘+문구.
  * - 글자: 제목 13~15px semibold · 본문 12px · 보조 11px dx-muted · 숫자는 font-mono tabular.
  * - 모서리 4px, 버튼 높이 28px(큰 버튼 36px). 발광·블러·장식 그라데이션은 쓰지 않는다.
  * - 도면 이미지는 원본 색 그대로 둔다 (흰 바탕).
  */
 @theme {
-  --color-dx-bg: #0a1420;
-  --color-dx-panel: #0f1c2a;
-  --color-dx-raised: #152638;
-  --color-dx-line: #1f3349;
-  --color-dx-line-strong: #2d4762;
-  --color-dx-text: #dbe5ef;
-  --color-dx-muted: #8ca1b6;
-  --color-dx-faint: #5e7489;
-  --color-dx-accent: #22c3dc;
-  --color-dx-accent-strong: #0e9fb8;
+  --color-dx-bg: #f4f6f9;
+  --color-dx-panel: #ffffff;
+  --color-dx-raised: #eaeef3;
+  --color-dx-canvas: #e8ecf1;
+  --color-dx-line: #d6dde6;
+  --color-dx-line-strong: #b9c4d0;
+  --color-dx-text: #1c2733;
+  --color-dx-strong: #0f1a24;
+  --color-dx-muted: #566678;
+  --color-dx-faint: #5d6d82;
+  --color-dx-accent: #0e7490;
+  --color-dx-accent-strong: #0b6177;
 }
 
 @layer components {
@@ -178,15 +183,15 @@
   .dx-panel { @apply border-dx-line bg-dx-panel; }
 
   .dx-btn {
-    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-dx-line-strong bg-dx-raised px-2.5 text-xs font-medium text-dx-text transition-colors hover:border-dx-faint hover:bg-[#1b3047] focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-dx-line-strong bg-dx-raised px-2.5 text-xs font-medium text-dx-text transition-colors hover:border-dx-faint hover:bg-dx-raised focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-40;
   }
-  .dx-btn-primary { @apply border-dx-accent-strong bg-dx-accent-strong text-white hover:border-dx-accent hover:bg-[#0b8ca3]; }
-  .dx-btn-ghost { @apply border-transparent bg-transparent text-dx-muted hover:border-transparent hover:bg-white/5 hover:text-dx-text; }
+  .dx-btn-primary { @apply border-dx-accent-strong bg-dx-accent-strong text-white hover:border-[#0a5468] hover:bg-[#0a5468]; }
+  .dx-btn-ghost { @apply border-transparent bg-transparent text-dx-muted hover:border-transparent hover:bg-slate-900/5 hover:text-dx-text; }
   .dx-btn-lg { @apply h-9 px-3.5 text-sm font-semibold; }
   .dx-icon-btn { @apply w-7 px-0; }
 
   .dx-input {
-    @apply w-full rounded border border-dx-line-strong bg-[#0b1724] px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint transition-colors hover:border-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:cursor-not-allowed disabled:opacity-50;
+    @apply w-full rounded border border-dx-line-strong bg-white px-2.5 py-1.5 text-xs text-dx-text placeholder:text-dx-faint transition-colors hover:border-dx-faint focus:border-dx-accent focus:outline-none focus:ring-1 focus:ring-dx-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
   .dx-label { @apply block text-[11px] font-medium text-dx-muted; }
   .dx-section-title { @apply text-[11px] font-semibold uppercase tracking-wider text-dx-faint; }
@@ -199,46 +204,27 @@
 
   /* 트리 행: aria-current 로 선택 표시 */
   .dx-tree-row {
-    @apply flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs text-dx-text transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-dx-accent;
+    @apply flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs text-dx-text transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-dx-accent;
   }
-  .dx-tree-row[aria-current="true"] { @apply bg-dx-accent/10 text-white shadow-[inset_2px_0_0_var(--color-dx-accent)]; }
+  .dx-tree-row[aria-current="true"] { @apply bg-dx-accent/10 text-dx-strong shadow-[inset_2px_0_0_var(--color-dx-accent)]; }
 
   /* 좌측 메뉴 레일 */
   .dx-rail-btn {
-    @apply relative flex h-10 w-10 items-center justify-center rounded text-dx-muted transition-colors hover:bg-white/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-30;
+    @apply relative flex h-10 w-10 items-center justify-center rounded text-dx-muted transition-colors hover:bg-slate-900/5 hover:text-dx-text focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:opacity-30;
   }
   .dx-rail-btn[aria-current="page"] { @apply bg-dx-accent/10 text-dx-accent before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded before:bg-dx-accent before:content-['']; }
-  /* 휴대폰 상단 바 안의 가로 메뉴: 현재 항목 표시를 아래쪽 막대로 */
-  .dx-rail-row .dx-rail-btn { width: 2.25rem; height: 2.25rem; }
-  .dx-rail-row .dx-rail-btn[aria-current="page"]::before { top: auto; bottom: -0.25rem; left: 0.5rem; right: 0.5rem; width: auto; height: 2px; }
 
   /* 로그인 배경: 은은한 도면 격자 (선 굵기 1px, 낮은 대비) */
   .dx-blueprint-grid {
     background-color: var(--color-dx-bg);
     background-image:
-      linear-gradient(rgba(140, 170, 200, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(140, 170, 200, 0.06) 1px, transparent 1px),
-      linear-gradient(rgba(140, 170, 200, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(140, 170, 200, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(60, 90, 120, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60, 90, 120, 0.07) 1px, transparent 1px),
+      linear-gradient(rgba(60, 90, 120, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60, 90, 120, 0.035) 1px, transparent 1px);
     background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   }
 }
-
-/*
- * 셸 안에 넣은 기존 관리 화면(부품·도면 목록, 오류 DB, 작업 현황)은 원래 회색 톤(.entry-gray)으로 만들어졌다.
- * 화면 구조는 그대로 두고, 셸 안에서만 바탕·카드·경계선 색을 네이비 톤으로 맞춘다.
- */
-.dx-shell .entry-gray { background-color: var(--color-dx-bg); color: var(--color-dx-text); }
-.dx-shell .entry-gray .card,
-.dx-shell .entry-gray .bg-\[\#2e2e2e\] { background-color: var(--color-dx-panel); border-color: var(--color-dx-line); }
-.dx-shell .entry-gray .card-header,
-.dx-shell .entry-gray .border-neutral-700 { border-color: var(--color-dx-line); }
-.dx-shell .entry-gray .border-neutral-600 { border-color: var(--color-dx-line-strong); }
-.dx-shell .entry-gray .bg-neutral-900\/30,
-.dx-shell .entry-gray .bg-neutral-900\/40 { background-color: rgba(6, 13, 21, 0.4); }
-.dx-shell .entry-gray .bg-neutral-700 { background-color: var(--color-dx-raised); }
-.dx-shell .entry-gray .field { background-color: #0b1724; border-color: var(--color-dx-line-strong); }
-.dx-shell .entry-gray .btn-secondary { background-color: var(--color-dx-raised); border-color: var(--color-dx-line-strong); color: var(--color-dx-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .dx-shell *, .dx-shell *::before { transition-duration: 0s !important; animation-duration: 0s !important; }
@@ -247,10 +233,378 @@
 /* 도면 작업: 도면 바깥 여백에만 아주 옅은 격자 (도면 이미지 위에는 그리지 않는다) */
 .dx-drawing-surround {
   background-image:
-    linear-gradient(rgba(150, 176, 204, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(150, 176, 204, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(60, 90, 120, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 90, 120, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* 한국어 문단·표 칸은 어절 단위로 줄바꿈한다 (Pretendard 로 바꾼 뒤 "적/용", "중간축 외/경" 처럼 단어 중간에서 끊기던 것). 칸보다 긴 파일명·코드만 넘치지 않게 끊는다. */
 .dx-shell :where(p, li, dd, th, td) { word-break: keep-all; overflow-wrap: break-word; }
+
+/* 읽는 화면은 밝은 면을 쓴다 (전체 밝은 테마). */
+.worker-workspace { background: #eef0f3; color: #273444; }
+.worker-measurement { background: #f0f2f5; color: #273444; font-size: 13px; }
+.worker-measurement > section, .worker-measurement > div, .worker-measurement > div > div > section { background: transparent; }
+.worker-measurement .worker-item-id { display: none; }
+.worker-measurement .card { overflow: clip; border: 1px solid #d5dce4; border-radius: 5px; background: #fff; box-shadow: none; }
+.worker-measurement .card-header { min-height: 39px; padding: 9px 13px; border-bottom-color: #e0e5eb; background: #f7f8fa; }
+.worker-measurement .card dl { font-size: 13px; line-height: 1.65; }
+.worker-measurement .card-header h3 { font-size: 13px; font-weight: 600; }
+.worker-measurement .card[aria-label$="측정 입력"] { border-color: #b7c9d3; }
+.worker-measurement .card[aria-label$="측정 입력"] > .card-header { background: #f1f5f7; }
+.worker-measurement .worker-entry-actions { position: sticky; bottom: 0; z-index: 3; padding: 10px 0 6px; background: #fff; border-top: 1px solid #e0e5eb; }
+:is(.worker-measurement, .worker-support) :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #253344; }
+:is(.worker-measurement, .worker-support) :is(.text-slate-600, .text-slate-500, .text-slate-400) { color: #5e6b7b; }
+:is(.worker-measurement, .worker-support) :is(.bg-white, .bg-slate-50, .bg-slate-100) { background-color: #f6f7f9; }
+:is(.worker-measurement, .worker-support) :is(.border-slate-100, .border-slate-200, .border-slate-300) { border-color: #dde3ea; }
+:is(.worker-measurement, .worker-support) .field { min-height: 38px; border-color: #bbc7d4; background: #fff; color: #202e3e; border-radius: 4px; font-size: 13px; }
+:is(.worker-measurement, .worker-support) .field::placeholder { color: #667487; }
+:is(.worker-measurement, .worker-support) .field:focus { outline: 2px solid var(--wk-accent); outline-offset: 1px; }
+:is(.worker-measurement, .worker-support) .btn-secondary { border-color: #cbd4df; background: #fff; color: #354558; }
+:is(.worker-measurement, .worker-support) .btn-ghost { color: #4d6074; }
+:is(.worker-measurement, .worker-support) .note-info { border-color: #a2afbd; background: #f2f4f7; color: #4b5a6d; }
+.worker-center { overflow: hidden; }
+.worker-center .dx-drawing-surround { background-color: var(--color-dx-canvas); background-image: linear-gradient(rgba(60, 90, 120, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(60, 90, 120, 0.06) 1px, transparent 1px); }
+.worker-center > section:last-child { border-top: 1px solid #b8c3cf; background: #fff; color: #273444; }
+.worker-center > section:last-child :is(.bg-white, .bg-slate-50) { background: #f6f7f9; }
+.worker-center > section:last-child :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #253344; }
+.worker-center > section:last-child :is(.text-slate-600, .text-slate-500, .text-slate-400) { color: #5e6b7b; }
+.worker-center > section:last-child table { font-size: 12px; line-height: 1.5; }
+.worker-center > section:last-child :is(th, td) { border-color: #e3e7ed; padding-top: 8px; padding-bottom: 8px; }
+.worker-center > section:last-child tr[aria-selected="true"] > td { background: #e9f2f6; color: #202e3e; }
+.worker-center > section:last-child tbody tr:hover > td { background: #f0f4f7; }
+.worker-center > section:last-child .btn-ghost { color: #526276; }
+.worker-support { display: flex; flex-direction: column; width: var(--worker-support-width, 340px); min-height: 0; flex-shrink: 0; background: #f2f4f7; color: #273444; }
+.worker-support-heading { display: flex; align-items: center; justify-content: space-between; min-height: 43px; padding: 10px 15px; background: #f8f9fb; color: #28384a; border-bottom: 1px solid #d6dee7; font-size: 13px; }
+.worker-support-heading > span { display: flex; align-items: center; gap: 8px; }
+.worker-support-heading b { font-weight: 600; }
+.worker-support-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.worker-support-content > div { padding: 15px; }
+.worker-support-context { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 9px; row-gap: 3px; border-bottom: 1px solid #d8dfe7; padding: 0 0 12px; }
+.worker-support-context h2 { font-size: 14px; font-weight: 600; color: #253344; }
+.worker-support-context p { margin-left: auto; font-size: 13px; color: #4d5e72; }
+.worker-kicker { font-size: 12px; font-weight: 400; color: #5d6b7b; }
+.worker-case-card { border: 1px solid #d3dce6; border-radius: 5px; background: #fff; overflow: hidden; }
+.worker-case-card > header { border-bottom: 1px solid #e0e5eb; background: #f8f9fb; padding: 13px 15px; }
+.worker-case-card h3 { font-size: 15px; line-height: 1.6; font-weight: 600; color: #243448; }
+.worker-case-card > div { padding: 15px; }
+.worker-case-field { font-size: 14px; font-weight: 400; line-height: 1.8; overflow-wrap: anywhere; color: #263548; }
+.worker-case-field + .worker-case-field { border-top: 1px solid #edf0f4; padding-top: 12px; margin-top: 12px; }
+.worker-case-field h4 { margin-bottom: 5px; color: #58677a; font-size: 12px; font-weight: 600; }
+.worker-case-field.is-warning, .worker-case-field.is-action { border-left: 0; background: transparent; }
+.worker-case-details { border-top: 1px solid #e1e6ed; padding-top: 11px; margin-top: 14px; }
+.worker-case-details summary { cursor: pointer; color: #53677e; font-size: 12px; }
+.worker-case-registration { padding-top: 15px; border-top: 1px solid #d5dee7; }
+.worker-case-registration .card { border-radius: 5px; border-color: #d3dce6; background: #fff; }
+.worker-case-registration .card-header { flex-wrap: wrap; background: #f7f9fb; border-color: #e0e5eb; }
+.worker-empty { padding: 12px 0; color: #5e6d80; font-size: 13px; line-height: 1.7; }
+.worker-support-resizer { position: relative; z-index: 50; display: flex; align-items: center; justify-content: center; width: 6px; flex-shrink: 0; touch-action: none; cursor: col-resize; background: #ccd4de; outline: none; }
+.worker-support-resizer::before { position: absolute; inset: 0 -3px; content: ''; }
+.worker-support-resizer > span { width: 2px; height: 28px; border-radius: 2px; background: #7c8fa4; }
+.worker-support-resizer:is(:hover, :focus-visible, .is-dragging) { background: #9fb2c5; }
+.worker-support-resizer:is(:hover, :focus-visible, .is-dragging) > span { background: #38536d; }
+.worker-support-toggle, .worker-support-close { display: none; }
+@media (max-width: 1179px) {
+  .worker-support-resizer { display: none; }
+  .worker-support { position: absolute; right: 0; top: 0; bottom: 0; z-index: 35; width: min(350px, 88%); visibility: hidden; transform: translateX(100%); box-shadow: -12px 0 30px #0003; }
+  .worker-support.is-open { visibility: visible; transform: translateX(0); }
+  .worker-support-toggle { display: flex; position: absolute; right: 10px; bottom: 12px; z-index: 25; align-items: center; gap: 6px; border: 1px solid #9caec1; border-radius: 5px; padding: 9px 12px; background: #fff; color: #334b63; font-size: 12px; }
+  .worker-support-close { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; }
+  .worker-support-close:focus-visible, .worker-support-toggle:focus-visible { outline: 2px solid var(--wk-accent); outline-offset: 2px; }
+}
+
+/* Worker detail hierarchy: keep entry and immediate guidance visible. */
+.worker-disclosure { margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+.worker-disclosure > summary { cursor: pointer; padding: 4px 0; color: #334155; font-size: 15px; font-weight: 600; }
+.worker-disclosure[open] > summary { margin-bottom: 10px; }
+.worker-disclosure > .card { margin-top: 8px; }
+.worker-memo label { margin-top: 10px; }
+.worker-table-basis { margin-top: 3px; font-size: 11px; color: #64748b; }
+.worker-table-basis summary { cursor: pointer; }
+.worker-table-basis p { max-width: 28rem; padding: 6px 0; white-space: normal; line-height: 1.6; }
+
+/* Case browser: compact selection list followed by a single reading pane. */
+.worker-case-browser { padding: 16px; }
+.worker-case-browser > .worker-support-context { margin-bottom: 16px; }
+.worker-case-list { margin-top: 12px; border: 1px solid #dce3ea; border-radius: 6px; overflow: hidden; background: #fff; }
+.worker-case-list button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 12px; text-align: left; color: #475569; border-bottom: 1px solid #e8edf2; cursor: pointer; }
+.worker-case-list button:last-child { border-bottom: 0; }
+.worker-case-list button:hover { background: #f5f7fa; }
+.worker-case-list button[aria-pressed="true"] { background: var(--wk-tint); color: var(--wk-accent-dark); box-shadow: inset 3px 0 var(--wk-accent); }
+.worker-case-list button:focus-visible { outline: 2px solid var(--wk-accent); outline-offset: -2px; }
+.worker-case-index { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: #708095; }
+.worker-case-list-title { flex: 1; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.worker-case-list svg { flex: none; color: #8190a1; }
+.worker-case-caption { font-size: 11px; line-height: 1.6; color: #68788a; padding: 9px 0 18px; }
+.worker-case-browser .worker-case-card { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.worker-case-browser .worker-case-card > header { background: transparent; padding: 0 0 18px; border-bottom: 1px solid #dce3ea; }
+.worker-case-browser .worker-case-card h3 { font-size: 17px; line-height: 1.55; font-weight: 650; letter-spacing: -.3px; }
+.worker-case-browser .worker-case-card > div { padding: 18px 0 0; }
+.worker-case-browser .worker-case-field { line-height: 1.85; }
+.worker-case-browser .worker-case-field h4 { font-size: 11px; color: #68788a; font-weight: 500; margin-bottom: 7px; }
+.worker-case-browser .worker-case-field + .worker-case-field { margin-top: 22px; padding-top: 0; border: 0; }
+.worker-case-browser .worker-case-field.is-action { background: #f0f4f7; padding: 12px 14px; border-radius: 4px; }
+.worker-case-browser .worker-case-details { margin-top: 22px; padding-top: 15px; }
+.worker-case-browser .worker-case-registration { margin-top: 24px; }
+.worker-range-summary { padding: 12px 0 16px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.worker-range-summary > span:first-child { flex-basis: 100%; color: #64748b; font-size: 12px; }
+.worker-range-summary > b { font-size: 22px; line-height: 1.4; font-weight: 600; letter-spacing: -.5px; color: #172b3c; }
+.worker-measurement input[inputmode="decimal"] { height: 48px; font-size: 18px; padding: 10px 12px; }
+.worker-measurement input[inputmode="decimal"]::placeholder { font-size: 13px; }
+.worker-drawing-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; font-size: 12px; color: #475569; border-bottom: 1px solid #dce3ea; background: #f5f7f9; }
+.worker-drawing-context .dx-btn { color: #475569; border-color: #d0d9e2; background: #fff; }
+.worker-compact-table td { padding-top: 5px; padding-bottom: 5px; }
+.worker-compact-table .worker-table-basis { display: inline-block; margin: 0 0 0 8px; vertical-align: baseline; }
+.worker-compact-table .worker-table-basis[open] { display: block; margin-left: 0; }
+
+/* Reduce duplicate framing while retaining the three workspace columns. */
+.worker-case-current { display: flex; align-items: baseline; gap: 8px; padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px; font-weight: 600; }
+.worker-case-current span { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 400; color: #64748b; }
+.worker-single-case { display: none; }
+.worker-measurement [aria-label="측정 입력"], .worker-measurement [aria-label$=" 측정 입력"] { border: 0; box-shadow: none; background: white; }
+.worker-measurement [aria-label="측정 입력"] > .card-header, .worker-measurement [aria-label$=" 측정 입력"] > .card-header { background: white; padding-bottom: 0; border-bottom: 0; }
+.worker-case-browser .worker-case-registration .card { border: 0; background: transparent; }
+.worker-case-browser .worker-case-registration .card-header { background: transparent; padding-left: 0; padding-right: 0; }
+.worker-case-browser .worker-case-registration .card-body { padding-left: 0; padding-right: 0; }
+.worker-case-browser .worker-case-registration .card-body p { font-size: 12px; color: #64748b; }
+
+/* The selected reference and its instructions form one reading surface. */
+.worker-case-browser .worker-case-card { background: #fff; border: 1px solid #dce3ea; border-radius: 6px; overflow: hidden; }
+.worker-case-browser .worker-case-card > header { padding: 16px; border-bottom: 1px solid #e7ecf1; }
+.worker-case-browser .worker-case-card h3 { font-size: 15px; line-height: 1.6; }
+.worker-case-browser .worker-case-card > div { padding: 16px; }
+.worker-case-browser .worker-case-field.is-warning > h4,
+.worker-case-browser .worker-case-field.is-action > h4 { color: #334155; font-size: 12px; font-weight: 600; }
+.worker-case-browser .worker-case-field.is-warning { padding: 0; }
+.worker-case-browser .worker-case-field.is-action { border: 1px solid #e5ebf0; background: #f6f8fa; padding: 12px; margin-top: 18px; }
+.worker-flow-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; padding: 10px 12px; border-bottom: 1px solid #dce3ea; background: #fff; color: #536477; font-size: 11px; line-height: 1.5; list-style: none; }
+.worker-flow-guide li { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.worker-flow-guide li > span { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: #edf2f5; color: #40596c; font-size: 10px; font-weight: 600; }
+
+/* Grounded case guidance: show stored context, steps, conditions and provenance. */
+.worker-inspection-context { margin-bottom: 16px; padding: 0 0 14px; border-bottom: 1px solid #dce3ea; }
+.worker-inspection-context .worker-case-current { border: 0; padding: 6px 0; margin: 0; }
+.worker-inspection-range { font-size: 11px; color: #64748b; }
+.worker-inspection-range strong { margin-left: 8px; color: #334155; font-weight: 500; font-variant-numeric: tabular-nums; }
+.worker-case-narrative { font-size: 13px; line-height: 1.8; color: #334155; }
+.worker-case-background { padding-bottom: 18px; border-bottom: 1px solid #e8edf2; }
+.worker-case-browser .worker-case-background .worker-case-field { font-size: 13px; line-height: 1.8; }
+.worker-case-browser .worker-case-background .worker-case-field + .worker-case-field { margin-top: 12px; }
+.worker-case-browser .worker-case-card header > .worker-kicker { display: block; margin-bottom: 5px; font-size: 11px; }
+.worker-guidance { margin-top: 20px; }
+.worker-guidance h4, .worker-case-applicability > h4 { font-size: 12px; font-weight: 650; color: #334155; margin-bottom: 10px; }
+.worker-guidance ol { list-style: none; display: grid; gap: 10px; }
+.worker-guidance li { display: flex; align-items: flex-start; gap: 9px; }
+.worker-guidance-number { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; margin-top: 3px; border-radius: 4px; background: #edf3f6; color: #416479; font-size: 10px; font-weight: 600; }
+.worker-guidance li > div { min-width: 0; }
+.worker-guidance p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.worker-guidance-label { display: block; font-size: 11px; color: #64748b; }
+.worker-guidance.is-action { padding: 13px; background: #f5f7f9; border: 1px solid #e5ebf0; border-radius: 4px; }
+.worker-guidance-missing { font-size: 12px; color: #64748b; }
+.worker-case-applicability { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e8edf2; font-size: 12px; }
+.worker-case-applicability .worker-case-field { margin-top: 12px; font-size: 12px; }
+.worker-case-source { display: flex; flex-direction: column; gap: 3px; margin-top: 18px; padding-top: 12px; border-top: 1px solid #e8edf2; color: #64748b; font-size: 10px; overflow-wrap: anywhere; }
+
+/* Focused worker surfaces: one visible instruction, clear interactive tabs. */
+.worker-support { background: #eaf0f5; }
+.worker-case-browser { padding: 14px; }
+.worker-inspection-context { margin-bottom: 12px; padding-bottom: 10px; }
+.worker-inspection-context .worker-kicker { font-size: 10px; }
+.worker-inspection-context .worker-case-current { padding: 3px 0; }
+.worker-case-browser .worker-case-caption { padding: 7px 0 12px; font-size: 10px; }
+.worker-case-browser .worker-case-list { margin-top: 10px; }
+.worker-case-browser .worker-case-list button { padding: 10px 12px; }
+.worker-case-browser .worker-case-card > header { background: #f4f7fa; padding: 14px 16px; }
+.worker-case-browser .worker-case-card h3 { font-size: 16px; line-height: 1.5; margin-top: 4px; }
+.worker-case-browser .worker-case-card > .worker-guide-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 0; background: #f4f7fa; border-bottom: 1px solid #dce3ea; }
+.worker-guide-tabs button { min-height: 42px; padding: 9px 4px; border-bottom: 2px solid transparent; color: #64748b; font-size: 12px; font-weight: 500; cursor: pointer; }
+.worker-guide-tabs button:hover { color: var(--wk-accent); background: var(--wk-tint); }
+.worker-guide-tabs button[aria-selected="true"] { color: var(--wk-accent-dark); border-bottom-color: var(--wk-accent); background: #fff; font-weight: 650; }
+.worker-guide-tabs button:focus-visible { outline: 2px solid var(--wk-accent); outline-offset: -3px; }
+.worker-case-browser .worker-case-card > .worker-case-narrative { padding: 18px 16px 12px; }
+.worker-case-narrative [role="tabpanel"] { min-height: 130px; }
+.worker-case-narrative [role="tabpanel"][hidden] { display: none; }
+.worker-case-narrative [role="tabpanel"] > .worker-guidance { margin-top: 0; }
+.worker-case-narrative [role="tabpanel"] > .worker-guidance > h4 { display: none; }
+.worker-case-narrative .worker-guidance li { gap: 11px; }
+.worker-case-narrative .worker-guidance li p { font-size: 15px; line-height: 1.85; color: #24364a; }
+.worker-case-narrative .worker-guidance-number { background: var(--wk-tint); color: var(--wk-accent-dark); width: 23px; height: 23px; font-size: 11px; }
+.worker-case-narrative .worker-guidance.is-action { background: transparent; border: 0; padding: 0; }
+.worker-case-narrative .worker-case-source { margin-top: 12px; }
+.worker-measurement { background: #f0f3f7; }
+.worker-measurement > section { background: #f0f3f7; }
+.worker-measurement [aria-label="측정 입력"], .worker-measurement [aria-label$=" 측정 입력"] { border: 1px solid #d6dfe8; border-radius: 6px; }
+.worker-measurement [aria-label="측정 입력"] > .card-header, .worker-measurement [aria-label$=" 측정 입력"] > .card-header { background: #e8eef4; padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #dce3ea; }
+.worker-measurement input[inputmode="decimal"] { border-color: var(--wk-border); box-shadow: 0 0 0 2px var(--wk-tint); }
+.worker-measurement input[inputmode="decimal"]:focus { outline: 2px solid var(--wk-accent); outline-offset: 1px; }
+
+/* Reference material remains subordinate to measurement entry. */
+.worker-workspace { background: #e1e7ee; }
+.worker-support { background: #e9eef3; }
+.worker-case-browser .worker-case-card h3 { font-size: 14px; font-weight: 600; }
+.worker-case-browser .worker-case-list-title { font-size: 12px; font-weight: 500; }
+.worker-case-browser .worker-case-card > header { padding: 11px 14px; }
+.worker-case-browser .worker-case-card > .worker-case-narrative { padding: 14px; }
+.worker-case-narrative [role="tabpanel"] { min-height: 0; }
+.worker-case-narrative .worker-guidance li p { font-size: 13px; line-height: 1.75; font-weight: 400; }
+.worker-case-narrative .worker-guidance-number { width: 18px; height: 18px; font-size: 10px; }
+.worker-case-browser .worker-case-field { font-size: 13px; }
+.worker-guide-tabs button { min-height: 38px; font-size: 11px; }
+.worker-case-browser .worker-case-registration { margin-top: 18px; padding-top: 12px; }
+.worker-measurement input[inputmode="decimal"]:focus-visible { border-color: var(--wk-accent); box-shadow: 0 0 0 3px var(--wk-tint-2); }
+
+/* One title system for the three worker panes. */
+.worker-pane-heading { display: flex; align-items: center; gap: 10px; height: 60px; min-height: 60px; flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid #d4dde6; background: #f2f5f8; color: #24374a; }
+.worker-pane-heading .worker-pane-icon { display: inline-flex; flex: none; color: #63798d; }
+.worker-pane-heading > div { min-width: 0; }
+.worker-pane-heading h2 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 700; }
+.worker-pane-heading .worker-pane-icon svg { width: 24px; height: 24px; }
+.worker-pane-heading p { margin: 3px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; }
+.worker-pane-heading > button { margin-left: auto; }
+
+/* Put reference value and acceptable limits in one clear criterion box. */
+.worker-range-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 14px; padding: 14px; border: 1px solid #cddbe5; border-radius: 5px; background: #f1f6fa; }
+.worker-range-summary > span:first-child { grid-column: 1; font-size: 11px; }
+.worker-range-summary > b { grid-column: 1; grid-row: 2; font-size: 20px; line-height: 1.5; }
+.worker-range-summary > .worker-nominal { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; justify-content: center; padding-left: 14px; border-left: 1px solid #d4e0e9; }
+.worker-nominal > span { font-size: 11px; color: #5c7184; }
+.worker-nominal strong { color: #193c50; font-size: 24px; font-weight: 600; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.worker-nominal small { font-size: 12px; font-weight: 400; }
+.worker-entry-instruction { color: #53677b; font-size: 12px; line-height: 1.7; }
+@media (max-width: 1400px) { .worker-range-summary { column-gap: 10px; padding: 11px; } .worker-range-summary > b { font-size: 17px; } .worker-nominal strong { font-size: 21px; } }
+
+/*
+ * 업무(부품제작 · 조립 · 검증)별 강조색.
+ * 작업 화면(.dx-shell[data-purpose])에서만 강조색 변수를 바꾼다: 부품제작=파랑, 조립=청록(teal), 검증=보라.
+ * 합격(emerald)·주의(amber)·불합격(rose) 상태색은 업무와 상관없이 그대로다.
+ * 강조색으로 쓰던 cyan-* 단계와 dx-accent 토큰, 작업 화면 CSS 의 --wk-* 변수를 함께 바꾼다.
+ */
+.dx-shell { --wk-accent: #0e829d; --wk-accent-dark: #086b84; --wk-tint: #edf4f8; --wk-tint-2: #d8edf3; --wk-border: #8cabbc; }
+.dx-shell[data-purpose] { position: relative; }
+.dx-shell[data-purpose]::before { content: ''; position: absolute; inset: 0 0 auto 0; z-index: 60; height: 3px; background: var(--color-dx-accent); pointer-events: none; }
+.dx-shell[data-purpose] .seg-dark .seg-item[aria-pressed="true"] { background: var(--color-dx-accent-strong); color: #fff; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+.dx-shell[data-purpose="manufacturing"] {
+  --color-dx-accent: #1d4ed8; --color-dx-accent-strong: #1e40af;
+  --color-cyan-50: #eff6ff; --color-cyan-100: #dbeafe; --color-cyan-200: #bfdbfe; --color-cyan-400: #60a5fa; --color-cyan-500: #3b82f6;
+  --color-cyan-600: #2563eb; --color-cyan-700: #1d4ed8; --color-cyan-800: #1e40af; --color-cyan-900: #1e3a8a;
+  --wk-accent: #2563eb; --wk-accent-dark: #1e40af; --wk-tint: #eef4ff; --wk-tint-2: #dbe7ff; --wk-border: #93aee6;
+}
+.dx-shell[data-purpose="assembly"] {
+  --color-dx-accent: #0f766e; --color-dx-accent-strong: #115e59;
+  --color-cyan-50: #f0fdfa; --color-cyan-100: #ccfbf1; --color-cyan-200: #99f6e4; --color-cyan-400: #2dd4bf; --color-cyan-500: #14b8a6;
+  --color-cyan-600: #0d9488; --color-cyan-700: #0f766e; --color-cyan-800: #115e59; --color-cyan-900: #134e4a;
+  --wk-accent: #0d9488; --wk-accent-dark: #115e59; --wk-tint: #ecfaf7; --wk-tint-2: #cdf3ec; --wk-border: #7fb8b0;
+}
+.dx-shell[data-purpose="verification"] {
+  --color-dx-accent: #6d28d9; --color-dx-accent-strong: #5b21b6;
+  --color-cyan-50: #f5f3ff; --color-cyan-100: #ede9fe; --color-cyan-200: #ddd6fe; --color-cyan-400: #a78bfa; --color-cyan-500: #8b5cf6;
+  --color-cyan-600: #7c3aed; --color-cyan-700: #6d28d9; --color-cyan-800: #5b21b6; --color-cyan-900: #4c1d95;
+  --wk-accent: #7c3aed; --wk-accent-dark: #5b21b6; --wk-tint: #f3f0ff; --wk-tint-2: #e3dcfd; --wk-border: #b3a3e0;
+}
+
+/*
+ * 관리자 화면 테마: 한화 오렌지(#F37321, 로고 사이트 기준값 - 공식 브랜드 가이드 값은 확인하지 못함).
+ * 업무별 강조색과 같은 방식으로 강조색 변수와 cyan-* 단계를 바꾼다(관리자 화면은 data-role="admin").
+ * - 면(상단 바, 버튼, 선택된 탭, 번호 마커, 아이콘): 브랜드 오렌지 그대로. 흰 글씨 대비는 2.9:1 로 낮다.
+ * - 오렌지 글자색(text-dx-accent, text-cyan-700): 흰 바탕에서 읽히도록 진한 오렌지(#c2570f, 4.5:1).
+ * 합격(emerald)·주의(amber)·불합격(rose) 상태색은 그대로다. 3D 뷰어 영역(.dx-viewer-dark)은 자체 강조색을 쓴다.
+ */
+.dx-shell[data-role="admin"] {
+  position: relative;
+  --color-dx-accent: #f37321; --color-dx-accent-strong: #f37321;
+  --color-cyan-50: #fff4ec; --color-cyan-100: #ffe6d3; --color-cyan-200: #fccba8; --color-cyan-400: #f89b6c; --color-cyan-500: #f37321;
+  --color-cyan-600: #cf5a12; --color-cyan-700: #f37321; --color-cyan-800: #96400a; --color-cyan-900: #78330a;
+}
+.dx-shell[data-role="admin"]::before { content: ''; position: absolute; inset: 0 0 auto 0; z-index: 60; height: 3px; background: var(--color-dx-accent); pointer-events: none; }
+.dx-shell[data-role="admin"] .seg-dark .seg-item[aria-pressed="true"] { background: var(--color-dx-accent-strong); color: #fff; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+.dx-shell[data-role="admin"] .text-dx-accent:not(.dx-viewer-dark *),
+.dx-shell[data-role="admin"] .text-cyan-700 { color: #c2570f; }
+
+/* 기본 버튼 hover 가 청록(#0a5468)으로 고정돼 있어 업무·관리자 테마에서도 각 테마의 가장 진한 단계(cyan-900)를 쓰게 한다 */
+.dx-shell[data-role] .dx-btn-primary:hover,
+.dx-shell[data-purpose] .dx-btn-primary:hover { background-color: var(--color-cyan-900); border-color: var(--color-cyan-900); }
+/* 관리자 화면 버튼 hover: 브랜드 오렌지보다 살짝 진하게 */
+.dx-shell[data-role="admin"] .dx-btn-primary:hover,
+.dx-shell[data-role="admin"] .btn-primary:hover { background-color: #dc6419; border-color: #dc6419; }
+
+/*
+ * 시연 영상용 가독성: 작업자 화면(부품제작·조립·검증)의 핵심 값(항목명·기준치수·허용 범위·입력·판정 버튼·오류사례 본문)을
+ * 크게 보이게 한다. 위의 같은 선택자 규칙보다 뒤에 둬서 우선한다.
+ */
+.worker-measurement header:not(.worker-pane-heading) h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
+.worker-measurement header p.break-all { font-size: 20px; }
+.worker-measurement header span.bg-slate-900 { font-size: 15px; padding: 2px 8px; }
+.worker-measurement header .btn-icon { width: 32px; height: 32px; }
+.worker-measurement header .min-w-\[44px\] { font-size: 14px; }
+.worker-measurement header span.rounded-sm { font-size: 13px; padding: 3px 8px; }
+.worker-range-summary > span:first-child { font-size: 14px; }
+.worker-range-summary > b { font-size: 26px; }
+.worker-nominal > span { font-size: 14px; }
+.worker-nominal strong { font-size: 30px; }
+@media (max-width: 1400px) { .worker-range-summary > b { font-size: 22px; } .worker-nominal strong { font-size: 26px; } }
+.worker-measurement input[inputmode="decimal"] { height: 56px; font-size: 22px; }
+.worker-measurement input[inputmode="decimal"]::placeholder { font-size: 15px; }
+:is(.worker-measurement, .worker-support) .field { min-height: 44px; font-size: 15px; }
+.worker-measurement .field-label { font-size: 14px; }
+.worker-measurement .btn-lg { min-height: 52px; font-size: 18px; }
+.worker-measurement .note { font-size: 14px; }
+.worker-center > section:last-child table { font-size: 14px; }
+.worker-center > section:last-child th { font-size: 13px; }
+.worker-support-context h2 { font-size: 18px; }
+.worker-inspection-range { font-size: 13px; }
+.worker-case-browser .worker-case-caption { font-size: 12px; }
+.worker-case-browser .worker-case-card h3 { font-size: 16px; }
+.worker-case-browser .worker-case-list-title { font-size: 14px; }
+.worker-case-browser .worker-case-field { font-size: 15px; }
+.worker-case-narrative .worker-guidance li p { font-size: 16px; line-height: 1.8; }
+.worker-guide-tabs button { min-height: 44px; font-size: 14px; }
+
+/* 관리자 검토 화면: 영상에서 읽히도록 입력·버튼·안내 글자를 키운다 */
+
+.admin-review .field-label { font-size: 14px; }
+.admin-review .field { min-height: 44px; font-size: 15px; }
+.admin-review .note { font-size: 14px; }
+.admin-review .btn-lg { min-height: 52px; font-size: 18px; }
+.admin-review ul[role="alert"] { font-size: 14px; }
+.admin-review header h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
+.admin-review header p.break-all { font-size: 20px; }
+
+/* 오른쪽 '측정 전 유의사항' 패널: 현재 검사 항목·오류 DB·오류 기록 글자 키움 */
+.worker-inspection-context .worker-kicker { font-size: 16px; font-weight: 600; color: #3f5064; }
+.worker-inspection-context .worker-case-current { font-size: 22px; padding: 6px 0; }
+.worker-inspection-context .worker-case-current span { font-size: 20px; }
+.worker-inspection-range { font-size: 17px; }
+.worker-inspection-range strong { font-size: 20px; font-weight: 700; }
+.worker-case-heading { font-size: 18px; font-weight: 600; color: #334155; }
+.worker-case-heading svg { width: 20px; height: 20px; }
+.worker-case-browser .worker-case-caption { font-size: 16px; padding: 10px 0 16px; }
+.worker-case-registration .card-header h3 { font-size: 19px; font-weight: 700; }
+.worker-case-registration .card-header h3 span { font-size: 16px; }
+.worker-case-registration .card-header .tag { font-size: 15px; padding: 4px 10px; }
+.worker-case-registration .card-header .btn { height: 38px; font-size: 16px; padding: 0 14px; }
+.worker-case-registration article { font-size: 16px; }
+.worker-case-registration article h4 { font-size: 17px; }
+.worker-case-registration .divide-y > p { font-size: 16px; line-height: 1.7; }
+.worker-case-browser .worker-case-registration .card-body p { font-size: 15px; }
+.worker-case-registration .note { font-size: 15px; }
+.worker-empty { font-size: 16px; }
+
+/* 도면 선택 줄(도면 드롭다운·상태·작업 탭·수정 이력·3D에서 보기·데모 화면) 크게 */
+.dx-toolbar-select { height: 46px; max-width: 620px; padding: 0 16px; font-size: 18px; font-weight: 600; }
+.dx-toolbar-select svg { width: 22px; height: 22px; }
+.dx-toolbar-lg { font-size: 17px; }
+.dx-toolbar-lg .tag { font-size: 16px; padding: 5px 11px; }
+.dx-toolbar-lg .btn { height: 46px; padding: 0 18px; font-size: 17px; gap: 8px; }
+.dx-toolbar-lg .btn svg { width: 20px; height: 20px; }
+.dx-toolbar-lg .seg-dark { padding: 3px; }
+.dx-toolbar-lg .seg-item { height: 42px; padding: 0 18px; font-size: 17px; }
+.dx-toolbar-lg .seg-item > span { font-size: 13px; margin-left: 6px; }
+
+/* 관리자 검토: 패널이 넓으면 '치수 확인'과 '작업자 검사 기준'을 가로로 나란히 (좁으면 세로) */
+.review-pair-wrap { container-type: inline-size; }
+.review-pair { display: grid; gap: 12px; align-items: start; }
+.review-pair > * { min-width: 0; }
+@container (min-width: 680px) {
+  .review-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .review-pair > .review-pair-wide { grid-column: 1 / -1; }
+}

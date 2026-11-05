@@ -117,9 +117,11 @@ html:has(body.embed), body.embed, body.embed .main, body.embed .stage { backgrou
 html:has(body.embed) { color-scheme: normal !important; }
 
 body.embed .hud { left: auto; right: 12px; top: 12px; }
-body.embed .hud .tag { background: rgba(10, 20, 31, 0.85); border-color: #22364a; color: #8ea3b8; }
-body.embed .hud .tag b { color: #dbe6f0; }
-body.embed .toast { background: #dbe6f0; color: #0b1520; }
+body.embed .hud .tag { background: rgba(255, 255, 255, 0.92); border-color: #d6dde6; color: #566678; }
+body.embed .hud .tag b { color: #1c2733; }
+body.embed .toast { background: #1c2733; color: #ffffff; }
+/* 밝은 배경에서도 바닥 격자가 보이도록 앱 안에서는 격자 색을 고정한다 */
+html:root:has(body.embed) { --grid: #aebac7; }
 </style>
 <script>
 /* 앱 안에서 쓸 때 스크립트 오류(WebGL 미지원 등)를 부모에 알린다 */
@@ -674,7 +676,7 @@ assembled.then(() => {
    앱 안에 넣어 쓰기 (?embed=1) — 메인 화면(App)이 iframe 으로 열고 postMessage 로 조작한다.
    부모 → 뷰어: dx:select {key|null} · dx:reset · dx:zoom {factor} · dx:explode {on} · dx:run {on}
    뷰어 → 부모: dx:ready {parts, source} · dx:selected {key} · dx:state {exploded, running} · dx:error {message}
-   선택 강조는 절제된 시안 윤곽선 + 약한 발광. 단독 실행(embed 아님)일 때는 기존 동작 그대로.
+   기본은 모든 부품 같은 회색, 선택하면 선택 부품만 빨간색(나머지는 불투명 회색). 단독 실행(embed 아님)일 때는 기존 동작 그대로.
    ================================================================ */
 (function () {
   if (!/[?&]embed=1\b/.test(location.search)) return;
@@ -685,14 +687,12 @@ assembled.then(() => {
   setRun(false);
 
   // ---------- 강조 규칙 ----------
-  // 선택: 시안 얇은 윤곽선 + 아주 약한 시안 발광 (표면 색은 그대로 보인다)
-  // 마우스를 올림: 회청색 얇은 윤곽선만 (발광 없음) → 선택과 구별
-  // 선택이 있을 때 나머지 부품은 밝기만 조금 낮춘다 (불투명 유지 → 전체 구조가 보인다)
+  // 기본: 모든 부품을 같은 불투명 회색으로 통일한다 (부품마다 색이 다르지 않다).
+  // 선택: 선택한 부품 종류 전체만 불투명한 빨간색 (윤곽선·발광 없음), 나머지는 같은 불투명 회색 그대로.
+  // 마우스를 올림: 회청색 얇은 윤곽선만 → 선택 상태와 구별
+  const SELECT_RED = 0xe5232b, GRAY = 0x7d8996;   // 밝은 배경(#eef2f6 안팎)에서 읽히는 대비
   const EDGE_SELECTED = new THREE.LineBasicMaterial({ color: 0x45d6ec, transparent: true, opacity: 0.95 });
-  const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x9db4cb, transparent: true, opacity: 0.6 });
-  const BASE_COLOR = {};
-  PARTS.forEach(p => { BASE_COLOR[p.key] = MAT[p.key].color.clone(); });
-  const DIM = 0.62;
+  const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x3f5368, transparent: true, opacity: 0.75 });
   let hoverKey = null;
   const edgesBuilt = new Set();
   function ensureEdges(key) {
@@ -708,18 +708,17 @@ assembled.then(() => {
     }));
   }
   function refreshLook() {
-    ensureEdges(selKey);
-    ensureEdges(hoverKey);
+    ensureEdges(hoverKey);   // 선택 윤곽선은 쓰지 않으므로 마우스를 올린 부품만 만든다
     PARTS.forEach(p => {
       const m = MAT[p.key];
-      m.color.copy(BASE_COLOR[p.key]);
-      if (selKey && p.key !== selKey) m.color.multiplyScalar(DIM);
-      m.emissive.setHex(p.key === selKey ? 0x06343e : 0x000000);
+      const selected = p.key === selKey;
+      m.color.setHex(selected ? SELECT_RED : GRAY);
+      m.emissive.setHex(0x000000);
       inst[p.key].forEach(obj => obj.traverse(o => {
         if (!o.userData.edge) return;
-        const sel = o.userData.edge === selKey, hov = o.userData.edge === hoverKey && !sel;
-        o.visible = sel || hov;
-        o.material = sel ? EDGE_SELECTED : EDGE_HOVER;
+        const hov = o.userData.edge === hoverKey && !selected;
+        o.visible = hov;
+        o.material = EDGE_HOVER;
       }));
     });
   }
@@ -783,6 +782,7 @@ assembled.then(() => {
   makeGrid();
   grid.material.opacity = 0.4;
   assembled.then(() => {
+    refreshLook();   // 처음부터 모든 부품을 같은 회색으로 보여준다
     post({
       type: 'dx:ready',
       parts: PARTS.map(p => ({ key: p.key, name: p.name, pn: p.pn, qty: p.qty, spec: p.spec })),

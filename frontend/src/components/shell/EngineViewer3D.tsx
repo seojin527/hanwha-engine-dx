@@ -109,7 +109,7 @@ export function EngineViewer3D({
   return (
     <section
       aria-label="전체 엔진 3D"
-      className={`relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#18293b_0%,#0f1c2b_55%,#0b1622_100%)] ${visible ? "flex" : "hidden"}`}
+      className={`relative min-h-0 min-w-0 flex-1 bg-[radial-gradient(ellipse_at_55%_45%,#f7f9fb_0%,#eaeef3_55%,#dde3ea_100%)] ${visible ? "flex" : "hidden"}`}
     >
       {/* 장식 배경: 뷰어 바탕이 투명이라 3D 주변까지 이어진다 (입력은 가로채지 않음) */}
       <EngineeringBackdrop />
@@ -123,7 +123,7 @@ export function EngineViewer3D({
       />
 
       {/* 보기 도구 (뷰어가 지원하는 기능만) */}
-      <div role="toolbar" aria-label="3D 보기 도구" className={`absolute flex items-center gap-0.5 rounded border border-dx-line bg-dx-panel/95 p-1 shadow-lg ${compact ? "left-2 top-2" : "left-1/2 top-3 -translate-x-1/2"}`}>
+      <div role="toolbar" aria-label="3D 보기 도구" className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-0.5 rounded border border-dx-line bg-dx-panel/95 p-1 shadow-lg">
         <ToolButton label="시점 초기화" disabled={disabled} onClick={() => send({ type: "dx:reset" })}>
           <RotateCcw className="h-4 w-4" />
         </ToolButton>
@@ -154,7 +154,7 @@ export function EngineViewer3D({
       </div>
 
       {!compact && (
-        <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-dx-bg/80 px-2 py-1 text-[11px] text-dx-muted">
+      <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-dx-bg/80 px-2 py-1 text-[11px] text-dx-muted">
           드래그 회전 · 휠 확대 · 우클릭 이동 · 부품을 클릭해 선택
         </p>
       )}
@@ -170,7 +170,7 @@ export function EngineViewer3D({
       {status === "error" && (
         <div role="alert" className="absolute inset-0 flex items-center justify-center bg-dx-bg/85">
           <div className="max-w-sm space-y-3 rounded border border-rose-400/40 bg-dx-panel p-4 text-xs">
-            <p className="flex items-center gap-2 font-semibold text-rose-200">
+            <p className="flex items-center gap-2 font-semibold text-rose-700">
               <AlertTriangle aria-hidden="true" className="h-4 w-4" />
               3D 모델을 표시하지 못했습니다
             </p>

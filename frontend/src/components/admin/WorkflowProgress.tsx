@@ -119,7 +119,7 @@ export function WorkflowProgress({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-white">
+          <h3 className="truncate text-sm font-semibold text-dx-strong">
             {progress?.drawing.part_name ? `${progress.drawing.part_name} · ` : ""}{drawing.original_filename || drawing.name}
           </h3>
           <p className="text-[11px] text-neutral-400">
@@ -169,7 +169,7 @@ export function WorkflowProgress({
                     ) : card.state === "ok" ? (
                       <>
                         <span className="flex items-baseline justify-between gap-2">
-                          <span className="text-lg font-semibold tabular-nums text-white">{percent(card.progress)}</span>
+                          <span className="text-lg font-semibold tabular-nums text-dx-strong">{percent(card.progress)}</span>
                           <span className="text-[11px] tabular-nums text-neutral-400">완료 {card.completed} / 대상 {card.target}</span>
                         </span>
                         <ProgressBar value={card.progress} tone={key === "manufacturing" ? "cyan" : "emerald"} />
@@ -178,7 +178,7 @@ export function WorkflowProgress({
                         </span>
                       </>
                     ) : (
-                      <span className="text-[11px] text-amber-200">{stateText(card.state, card.reason)}</span>
+                      <span className="text-[11px] text-amber-700">{stateText(card.state, card.reason)}</span>
                     )}
                     {key === "manufacturing" && progress.stages.manufacturing.stages && (
                       <span className="mt-0.5 grid grid-cols-3 gap-1">
@@ -214,7 +214,7 @@ export function WorkflowProgress({
           {progress.items.length > 0 && (
             <div className="grid min-h-[420px] flex-1 gap-3 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)_minmax(320px,380px)]">
               <ItemList purpose={purpose} progress={progress} selected={selectedItem} onSelect={setSelectedItem} />
-              <section aria-label="도면 위치" className="card relative flex min-h-[320px] flex-col overflow-hidden bg-slate-950">
+              <section aria-label="도면 위치" className="card relative flex min-h-[320px] flex-col overflow-hidden bg-dx-canvas">
                 {sameRevision && snapshot?.result ? (
                   <DrawingViewer
                     key={`${drawingId}:${snapshot.revision}`}
@@ -269,7 +269,7 @@ function ItemList({
   return (
     <section aria-label={`${LABEL[purpose]} 항목 목록`} className="card flex min-h-[320px] flex-col overflow-hidden">
       <header className="card-header">
-        <h4 className="text-xs font-semibold text-white">{LABEL[purpose]} 항목</h4>
+        <h4 className="text-xs font-semibold text-dx-strong">{LABEL[purpose]} 항목</h4>
         <span className="text-[11px] text-neutral-400">{progress.items.length}개</span>
       </header>
       <ul className="min-h-0 flex-1 overflow-y-auto">
@@ -282,7 +282,7 @@ function ItemList({
                 type="button"
                 aria-current={on || undefined}
                 onClick={() => onSelect(item.item_id)}
-                className={`flex w-full items-start gap-2 px-3 py-2 text-left text-xs ${on ? "bg-cyan-400/10 shadow-[inset_3px_0_0_var(--color-cyan-400)]" : "hover:bg-white/5"}`}
+                className={`flex w-full items-start gap-2 px-3 py-2 text-left text-xs ${on ? "bg-cyan-400/10 shadow-[inset_3px_0_0_var(--color-cyan-400)]" : "hover:bg-slate-900/5"}`}
               >
                 <span className="w-6 shrink-0 text-right font-mono tabular-nums text-neutral-400">{item.number}</span>
                 <span className="min-w-0 flex-1">
@@ -388,7 +388,7 @@ function ItemDetail({
   return (
     <>
       <header className="card-header">
-        <h4 className="min-w-0 truncate text-xs font-semibold text-white">{detail.item.raw_text.replace(/\n/g, " ")}</h4>
+        <h4 className="min-w-0 truncate text-xs font-semibold text-dx-strong">{detail.item.raw_text.replace(/\n/g, " ")}</h4>
         <span className="font-mono text-[11px] text-neutral-400">{detail.item.id}</span>
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 text-xs">

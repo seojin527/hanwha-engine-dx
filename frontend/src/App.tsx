@@ -686,16 +686,16 @@ export function App() {
 
   const toolbarStatus = demoMode ? (
     <>
-      <span className="tag bg-slate-700 text-slate-200">데모</span>
+      <span className="tag bg-dx-line text-dx-text">데모</span>
       <span className="truncate">샘플 도면 · 샘플 측정항목</span>
     </>
   ) : selectedDrawing ? (
     <>
       {document ? (
         documentReviewed ? (
-          <span className="tag bg-emerald-900/70 text-emerald-200">검토 완료</span>
+          <span className="tag bg-emerald-100 text-emerald-800">검토 완료</span>
         ) : (
-          <span className="tag bg-amber-900/70 text-amber-200">검토 전</span>
+          <span className="tag bg-amber-100 text-amber-800">검토 전</span>
         )
       ) : null}
       <span className="truncate">
@@ -710,7 +710,7 @@ export function App() {
     <span className="truncate">등록된 도면을 선택해주세요</span>
   );
 
-  const divider = <span aria-hidden="true" className="hidden h-4 w-px bg-slate-700 sm:block" />;
+  const divider = <span aria-hidden="true" className="hidden h-4 w-px bg-dx-line sm:block" />;
 
   const toolbarActions = (
     <>
@@ -954,7 +954,7 @@ export function App() {
 
   if (stage === "login") {
     // 서버 정책(관람객 주소 여부)을 받기 전에는 로그인 칸을 그리지 않는다. 관리자 역할이 잠깐 보였다 사라지지 않게.
-    if (!deployMode.loaded) return <main className="dx-shell h-dvh w-screen bg-[#0b1522]" aria-busy="true" />;
+    if (!deployMode.loaded) return <main className="dx-shell h-dvh w-screen bg-dx-bg" aria-busy="true" />;
     return (
       <LoginScreen
         visitor={visitor}
@@ -1044,7 +1044,7 @@ export function App() {
     <div className="flex shrink-0 items-center gap-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-dx-faint">데모</p>
-        <p className="truncate text-[13px] font-semibold text-white">샘플 도면 · 샘플 측정항목</p>
+        <p className="truncate text-[13px] font-semibold text-dx-strong">샘플 도면 · 샘플 측정항목</p>
       </div>
       <button type="button" onClick={backTo3D} className="dx-btn"><Box aria-hidden="true" className="h-3.5 w-3.5" />3D로</button>
     </div>
@@ -1064,7 +1064,7 @@ export function App() {
       extra={isAdmin && (
         <button
           type="button"
-          className="dx-btn w-full"
+          className="dx-btn shrink-0"
           onClick={() => {
             if (!allParts.length) fetchParts().then((data) => setAllParts(data.parts)).catch(() => {});
             setMoveOpen(true);
@@ -1105,7 +1105,7 @@ export function App() {
 
   return (
     <UnsavedChangesProvider registry={unsavedRegistry}>
-    <div className="dx-shell flex h-dvh w-screen overflow-hidden font-sans">
+    <div className="dx-shell flex h-dvh w-screen overflow-hidden font-sans" data-role={isAdmin ? "admin" : "worker"} data-purpose={purpose}>
       {railNav}
       <div className="flex min-w-0 flex-1 flex-col">
         <ShellTopBar
@@ -1189,7 +1189,7 @@ export function App() {
           )}
           {stage === "workspace" && (
     <PanelLayoutContext.Provider value={{ side: "left", header: drawingContext }}>
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-dx-bg">
       <DrawingLibrary
         uploadRequest={uploadRequest}
         status={toolbarStatus}
@@ -1252,7 +1252,7 @@ export function App() {
       )}
 
       {showFileBar && (
-        <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-800 bg-slate-900 px-3 py-1 text-xs">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-dx-line bg-dx-panel px-3 py-1">
           <span className="text-[11px] text-slate-400">
             {!documentReviewed
               ? "검수 결과 파일은 관리자 검토 완료 때 자동으로 만들어집니다."
@@ -1268,9 +1268,9 @@ export function App() {
               key={file.kind}
               href={apiUrl(file.url)}
               download
-              className="btn btn-dark h-6"
+                    className="btn btn-dark-ghost h-9 justify-start px-3 text-sm"
             >
-              <Download aria-hidden="true" className="h-3 w-3" />
+                    <Download aria-hidden="true" className="h-3.5 w-3.5" />
               {file.label}
             </a>
           ) : (
@@ -1278,14 +1278,14 @@ export function App() {
               key={file.kind}
               type="button"
               onClick={() => setPreviewFile(file)}
-              className="btn btn-dark h-6"
+                    className="btn btn-dark-ghost h-9 justify-start px-3 text-sm"
             >
               {file.label}
             </button>
           ))}
 
           {fileError && (
-            <p role="alert" className="w-full text-[11px] text-rose-300">
+            <p role="alert" className="text-xs text-rose-700">
               {fileError}
             </p>
           )}

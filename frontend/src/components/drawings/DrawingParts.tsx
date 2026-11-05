@@ -51,7 +51,7 @@ export function reviewState(drawing: Pick<Drawing, "ocr_status" | "review_status
 
 export function Badge({ tone, children, title }: { tone: Tone; children: ReactNode; title?: string }) {
   return (
-    <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded border px-1.5 py-px text-[10.5px] font-medium leading-4 ${TONE_CLASS[tone]}`}>
+    <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded border px-1.5 py-px text-sm font-medium leading-4 ${TONE_CLASS[tone]}`}>
       {children}
     </span>
   );
@@ -267,20 +267,20 @@ export function DrawingPreview({
   const name = drawing.original_filename || drawing.name;
   const review = reviewState(drawing);
   return (
-    <div className={`flex min-h-0 flex-col gap-2 ${wide ? "sm:flex-row sm:items-start sm:gap-3 2xl:flex-col 2xl:gap-2" : ""}`}>
+    <div className={`flex min-h-0 flex-col gap-2 ${wide ? "sm:flex-row sm:items-start sm:gap-3" : ""}`}>
       <a
         href={drawingFileUrl(drawing)}
         target="_blank"
         rel="noreferrer"
         title="원본을 새 탭에서 보기"
-        className={`block shrink-0 overflow-hidden rounded border border-dx-line ${wide ? "sm:w-[220px] 2xl:w-full" : ""}`}
+        className={`block shrink-0 overflow-hidden rounded border border-dx-line ${wide ? "sm:w-[220px]" : ""}`}
       >
         <DrawingThumb drawing={drawing} size="lg" className="aspect-[1.414] w-full" />
       </a>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="break-all text-[13px] font-semibold leading-snug text-white">{name}</p>
+          <p className="break-all text-[13px] font-semibold leading-snug text-dx-strong">{name}</p>
           <p className="mt-0.5 text-[11px] text-dx-muted">
             {partName ? `${partName} · ` : ""}
             {formatType(drawing.media_type)} · {formatSize(drawing.size_bytes)} · {drawing.created_at?.slice(0, 16)}

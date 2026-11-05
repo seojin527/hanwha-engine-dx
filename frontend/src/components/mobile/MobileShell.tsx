@@ -184,7 +184,7 @@ export function MobileShell(props: MobileShellProps) {
     if (workView === "review" && isAdmin && props.reviewPane) {
       return (
         <>
-          <div className="fixed inset-0 flex flex-col bg-dx-bg">
+          <div className="dx-shell fixed inset-0 flex flex-col bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
             <MobileTopBar
               title={`검토 · ${title}`}
               subtitle={`${formatTime(drawing.created_at)} 등록 · ${docReviewed ? "검토 완료" : "검토 전"}`}
@@ -223,7 +223,7 @@ export function MobileShell(props: MobileShellProps) {
     // ---------------------------------------------------------------- 도면 + 업무 고르기
     return (
       <>
-        <div className="fixed inset-0 flex flex-col bg-dx-bg">
+        <div className="dx-shell fixed inset-0 flex flex-col bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
           <MobileTopBar
             title={title}
             subtitle={`${partName(part?.engine_part_key ?? null) ?? "3D 미연결"} · ${formatTime(drawing.created_at)} 등록 · ${docReviewed ? "검토 완료" : doc ? "검토 전" : "OCR 결과 없음"}`}
@@ -257,7 +257,7 @@ export function MobileShell(props: MobileShellProps) {
                 <p className="mb-2 text-[13px] text-dx-text">
                   {docReviewed ? "검토 완료된 도면입니다. 항목을 다시 확인하거나 고칠 수 있습니다." : "OCR 추출값을 항목별로 확인한 뒤 검토 완료로 저장하세요."}
                 </p>
-                <button type="button" disabled={!props.reviewPane} onClick={() => setWorkView("review")} className="h-12 w-full rounded-lg bg-[#22c3dc] text-[15px] font-semibold text-[#04212b] disabled:opacity-40">
+                <button type="button" disabled={!props.reviewPane} onClick={() => setWorkView("review")} className="h-12 w-full rounded-lg bg-dx-accent-strong text-[15px] font-semibold text-white disabled:opacity-40">
                   {props.reviewPane ? "항목 검토 시작" : "OCR 결과를 불러오는 중…"}
                 </button>
               </>
@@ -273,7 +273,7 @@ export function MobileShell(props: MobileShellProps) {
             ) : (
               <>
                 <div className="mb-2 flex items-center gap-2">
-                  <h2 className="min-w-0 flex-1 text-[15px] font-semibold text-white">어떤 업무로 이 도면을 볼까요?</h2>
+                  <h2 className="min-w-0 flex-1 text-[15px] font-semibold text-dx-strong">어떤 업무로 이 도면을 볼까요?</h2>
                   {trial && <ModeBadge mode="trial" />}
                 </div>
                 <div className="grid gap-2 [@media(max-height:500px)]:grid-cols-3">
@@ -288,10 +288,10 @@ export function MobileShell(props: MobileShellProps) {
                           props.onPurpose(key);
                           setWorkView("task");
                         }}
-                        className="flex items-center gap-3 rounded-lg border border-dx-line-strong bg-dx-bg px-3 py-2.5 text-left active:bg-white/5"
+                        className="flex items-center gap-3 rounded-lg border border-dx-line-strong bg-dx-bg px-3 py-2.5 text-left active:bg-dx-raised"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2 text-[15px] font-semibold text-white">
+                          <span className="flex items-center gap-2 text-[15px] font-semibold text-dx-strong">
                             {guide.title}
                             <span className="text-[12px] font-normal text-dx-accent">{guide.short}</span>
                             {view && <span className="rounded border border-dx-line px-1 text-[11px] font-normal text-dx-muted">조회만</span>}
@@ -317,7 +317,7 @@ export function MobileShell(props: MobileShellProps) {
   const selectedName = partName(selection.engineKey);
   return (
     <>
-      <div className="fixed inset-0 flex flex-col bg-dx-bg">
+      <div className="dx-shell fixed inset-0 flex flex-col bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
         <MobileTopBar
           title={selectedName ?? engineModel?.title ?? "엔진 3D"}
           subtitle={selectedName ? engineModel?.title : `${props.userLabel} · ${props.roleText}`}
@@ -334,7 +334,7 @@ export function MobileShell(props: MobileShellProps) {
             onReady={props.onEngineReady}
           />
           {!selection.engineKey && (
-            <p className="pointer-events-none absolute inset-x-0 bottom-4 z-20 mx-auto w-fit max-w-[90%] rounded-full bg-dx-panel/95 px-4 py-2 text-center text-[14px] font-medium text-white shadow-lg" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+            <p className="pointer-events-none absolute inset-x-0 bottom-4 z-20 mx-auto w-fit max-w-[90%] rounded-full bg-dx-panel/95 px-4 py-2 text-center text-[14px] font-medium text-dx-strong shadow-lg" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
               부품을 눌러 도면을 확인하세요
             </p>
           )}
@@ -342,7 +342,7 @@ export function MobileShell(props: MobileShellProps) {
         {selection.engineKey && (
           <section aria-label="선택한 부품" className="shrink-0 border-t border-dx-line bg-dx-panel px-4 pt-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
             <div className="flex items-baseline gap-2">
-              <h2 className="text-[17px] font-semibold text-white">{selectedName}</h2>
+              <h2 className="text-[17px] font-semibold text-dx-strong">{selectedName}</h2>
               <span className="min-w-0 truncate text-[12px] text-dx-muted">
                 {linkedParts.length ? linkedParts.map((part) => part.name).join(", ") : "등록 부품 연결 없음"}
               </span>
@@ -357,7 +357,7 @@ export function MobileShell(props: MobileShellProps) {
                   대표 도면 {representative.original_filename} · {formatTime(representative.created_at)} · {reviewed(representative) ? "검토 완료" : "검토 전"}
                 </p>
                 <div className="mt-2.5 flex gap-2">
-                  <button type="button" onClick={() => props.onOpenDrawing(representative)} className="h-12 min-w-0 flex-1 rounded-lg bg-[#22c3dc] text-[15px] font-semibold text-[#04212b]">
+                  <button type="button" onClick={() => props.onOpenDrawing(representative)} className="h-12 min-w-0 flex-1 rounded-lg bg-dx-accent-strong text-[15px] font-semibold text-white">
                     대표 도면 열기
                   </button>
                   {candidates.drawings.length > 1 && (
@@ -367,7 +367,7 @@ export function MobileShell(props: MobileShellProps) {
                         setListPart(linkedParts[0]?.part_id ?? null);
                         setListOpen(true);
                       }}
-                      className="h-12 shrink-0 rounded-lg border border-dx-line-strong px-3 text-[14px] text-white"
+                      className="h-12 shrink-0 rounded-lg border border-dx-line-strong px-3 text-[14px] text-dx-strong"
                     >
                       다른 도면 {candidates.drawings.length - 1}
                     </button>
@@ -421,10 +421,10 @@ export function MobileShell(props: MobileShellProps) {
 
 function MenuRow({ icon, label, detail, onClick }: { icon: ReactNode; label: string; detail?: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-4 text-left active:bg-white/5">
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-4 text-left active:bg-dx-raised">
       <span aria-hidden="true" className="text-dx-accent">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] text-white">{label}</span>
+        <span className="block text-[15px] text-dx-strong">{label}</span>
         {detail && <span className="block truncate text-[12px] text-dx-muted">{detail}</span>}
       </span>
       <ChevronRight aria-hidden="true" className="h-5 w-5 text-dx-muted" />
@@ -440,11 +440,11 @@ function DrawingRow({ drawing, mark, isAdmin, current, onPick }: { drawing: Draw
         type="button"
         disabled={!usable || current}
         onClick={() => onPick(drawing)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-white/5 disabled:opacity-55"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-dx-raised disabled:opacity-55"
       >
         <FileText aria-hidden="true" className="h-5 w-5 shrink-0 text-dx-muted" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] text-white">
+          <span className="block truncate text-[15px] text-dx-strong">
             {drawing.original_filename}
             {mark && <span className="ml-1.5 rounded bg-dx-accent/15 px-1 text-[11px] text-dx-accent">{mark}</span>}
             {current && <span className="ml-1.5 text-[11px] text-dx-muted">보는 중</span>}
@@ -542,8 +542,8 @@ function PartBrowser({
               <ul className="divide-y divide-dx-line">
                 {group.parts.map((entry) => (
                   <li key={entry.part_id}>
-                    <button type="button" onClick={() => setPartId(entry.part_id)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-white/5">
-                      <span className="min-w-0 flex-1 truncate text-[15px] text-white">{entry.name}</span>
+                    <button type="button" onClick={() => setPartId(entry.part_id)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-dx-raised">
+                      <span className="min-w-0 flex-1 truncate text-[15px] text-dx-strong">{entry.name}</span>
                       <span className="shrink-0 text-[13px] text-dx-muted">도면 {entry.drawing_count}</span>
                       <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0 text-dx-muted" />
                     </button>
@@ -569,7 +569,7 @@ function ExportsOverlay({ files, drawing, revision, reviewed: isReviewed, onClos
         <ul className="divide-y divide-dx-line">
           {files.map((file) => (
             <li key={file.kind}>
-              <a href={apiUrl(file.url)} target="_blank" rel="noreferrer" download={file.kind === "history_csv" ? true : undefined} className="flex items-center gap-3 px-4 py-4 text-[15px] text-white active:bg-white/5">
+              <a href={apiUrl(file.url)} target="_blank" rel="noreferrer" download={file.kind === "history_csv" ? true : undefined} className="flex items-center gap-3 px-4 py-4 text-[15px] text-dx-strong active:bg-dx-raised">
                 <FileDown aria-hidden="true" className="h-5 w-5 text-dx-accent" />
                 <span className="min-w-0 flex-1">{file.label}</span>
               </a>
@@ -577,7 +577,7 @@ function ExportsOverlay({ files, drawing, revision, reviewed: isReviewed, onClos
           ))}
           {revision && (
             <li>
-              <a href={stageReportUrl(drawing.drawing_id, revision)} download className="flex items-center gap-3 px-4 py-4 text-[15px] text-white active:bg-white/5">
+              <a href={stageReportUrl(drawing.drawing_id, revision)} download className="flex items-center gap-3 px-4 py-4 text-[15px] text-dx-strong active:bg-dx-raised">
                 <FileDown aria-hidden="true" className="h-5 w-5 text-dx-accent" />
                 <span className="min-w-0 flex-1">부품제작 자주검사 성적서 (서버 저장 기록 기준)</span>
               </a>

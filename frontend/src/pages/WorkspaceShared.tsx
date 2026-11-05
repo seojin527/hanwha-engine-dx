@@ -34,13 +34,13 @@ export function PositionPickBanner({ onCancel }: { onCancel: () => void }) {
 /** 관리자 검토가 끝나지 않은 도면을 작업자 페이지에서 열었을 때 (작업자는 관리자 화면으로 갈 수 없다) */
 export function WorkerBlockedNotice() {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-6">
-      <section className="w-full max-w-md rounded border border-slate-700 border-t-amber-500 border-t-2 bg-slate-900 p-5">
-        <h2 className="text-[13px] font-semibold text-white">
+    <div className="flex min-h-0 flex-1 items-center justify-center bg-dx-bg p-6">
+      <section className="w-full max-w-md rounded border border-dx-line-strong border-t-amber-500 border-t-2 bg-dx-panel p-5">
+        <h2 className="text-[13px] font-semibold text-dx-strong">
           관리자 검토가 끝나지 않은 도면입니다
         </h2>
 
-        <p className="mt-2 text-xs leading-relaxed text-slate-300">
+        <p className="mt-2 text-xs leading-relaxed text-dx-text">
           관리자가 OCR 추출 항목을 확인하고 「검토 완료 및 서버 저장」을 누른 뒤에
           작업자 화면에서 사용할 수 있습니다. 검토가 필요하면 관리자에게 요청해주세요.
         </p>

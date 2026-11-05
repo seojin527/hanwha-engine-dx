@@ -23,6 +23,7 @@ interface Props {
   onSaved?: (record: SavedMeasurement) => void;
   /** 다른 업무 작업자가 보는 중이면 true: 저장된 값만 보여주고 입력·저장을 막는다. */
   readOnly?: boolean;
+  onNextUnmeasured?: () => void;
 }
 
 const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
@@ -33,7 +34,7 @@ const NUMBER_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
  * - 합격/불합격 기록: 판정 기준을 보고 [합격]/[불합격]을 바로 누른다.
  * 버튼을 누르면 바로 저장되고, 서버가 같은 기준으로 다시 판정한다.
  */
-export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false }: Props) {
+export default function OcrMeasurementEntry({ purpose, drawingId, revision, item, onSaved, readOnly = false, onNextUnmeasured }: Props) {
   const mode = item.measurement_mode ?? "numeric";
 
   const [value, setValue] = useState("");
@@ -155,8 +156,8 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
 
   return (
     <section aria-label="측정 입력" className="card">
-      <header className="card-header">
-        <h3 className="text-xs font-semibold text-slate-900">{readOnly ? "측정 결과" : "측정 입력"}</h3>
+      <header className={readOnly || loading ? "card-header" : "sr-only"}>
+        <h3 className="sr-only">{readOnly ? "측정 결과" : "측정 입력"}</h3>
         {readOnly && !loading && (
           <span className="tag bg-slate-100 text-slate-600">조회 전용</span>
         )}
@@ -168,9 +169,6 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
       </header>
 
       <div className="card-body">
-      {readOnly && (
-        <p className="note note-info">이 업무의 담당 작업자만 입력할 수 있습니다. 저장된 결과만 표시합니다.</p>
-      )}
       <fieldset disabled={readOnly || loading || saving} className="space-y-3">
         {mode === "gauge" ? (
           <p className="note note-info whitespace-pre-wrap">
@@ -180,13 +178,13 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
         ) : (
           <>
             {hasRange ? (
-              <div className="flex flex-wrap items-baseline gap-x-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+              <div className="worker-range-summary">
                 <span className="text-[11px] text-slate-500">허용 범위</span>
                 <b className="font-mono text-sm font-semibold text-slate-900">
                   {formatNumber(low!)} ~ {formatNumber(high!)} {unit}
                 </b>
                 {typeof item.nominal_value === "number" && (
-                  <span className="text-[11px] text-slate-500">기준 {formatNumber(item.nominal_value)}</span>
+                  <span className="worker-nominal"><span>기준치수</span><strong>{formatNumber(item.nominal_value)} <small>{unit}</small></strong></span>
                 )}
               </div>
             ) : (
@@ -215,7 +213,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
               />
             </label>
             {trimmed && numeric === null && <p className="text-[11px] text-rose-700">숫자로 입력해주세요.</p>}
-            {inRange === true && <p className="text-[11px] font-medium text-emerald-700">허용 범위 안입니다.</p>}
+
             {inRange === false && (
               <p className="text-[11px] font-medium text-rose-700">허용 범위 밖입니다 ({offBy}). 측정 위치·측정기를 확인하세요.</p>
             )}
@@ -258,7 +256,6 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             }}
           />
         </label>
-
         {mode === "numeric" && !hasRange ? (
           <button
             type="button"
@@ -269,7 +266,7 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             {saving ? "저장 중…" : "측정값 기록"}
           </button>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="worker-entry-actions grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={mode === "numeric" && inRange !== true}
@@ -288,25 +285,23 @@ export default function OcrMeasurementEntry({ purpose, drawingId, revision, item
             </button>
           </div>
         )}
-        {mode === "numeric" && hasRange && (
-          <p className="text-[10px] text-slate-500">값이 허용 범위 안이면 [합격], 밖이면 [불합격]만 누를 수 있습니다.</p>
-        )}
+
 
         {currentRecord ? (
           <div role="status" className={`space-y-1 rounded p-2.5 text-xs ${measurementStatusClasses[currentRecord.status]}`}>
             <p className="font-semibold">
               {currentRecord.judgement === "pass" ? "합격" : currentRecord.judgement === "fail" ? "불합격" : "판정 보류"}
               {" · "}
-              {measurementStatusLabels[currentRecord.status]}
+              {currentRecord.confirmed ? "저장됨" : measurementStatusLabels[currentRecord.status]}
               {currentRecord.measured_value ? ` · ${currentRecord.measured_value} ${unit}` : ""}
             </p>
-            <p>{currentRecord.judgement_reason}</p>
+            {currentRecord.judgement !== "pass" && <p>{currentRecord.judgement_reason}</p>}
             {currentRecord.judgement === "fail" && (
               <p>측정 위치와 측정기를 확인한 뒤 다시 측정해주세요. 이전 결과는 기록으로 남습니다.</p>
             )}
           </div>
         ) : (
-          dirty && <p className="text-[11px] text-slate-500">입력값이 바뀌었습니다. 버튼을 누르면 저장됩니다.</p>
+          null
         )}
       </fieldset>
 

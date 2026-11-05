@@ -79,6 +79,7 @@ const RESULT_STYLE: Record<TrialResult, string> = {
 // ====================================================================== 공통 틀
 
 function TaskFrame({
+  purpose,
   title,
   subtitle,
   mode,
@@ -93,6 +94,7 @@ function TaskFrame({
 }: {
   title: string;
   subtitle: string;
+  purpose: WorkPurpose;
   mode: WorkMode;
   doNow: string;
   strip?: ReactNode;
@@ -122,7 +124,7 @@ function TaskFrame({
     };
   }, [editing]);
   return (
-    <div className="fixed inset-0 flex flex-col bg-dx-bg">
+    <div className="dx-shell mobile-task fixed inset-0 flex flex-col bg-dx-bg" data-purpose={purpose} data-role="worker">
       <MobileTopBar
         title={title}
         subtitle={subtitle}
@@ -192,12 +194,12 @@ function Footer({
   return (
     <>
       {message && (
-        <p role={message.tone === "error" ? "alert" : "status"} className={`mb-2 text-[12px] leading-snug ${message.tone === "error" ? "text-rose-300" : "text-cyan-200"}`}>
+        <p role={message.tone === "error" ? "alert" : "status"} className={`mb-2 text-[12px] leading-snug ${message.tone === "error" ? "text-rose-700" : "text-cyan-800"}`}>
           {message.text}
         </p>
       )}
       <div className="flex items-stretch gap-2">
-        <button type="button" onClick={onPrev} aria-label="이전 항목" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dx-line-strong text-white active:bg-white/10">
+        <button type="button" onClick={onPrev} aria-label="이전 항목" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dx-line-strong text-dx-strong active:bg-dx-raised">
           <ChevronLeft aria-hidden="true" className="h-5 w-5" />
         </button>
         {primary ? (
@@ -205,14 +207,14 @@ function Footer({
             type="button"
             disabled={primary.disabled || primary.busy}
             onClick={primary.onClick}
-            className="h-12 min-w-0 flex-1 rounded-lg bg-[#22c3dc] px-3 text-[15px] font-semibold text-[#04212b] disabled:bg-[#22c3dc]/30 disabled:text-[#04212b]/60"
+            className="h-12 min-w-0 flex-1 rounded-lg bg-dx-accent-strong px-3 text-[15px] font-semibold text-white disabled:bg-dx-accent-strong/30 disabled:text-white/60"
           >
             {primary.busy ? "저장 중…" : primary.label}
           </button>
         ) : (
           <span className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-lg border border-dx-line text-[13px] text-dx-muted">조회 전용</span>
         )}
-        <button type="button" onClick={onNext} aria-label="다음 항목" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dx-line-strong text-white active:bg-white/10">
+        <button type="button" onClick={onNext} aria-label="다음 항목" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dx-line-strong text-dx-strong active:bg-dx-raised">
           <ChevronRight aria-hidden="true" className="h-5 w-5" />
         </button>
       </div>
@@ -225,7 +227,7 @@ function ItemCard({ point, title, criteria, extra }: { point: OcrPoint; title: s
   return (
     <section aria-label="현재 항목" className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-slate-900 px-1.5 font-mono text-[15px] font-bold text-white">{point.displayNumber}</span>
+        <span className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-slate-900 px-1.5 font-mono text-[15px] font-bold text-dx-strong">{point.displayNumber}</span>
         <div className="min-w-0 flex-1">
           <h2 className="text-[17px] font-semibold leading-snug text-slate-900">{title}</h2>
           <p className="mt-0.5 break-all font-mono text-[14px] text-slate-700">도면 표기 {item.raw_text.replace(/\n/g, " ")}</p>
@@ -321,11 +323,11 @@ function ItemList({
                   onClose();
                 }}
                 aria-current={point.id === activeId}
-                className={`flex w-full items-center gap-3 px-4 py-3 text-left ${point.id === activeId ? "bg-dx-accent/10" : "active:bg-white/5"}`}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left ${point.id === activeId ? "bg-dx-accent/10" : "active:bg-dx-raised"}`}
               >
-                <span className="w-8 shrink-0 text-right font-mono text-[15px] font-semibold text-white">{point.displayNumber}</span>
+                <span className="w-8 shrink-0 text-right font-mono text-[15px] font-semibold text-dx-strong">{point.displayNumber}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] text-white">{point.feature.name}</span>
+                  <span className="block truncate text-[15px] text-dx-strong">{point.feature.name}</span>
                   <span className="block truncate font-mono text-[13px] text-dx-muted">{point.source.raw_text.replace(/\n/g, " ")}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5 text-[12px] text-dx-text">
@@ -444,6 +446,7 @@ export function MeasureTask(props: TaskProps) {
   return (
     <>
       <TaskFrame
+        purpose={props.purpose}
         title={`${guide.title} · ${props.partName}`}
         subtitle={`${point.displayNumber}번 · 진행 ${done}/${points.length}`}
         mode={mode}
@@ -552,17 +555,14 @@ export function ManufacturingTask(props: TaskProps) {
   const { plan, stage } = machining;
   const trialKey = (id: string, s: StageKey = stage) => `${drawing.drawing_id}:${revision}:manufacturing:${machining.serial}:${s}:${id}`;
 
-  // 단계별 잴 항목과 잠금. 서버(machining_api.stage_status)와 같은 규칙: 앞의 모든 단계가 전부 합격해야 열린다
-  // (잴 항목이 없는 단계는 완료로 본다). 체험 모드에서는 체험 합격도 합격으로 센다.
+  // 실제 저장은 서버 단계 잠금을 유지한다. 체험은 측정 없이 각 단계로 이동할 수 있다.
   const stageItems = (s: StageKey) => new Set(plan?.items.filter((entry) => entry.stages[s]).map((entry) => entry.item_id) ?? []);
   const passedIn = (s: StageKey, id: string) =>
     plan?.records.some((r) => r.stage === s && r.item_id === id && r.status === "completed") || trial[trialKey(id, s)]?.result === "pass";
   const stageState = (s: StageKey) => {
     const ids = [...stageItems(s)];
     const passed = ids.filter((id) => passedIn(s, id)).length;
-    const before = STAGE_KEYS.slice(0, STAGE_KEYS.indexOf(s));
-    const trialUnlocked = before.every((p) => [...stageItems(p)].every((id) => passedIn(p, id)));
-    return { required: ids.length, passed, unlocked: mode === "trial" ? trialUnlocked : plan?.status[s]?.unlocked ?? false };
+    return { required: ids.length, passed, unlocked: mode === "trial" ? true : plan?.status[s]?.unlocked ?? false };
   };
 
   const ids = stageItems(stage);
@@ -664,7 +664,7 @@ export function ManufacturingTask(props: TaskProps) {
             aria-pressed={stage === key}
             disabled={!s.unlocked}
             onClick={() => machining.setStage(key)}
-            className={`flex h-9 items-center justify-center gap-1 rounded-md border text-[13px] ${stage === key ? "border-dx-accent bg-dx-accent/15 font-semibold text-white" : "border-dx-line text-dx-text"} disabled:opacity-45`}
+            className={`flex h-9 items-center justify-center gap-1 rounded-md border text-[13px] ${stage === key ? "border-dx-accent bg-dx-accent/15 font-semibold text-dx-accent" : "border-dx-line text-dx-text"} disabled:opacity-45`}
           >
             {!s.unlocked && <Lock aria-hidden="true" className="h-3 w-3" />}
             {STAGE_NAME[key]}
@@ -680,11 +680,12 @@ export function ManufacturingTask(props: TaskProps) {
   return (
     <>
       <TaskFrame
+        purpose={props.purpose}
         title={`${guide.title} · ${props.partName}`}
         subtitle={`제품 ${machining.serial || "-"} · ${STAGE_NAME[stage]} ${point ? `${list.indexOf(point) + 1}/${list.length}` : ""}`}
         mode={mode}
         doNow={mode === "view" ? props.viewReason ?? "저장된 결과만 볼 수 있습니다" : locked ? "앞 단계가 모두 합격해야 이 단계를 기록할 수 있습니다" : guide.doNow}
-        strip={strip}
+        strip={<>{strip}{mode === "trial" && <p className="pt-1 text-[12px] text-dx-muted">체험 모드 · 체크 없이 단계 탭으로 이동할 수 있습니다.</p>}</>}
         onBack={props.onBack}
         onList={() => setListOpen(true)}
         onExports={props.onExports}
