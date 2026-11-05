@@ -110,7 +110,7 @@ export function LinksPanel({
                     <td className="text-neutral-300">{link.part_name ?? "—"} · {link.drawing_name ?? link.drawing_id}</td>
                     <td className="font-mono text-[11px] text-neutral-400">
                       {link.ocr_revision.slice(0, 8)}
-                      {!link.location.openable && <span className="mt-0.5 block font-sans text-amber-300">{link.location.reason}</span>}
+                      {!link.location.openable && <span className="mt-0.5 block font-sans text-amber-700">{link.location.reason}</span>}
                     </td>
                     <td className="text-neutral-200">{link.item_id} <span className="text-neutral-400">{link.raw_text}</span></td>
                     <td>{link.linked ? <Tag tone="info">연결 중</Tag> : <Tag tone="muted">해제됨</Tag>}<span className="ml-1 text-[11px] text-neutral-500">{link.source === "admin" ? "관리자" : "현장 등록"}</span></td>
@@ -161,7 +161,7 @@ export function LinksPanel({
                   <td className="text-neutral-300">{event.drawing_id ? `${event.part_name ?? "—"} · ${event.drawing_name ?? event.drawing_id}` : historyDetail(event.detail)}</td>
                   <td className="text-[11px] text-neutral-400">
                     {event.item_id ? <><span className="font-mono">{event.ocr_revision?.slice(0, 8)}</span> · {event.item_id}</> : "—"}
-                    {event.item_id && !event.location.openable && <span className="block text-amber-300">{event.location.reason}</span>}
+                    {event.item_id && !event.location.openable && <span className="block text-amber-700">{event.location.reason}</span>}
                   </td>
                   <td className="text-[11px] text-neutral-500">미기록</td>
                   <td className="text-right">

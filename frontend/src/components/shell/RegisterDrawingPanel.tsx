@@ -84,7 +84,7 @@ export function RegisterDrawingPanel({
     <section aria-label="도면 등록" className="space-y-3 p-3 text-xs">
       <header className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-[13px] font-semibold text-white">도면 등록</h3>
+          <h3 className="text-[13px] font-semibold text-dx-strong">도면 등록</h3>
           <p className="mt-0.5 text-dx-muted">
             등록 대상: {engineName ? <>{engineName} › </> : null}
             <b className="text-dx-text">{part.name}</b>
@@ -125,7 +125,7 @@ export function RegisterDrawingPanel({
           <span className="shrink-0 font-mono text-[11px] text-dx-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
         </p>
       )}
-      {fileError && <p role="alert" className="flex items-center gap-1.5 text-rose-300"><XCircle className="h-3.5 w-3.5" />{fileError}</p>}
+      {fileError && <p role="alert" className="flex items-center gap-1.5 text-rose-700"><XCircle className="h-3.5 w-3.5" />{fileError}</p>}
 
       <p className="text-[11px] text-dx-faint">
         도면 번호·개정 입력란은 현재 데이터 모델에 없어 두지 않았습니다. 파일명이 도면 이름이 되며, OCR 결과 버전으로 변경을 구분합니다.
@@ -143,14 +143,14 @@ export function RegisterDrawingPanel({
         </div>
       )}
       {state.kind === "failed" && (
-        <p role="alert" className="flex items-start gap-1.5 text-rose-300">
+        <p role="alert" className="flex items-start gap-1.5 text-rose-700">
           <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {state.message} 파일은 그대로 두었습니다. 다시 시도할 수 있습니다.
         </p>
       )}
-      {state.kind === "cancelled" && <p role="status" className="text-amber-200">업로드를 취소했습니다. 등록되지 않았습니다.</p>}
+      {state.kind === "cancelled" && <p role="status" className="text-amber-700">업로드를 취소했습니다. 등록되지 않았습니다.</p>}
       {state.kind === "done" && (
-        <p role="status" className="flex items-center gap-1.5 text-emerald-300">
+        <p role="status" className="flex items-center gap-1.5 text-emerald-700">
           <CheckCircle2 className="h-3.5 w-3.5" />
           등록했습니다: {state.drawing.original_filename}
         </p>

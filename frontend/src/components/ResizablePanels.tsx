@@ -8,20 +8,20 @@ export const PanelLayoutContext = createContext<{ side: 'left' | 'right'; header
 
 const STORAGE_KEY = 'drawing-workspace-panel-width-v1';
 export function panelBounds(width: number) {
-  const max = Math.max(120, Math.min(680, width * 0.65, width - 220));
+  const max = Math.max(120, Math.min(900, width * 0.65, width - 220));
   return {min: Math.min(260, max), max};
 }
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNode}) {
+export function ResizablePanels({left, right, initialWidth, storageScope = ''}: {left: ReactNode; right: ReactNode; initialWidth?: number; storageScope?: string}) {
   const {side, header} = useContext(PanelLayoutContext);
   const onLeft = side === 'left';
-  const storageKey = onLeft ? `${STORAGE_KEY}-left` : STORAGE_KEY;
-  const defaultWidth = onLeft ? 440 : 400;
+  const storageKey = `${onLeft ? `${STORAGE_KEY}-left` : STORAGE_KEY}${storageScope ? `-${storageScope}` : ''}`;
+  const defaultWidth = initialWidth ?? (onLeft ? 440 : 400);
   const container = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [requested, setRequested] = useState(() => {
-    try {const saved = Number(localStorage.getItem(storageKey)); if (saved >= 120 && saved <= 680) return saved;} catch {}
+    try {const saved = Number(localStorage.getItem(storageKey)); if (saved >= 120 && saved <= 900) return saved;} catch {}
     return defaultWidth;
   });
   const [dragging, setDragging] = useState(false);
@@ -50,7 +50,7 @@ export function ResizablePanels({left, right}: {left: ReactNode; right: ReactNod
       aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(panelWidth)}
       aria-valuetext={`${onLeft ? '왼쪽' : '오른쪽'} 패널 ${Math.round(panelWidth)}픽셀`} tabIndex={0}
       title="좌우로 드래그 · 방향키로 조절 · 두 번 클릭하면 기본 너비"
-      className={`group relative z-50 flex w-1.5 shrink-0 touch-none cursor-col-resize items-center justify-center outline-none transition-colors before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-[''] focus-visible:bg-cyan-600 ${dragging ? 'bg-cyan-600' : onLeft ? 'bg-dx-line hover:bg-dx-accent-strong' : 'bg-slate-700 hover:bg-cyan-700'}`}
+      className={`group relative z-50 flex w-1.5 shrink-0 touch-none cursor-col-resize items-center justify-center outline-none transition-colors before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-[''] focus-visible:bg-cyan-600 ${dragging ? 'bg-cyan-600' : onLeft ? 'bg-dx-line hover:bg-dx-accent-strong' : 'bg-dx-line hover:bg-dx-accent-strong'}`}
       onPointerDown={e => {if(e.button!==0)return; e.preventDefault();e.currentTarget.focus();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,x:e.clientX,width:panelWidth};setDragging(true);}}
       onPointerMove={e => {const d=drag.current;if(d?.id===e.pointerId)setRequested(clamp(d.width+direction*(e.clientX-d.x),bounds.min,bounds.max));}}
       onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={()=>{drag.current=null;setDragging(false);}}

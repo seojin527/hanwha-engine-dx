@@ -127,6 +127,9 @@ window.addEventListener('error', function (e) {
   if (!/[?&]embed=1\b/.test(location.search)) return;
   try { window.parent.postMessage({ type: 'dx:error', message: String(e.message || '3D 뷰어 오류') }, location.origin); } catch (x) {}
 });
+window.addEventListener('unhandledrejection', function (e) {
+  if (/[?&]embed=1\b/.test(location.search)) window.parent.postMessage({ type: 'dx:error', message: String(e.reason?.message || e.reason || '3D 모델 로딩 오류') }, location.origin);
+});
 </script>
 </head>
 <body>
@@ -234,7 +237,9 @@ const STAGE_NAME = { PH: '피스톤 헤드 분리', PR: '피스톤 로드 분리
 
 /* ---------- 장면 ---------- */
 const stageEl = document.getElementById('stage');
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
+catch (error) { throw new Error('3D 그래픽(WebGL)을 시작하지 못했습니다. 브라우저의 하드웨어 가속을 확인하거나 다른 브라우저로 열어주세요.'); }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputEncoding = THREE.sRGBEncoding;
 stageEl.prepend(renderer.domElement);
@@ -624,6 +629,7 @@ new MutationObserver(themeWatch).observe(document.documentElement, { attributes:
 /* ---------- 화면 크기 · 카메라 ---------- */
 function resize() {
   const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  if (w <= 0 || h <= 0) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / Math.max(h, 1);
   camera.updateProjectionMatrix();
@@ -643,6 +649,7 @@ function fitCamera() {
 }
 controls.addEventListener('start', () => { userMoved = true; });
 window.addEventListener('resize', resize);
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(stageEl);
 
 /* ---------- 반복 ---------- */
 let last = performance.now();
@@ -668,8 +675,7 @@ assembled.then(() => {
     '<br><b style="color:#' + HILITE_RED.toString(16) + '">빨간색</b>: 현재 도면의 부품 (<b>' + hilitePart.name + '</b>) · 나머지 부품은 흐리게 표시 (슬라이더로 조절)');
   pose(); requestAnimationFrame(frame);
 });
-</script>
-<script>
+
 /* ================================================================
    앱 안에 넣어 쓰기 (?embed=1) — 메인 화면(App)이 iframe 으로 열고 postMessage 로 조작한다.
    부모 → 뷰어: dx:select {key|null} · dx:reset · dx:zoom {factor} · dx:explode {on} · dx:run {on}
@@ -758,9 +764,11 @@ assembled.then(() => {
   }
   const state = () => post({ type: 'dx:state', exploded: expT > 0 || expTarget === 1, running });
 
+  let readyMessage = null;
   window.addEventListener('message', event => {
     if (event.origin !== location.origin || event.source !== window.parent) return;
     const m = event.data || {};
+    if (m.type === 'dx:ready?') { if (readyMessage) post(readyMessage); return; }
     if (m.type === 'dx:select') selectExact(PARTS.some(p => p.key === m.key) ? m.key : null);
     else if (m.type === 'dx:reset') { userMoved = false; fitCamera(); }
     else if (m.type === 'dx:zoom') {
@@ -783,13 +791,14 @@ assembled.then(() => {
   makeGrid();
   grid.material.opacity = 0.4;
   assembled.then(() => {
-    post({
+    readyMessage = {
       type: 'dx:ready',
       parts: PARTS.map(p => ({ key: p.key, name: p.name, pn: p.pn, qty: p.qty, spec: p.spec })),
       source: document.getElementById('srcNote').textContent,
       title: document.querySelector('.top h1').textContent,
       pn: document.querySelector('.top .pn').textContent,
-    });
+    };
+    post(readyMessage);
   });
 })();
 </script>

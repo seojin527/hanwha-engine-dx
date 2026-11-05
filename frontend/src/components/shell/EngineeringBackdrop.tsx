@@ -8,15 +8,15 @@
 import type { CSSProperties, ReactNode } from "react";
 
 export function EngineeringBackdrop({ strength = 1, shapes = true }: { strength?: number; /** false 면 격자만 */ shapes?: boolean }) {
-  const line = `rgba(176, 198, 220, ${Math.min(0.32, 0.2 * strength)})`;
-  const faint = `rgba(176, 198, 220, ${Math.min(0.2, 0.11 * strength)})`;
-  const cyan = `rgba(34, 195, 220, ${Math.min(0.8, 0.6 * strength)})`;
+  const line = `rgba(70, 100, 130, ${Math.min(0.30, 0.18 * strength)})`;
+  const faint = `rgba(70, 100, 130, ${Math.min(0.18, 0.1 * strength)})`;
+  const cyan = `rgba(14, 116, 144, ${Math.min(0.7, 0.5 * strength)})`;
   const grid: CSSProperties = {
     backgroundImage: [
-      `linear-gradient(rgba(150, 176, 204, ${0.075 * strength}) 1px, transparent 1px)`,
-      `linear-gradient(90deg, rgba(150, 176, 204, ${0.075 * strength}) 1px, transparent 1px)`,
-      `linear-gradient(rgba(150, 176, 204, ${0.035 * strength}) 1px, transparent 1px)`,
-      `linear-gradient(90deg, rgba(150, 176, 204, ${0.035 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(rgba(60, 90, 120, ${0.07 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(90deg, rgba(60, 90, 120, ${0.07 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(rgba(60, 90, 120, ${0.035 * strength}) 1px, transparent 1px)`,
+      `linear-gradient(90deg, rgba(60, 90, 120, ${0.035 * strength}) 1px, transparent 1px)`,
     ].join(","),
     backgroundSize: "120px 120px, 120px 120px, 24px 24px, 24px 24px",
     backgroundPosition: "center center",

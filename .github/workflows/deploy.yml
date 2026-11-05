@@ -45,6 +45,8 @@ jobs:
         working-directory: frontend
         run: |
           npm run build
+          npm run test:worker-ui
+          npm run test:engine-viewer
           if grep -rlE 'https?://(127\.0\.0\.1|localhost)(:[0-9]+)?' dist --include='*.js' --include='*.html'; then
             echo "::error::빌드본에 localhost 주소가 있습니다"; exit 1
           fi
@@ -164,6 +166,18 @@ jobs:
           [ "$(curl -s -o /dev/null -w '%{http_code}' "$ADMIN_URL/")" = 401 ] || { echo "::error::관리자 주소 인증이 없습니다"; exit 1; }
           curl -fsS "$PUBLIC_URL/" | grep -q '<div id="root">'
           echo "외부 확인 통과: $PUBLIC_URL" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: 배포된 3D 모델·로더 확인
+        run: |
+          for model in HDH_CS_6001 HDH_CR_6001 HDH_CH_6003 HDH_PR_6002 HDH_PH_6001; do
+            curl -fsS --retry 3 "$PUBLIC_URL/engine-viewer/models/$model.glb" -o "/tmp/$model.glb"
+            python -c 'import sys,struct; b=open(sys.argv[1],"rb").read(); assert b[:4]==b"glTF" and struct.unpack_from("<I",b,4)[0]==2 and struct.unpack_from("<I",b,8)[0]==len(b), "invalid GLB"; print(sys.argv[1],len(b),"OK")' "/tmp/$model.glb"
+          done
+          for vendor in three.min.js OrbitControls.js GLTFLoader.js; do
+            curl -fsS --retry 3 "$PUBLIC_URL/engine-viewer/vendor/$vendor" -o "/tmp/$vendor"
+            test -s "/tmp/$vendor"
+          done
+          curl -fsS "$PUBLIC_URL/engine-viewer/index.html?embed=1&v=ui-safe-2" | grep -q 'dx:ready?'
 
       - name: 키 삭제
         if: always()

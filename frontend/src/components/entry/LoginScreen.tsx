@@ -40,7 +40,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
   const role = askRole ? options.find((entry) => entry.key === roleKey)?.role ?? null : ({ kind: "worker", purpose: "manufacturing" } as UserRole);
 
   return (
-    <main className="dx-shell relative h-dvh w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#132235_0%,#0b1522_60%,#08111b_100%)] text-[14px] leading-normal">
+    <main className="dx-shell relative h-screen w-screen overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#fbfcfd_0%,#eef2f6_60%,#e1e7ee_100%)] text-[14px] leading-normal">
       <EngineeringBackdrop strength={1.25} shapes={false} />
       {/*
         왼쪽: 구동부 선화 — 기존 3D 자산(크랭크 축·커넥팅 로드·크로스헤드·피스톤 로드·피스톤 헤드 6기통)을
@@ -51,7 +51,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
         alt=""
         aria-hidden="true"
         draggable={false}
-        className="pointer-events-none absolute left-[-30vw] top-1/2 h-[min(92vh,980px)] w-auto max-w-none -translate-y-1/2 select-none opacity-20 [mask-image:linear-gradient(to_right,black_25%,transparent_80%)] sm:left-[-14vw] sm:opacity-35 lg:left-[-4vw] lg:opacity-50 xl:left-[3vw] xl:opacity-60"
+        className="pointer-events-none absolute left-[-30vw] top-1/2 h-[min(92vh,980px)] w-auto max-w-none -translate-y-1/2 select-none opacity-15 [filter:brightness(0.3)] [mask-image:linear-gradient(to_right,black_25%,transparent_80%)] sm:left-[-14vw] sm:opacity-25 lg:left-[-4vw] lg:opacity-35 xl:left-[3vw] xl:opacity-40"
       />
       {/*
         오른쪽 아래: 전체 엔진 외형 선화 (장식용, 3D 모델과 별개).
@@ -65,7 +65,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
           aria-hidden="true"
           draggable={false}
           onError={() => setFullEngineArt(false)}
-          className="pointer-events-none absolute bottom-[5vh] right-[3vw] hidden w-[min(26vw,440px)] select-none opacity-35 [mask-image:linear-gradient(to_left,black_55%,transparent_100%)] xl:block"
+          className="pointer-events-none absolute bottom-[5vh] right-[3vw] hidden w-[min(26vw,440px)] select-none opacity-25 [filter:brightness(0.3)] [mask-image:linear-gradient(to_left,black_55%,transparent_100%)] xl:block"
         />
       )}
 
@@ -77,16 +77,16 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
       <div className="relative h-full overflow-y-auto overflow-x-hidden">
       <div className="flex min-h-full items-center justify-center px-4 py-10 [@media(max-height:820px)]:py-4">
       <div className="relative w-full max-w-[400px] max-md:pb-14 [@media(max-height:500px)]:pb-14">
-        <div className="break-keep rounded-xl border border-white/10 bg-[#17263a]/85 px-8 pb-8 pt-9 [@media(max-height:820px)]:pb-6 [@media(max-height:820px)]:pt-6 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.75)] backdrop-blur-[3px]">
+        <div className="break-keep rounded-xl border border-dx-line bg-white px-8 pb-8 pt-9 [@media(max-height:820px)]:pb-6 [@media(max-height:820px)]:pt-6 shadow-[0_24px_64px_-24px_rgba(28,39,51,0.25)]">
           {/* 제품명 · 제목 · 설명 */}
           <header>
-            <p className="flex items-baseline gap-1.5 text-[13px] font-semibold leading-none tracking-[0.04em] text-white/90" aria-label="HANWHA ENGINE DX">
+            <p className="flex items-baseline gap-1.5 text-[13px] font-semibold leading-none tracking-[0.04em] text-dx-strong" aria-label="HANWHA ENGINE DX">
               <span>HANWHA ENGINE</span>
               <span className="text-dx-accent">DX</span>
             </p>
-            <h1 className="mt-5 [@media(max-height:820px)]:mt-3 text-[20px] font-semibold leading-[1.3] tracking-[-0.01em] text-white">로그인</h1>
-            <p className="mt-1.5 text-[13px] leading-[1.5] text-white/60">도면 측정 가이드 · 엔진 부품 품질검사</p>
-            <p className="mt-3 inline-flex items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-medium leading-[1.4] text-amber-100/90">
+            <h1 className="mt-5 [@media(max-height:820px)]:mt-3 text-[20px] font-semibold leading-[1.3] tracking-[-0.01em] text-dx-strong">로그인</h1>
+            <p className="mt-1.5 text-[13px] leading-[1.5] text-dx-muted">도면 측정 가이드 · 엔진 부품 품질검사</p>
+            <p className="mt-3 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium leading-[1.4] text-amber-800">
               시연용 로그인 · 서버 인증 미연결
             </p>
           </header>
@@ -108,7 +108,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
                 maxLength={50}
                 autoComplete="off"
                 autoFocus
-                className="h-11 min-w-0 flex-1 bg-transparent pr-3 text-[14px] text-white placeholder:text-white/35 focus:outline-none"
+                className="h-11 min-w-0 flex-1 bg-transparent pr-3 text-[14px] text-dx-strong placeholder:text-dx-faint focus:outline-none"
               />
             </Field>
 
@@ -128,7 +128,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
                 readOnly
                 aria-describedby="login-password-hint"
                 autoComplete="off"
-                className="h-11 min-w-0 flex-1 cursor-not-allowed bg-transparent pr-3 text-[14px] text-white focus:outline-none"
+                className="h-11 min-w-0 flex-1 cursor-not-allowed bg-transparent pr-3 text-[14px] text-dx-strong focus:outline-none"
               />
             </Field>}
 
@@ -149,7 +149,7 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
                 value={roleKey}
                 onChange={(event) => setRoleKey(event.target.value)}
                 aria-describedby="login-role-hint"
-                className={`h-11 min-w-0 flex-1 appearance-none bg-transparent pr-9 text-[14px] focus:outline-none [&>option]:bg-[#13202f] [&>option]:text-white ${roleKey ? "text-white" : "text-white/45"}`}
+                className={`h-11 min-w-0 flex-1 appearance-none bg-transparent pr-9 text-[14px] focus:outline-none [&>option]:bg-white [&>option]:text-slate-900 ${roleKey ? "text-dx-strong" : "text-dx-muted"}`}
               >
                 <option value="" disabled>
                   역할 선택
@@ -160,13 +160,13 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
                   </option>
                 ))}
               </select>
-              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
+              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dx-muted" />
             </Field>}
 
             <button
               type="submit"
               disabled={!trimmed || !role}
-              className="!mt-6 h-11 w-full rounded-md bg-[#22c3dc] text-[14px] font-semibold leading-none text-[#04212b] transition-colors hover:bg-[#45d0e5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22c3dc] disabled:cursor-not-allowed disabled:bg-[#22c3dc]/30 disabled:text-[#04212b]/70"
+              className="!mt-6 h-11 w-full rounded-md bg-dx-accent-strong text-[14px] font-semibold leading-none text-white transition-colors hover:bg-[#0a5468] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               {askRole ? "로그인" : "체험 시작"}
             </button>
@@ -177,14 +177,14 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
               type="button"
               disabled={!role}
               onClick={() => role && onDemo(role)}
-              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-[#22c3dc] disabled:cursor-not-allowed disabled:font-normal disabled:text-white/40 disabled:no-underline"
+              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-dx-muted underline-offset-4 transition-colors hover:text-dx-strong hover:underline focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:font-normal disabled:text-dx-muted disabled:no-underline"
             >
               <PlayCircle aria-hidden="true" className="h-4 w-4" />
               {role ? "데모 도면으로 체험하기" : "역할을 고르면 데모 도면을 볼 수 있습니다"}
             </button>
           </div>}
         </div>
-        <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-white/40">
+        <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-dx-muted">
           입력한 이름은 화면 표시에만 쓰고 저장하지 않습니다. 로그인하면 전체 엔진 3D 화면에서 시작합니다.
         </p>
       </div>
@@ -212,20 +212,20 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="block text-[13px] font-medium leading-[1.4] text-white/85">
+      <label htmlFor={htmlFor} className="block text-[13px] font-medium leading-[1.4] text-dx-text">
         {label}
       </label>
       <div
-        className={`relative mt-2 flex items-center rounded-md border bg-[#0e1a28]/80 transition-colors focus-within:border-[#22c3dc] focus-within:ring-1 focus-within:ring-[#22c3dc]/40 ${
-          disabled ? "border-white/8 opacity-60" : "border-white/15 hover:border-white/30"
+        className={`relative mt-2 flex items-center rounded-md border bg-white transition-colors focus-within:border-dx-accent focus-within:ring-1 focus-within:ring-dx-accent/40 ${
+          disabled ? "border-dx-line opacity-60" : "border-dx-line-strong hover:border-dx-faint"
         }`}
       >
-        <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center text-white/55">{icon}</span>
-        <span aria-hidden="true" className="mr-3 h-5 w-px bg-white/15" />
+        <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center text-dx-muted">{icon}</span>
+        <span aria-hidden="true" className="mr-3 h-5 w-px bg-dx-line-strong" />
         {children}
       </div>
       {hint && (
-        <p id={`${htmlFor}-hint`} className="mt-1.5 text-[12px] leading-[1.5] text-white/50">
+        <p id={`${htmlFor}-hint`} className="mt-1.5 text-[12px] leading-[1.5] text-dx-muted">
           {hint}
         </p>
       )}

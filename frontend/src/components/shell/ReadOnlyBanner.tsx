@@ -13,7 +13,7 @@ export function ReadOnlyBanner() {
   return (
     <div
       role="status"
-      className="pointer-events-none fixed bottom-2 left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900/85 px-3 py-1 text-xs text-white shadow"
+      className="pointer-events-none fixed bottom-2 left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900/85 px-3 py-1 text-xs text-dx-strong shadow"
     >
       체험 모드 · 조회만 가능하며 저장·업로드는 막혀 있습니다
     </div>

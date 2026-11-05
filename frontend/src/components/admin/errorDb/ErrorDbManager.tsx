@@ -80,7 +80,7 @@ export function ErrorDbManager({ onOpenLocation }: { onOpenLocation: (target: Lo
 
       <div role="group" aria-label="오류 DB 흐름" className="flex flex-col gap-2 md:flex-row md:items-stretch">
         <FlowCard title="① 엑셀 업로드" active={step === "upload"} onClick={() => go("upload")}>
-          <span className="text-lg font-semibold tabular-nums text-white">{s ? `${s.uploads.applied}회` : "—"}</span>
+          <span className="text-lg font-semibold tabular-nums text-dx-strong">{s ? `${s.uploads.applied}회` : "—"}</span>
           <span className="text-[11px] text-neutral-400">
             {s ? `반영 파일 ${s.uploads.files}개 · 적재 행 ${s.uploads.rows}건 · 거부 ${s.uploads.rejected}회` : "불러오는 중"}
           </span>
@@ -88,21 +88,21 @@ export function ErrorDbManager({ onOpenLocation }: { onOpenLocation: (target: Lo
         </FlowCard>
         <FlowConnector />
         <FlowCard title={`② ${label} 오류 DB`} active={step === "cases"} onClick={() => go("cases")}>
-          <span className="text-lg font-semibold tabular-nums text-white">{s ? `${s.cases.total}건` : "—"}</span>
+          <span className="text-lg font-semibold tabular-nums text-dx-strong">{s ? `${s.cases.total}건` : "—"}</span>
           <span className="text-[11px] text-neutral-400">{s ? `활성 ${s.cases.active} · 비활성 ${s.cases.inactive}` : "불러오는 중"}</span>
           <span className="text-[10px] text-neutral-500">사례 수</span>
         </FlowCard>
         <FlowConnector />
         <FlowCard title="③ 벡터 반영" active={step === "vector"} onClick={() => go("vector")}>
-          <span className="text-lg font-semibold tabular-nums text-white">{s ? `${s.vector.ready}건` : "—"}</span>
-          <span className={`text-[11px] ${s && s.vector.failed ? "text-rose-300" : "text-neutral-400"}`}>
+          <span className="text-lg font-semibold tabular-nums text-dx-strong">{s ? `${s.vector.ready}건` : "—"}</span>
+          <span className={`text-[11px] ${s && s.vector.failed ? "text-rose-700" : "text-neutral-400"}`}>
             {s ? `실패 ${s.vector.failed} · 대기 ${s.vector.pending}` : "불러오는 중"}
           </span>
           <span className="text-[10px] text-neutral-500">반영 완료 사례 수</span>
         </FlowCard>
         <FlowConnector />
         <FlowCard title="④ 도면·항목 연결" active={step === "links"} onClick={() => go("links")}>
-          <span className="text-lg font-semibold tabular-nums text-white">{s ? `${s.links.active}건` : "—"}</span>
+          <span className="text-lg font-semibold tabular-nums text-dx-strong">{s ? `${s.links.active}건` : "—"}</span>
           <span className="text-[11px] text-neutral-400">{s ? `연결된 사례 ${s.links.cases}건 · 해제 ${s.links.unlinked}건` : "불러오는 중"}</span>
           <span className="text-[10px] text-neutral-500">연결 중인 연결 수 (도면 · OCR 버전 · 항목)</span>
         </FlowCard>
