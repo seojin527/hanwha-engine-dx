@@ -5,16 +5,17 @@
 
 ## Overview
 
-설계도면의 측정 정보를 구조화하고, 측정 위치·검사 기준·과거 오류사례를 연결하는 품질 업무 지원 프로젝트.
+설계도면의 측정 정보를 추출하고, 측정 위치·검사 기준·과거 오류사례를 연결하는 측정 업무 지원 프로젝트.
 
 
 | 구성원 | 역할 |
 | --- | --- |
-| 박수정 | eDOCr2 |
-| 마서진 | overall system build |
-| 이도연 | frontend |
-| 이종민 | system validation & finalize |
-| 한동현 | mechanical drawing  |
+| 박수정 | eDOCr2 & Graph DB |
+| 마서진 | RAG & Overall configuration |
+| 이도연 | Case II - Assembly |
+| 이종민 | Case I - Manufacturing |
+| 한동현 | Case III - Verification  |
+| ALL | Frontend development |
 
 ## Scope
 
