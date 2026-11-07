@@ -164,6 +164,7 @@
  * - 도면 이미지는 원본 색 그대로 둔다 (흰 바탕).
  */
 @theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, 'Segoe UI', sans-serif;
   --color-dx-bg: #f4f6f9;
   --color-dx-panel: #ffffff;
   --color-dx-raised: #eaeef3;
@@ -457,8 +458,8 @@
 .worker-pane-heading { display: flex; align-items: center; gap: 10px; height: 60px; min-height: 60px; flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid #d4dde6; background: #f2f5f8; color: #24374a; }
 .worker-pane-heading .worker-pane-icon { display: inline-flex; flex: none; color: #63798d; }
 .worker-pane-heading > div { min-width: 0; }
-.worker-pane-heading h2 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 700; }
-.worker-pane-heading .worker-pane-icon svg { width: 24px; height: 24px; }
+.worker-pane-heading h2 { margin: 0; font-size: 18px; line-height: 1.35; font-weight: 700; }
+.worker-pane-heading .worker-pane-icon svg { width: 20px; height: 20px; }
 .worker-pane-heading p { margin: 3px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; }
 .worker-pane-heading > button { margin-left: auto; }
 
@@ -528,76 +529,76 @@
 .dx-shell[data-role="admin"] .btn-primary:hover { background-color: #dc6419; border-color: #dc6419; }
 
 /*
- * 시연 영상용 가독성: 작업자 화면(부품제작·조립·검증)의 핵심 값(항목명·기준치수·허용 범위·입력·판정 버튼·오류사례 본문)을
- * 크게 보이게 한다. 위의 같은 선택자 규칙보다 뒤에 둬서 우선한다.
+ * 작업 화면 글자 위계: 제목 18px · 본문 14px · 보조 12px.
+ * 측정 핵심 숫자는 18~26px로 구분하고 기존 면·색·패널 배치는 유지한다.
  */
-.worker-measurement header:not(.worker-pane-heading) h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
-.worker-measurement header p.break-all { font-size: 20px; }
-.worker-measurement header span.bg-slate-900 { font-size: 15px; padding: 2px 8px; }
+.worker-measurement header:not(.worker-pane-heading) h2 { font-size: 18px; line-height: 1.3; font-weight: 700; }
+.worker-measurement header p.break-all { font-size: 16px; }
+.worker-measurement header span.bg-slate-900 { font-size: 14px; padding: 2px 8px; }
 .worker-measurement header .btn-icon { width: 32px; height: 32px; }
 .worker-measurement header .min-w-\[44px\] { font-size: 14px; }
 .worker-measurement header span.rounded-sm { font-size: 13px; padding: 3px 8px; }
 .worker-range-summary > span:first-child { font-size: 14px; }
-.worker-range-summary > b { font-size: 26px; }
+.worker-range-summary > b { font-size: 24px; }
 .worker-nominal > span { font-size: 14px; }
-.worker-nominal strong { font-size: 30px; }
-@media (max-width: 1400px) { .worker-range-summary > b { font-size: 22px; } .worker-nominal strong { font-size: 26px; } }
-.worker-measurement input[inputmode="decimal"] { height: 56px; font-size: 22px; }
-.worker-measurement input[inputmode="decimal"]::placeholder { font-size: 15px; }
-:is(.worker-measurement, .worker-support) .field { min-height: 44px; font-size: 15px; }
+.worker-nominal strong { font-size: 26px; }
+@media (max-width: 1400px) { .worker-range-summary > b { font-size: 18px; } .worker-nominal strong { font-size: 24px; } }
+.worker-measurement input[inputmode="decimal"] { height: 48px; font-size: 18px; }
+.worker-measurement input[inputmode="decimal"]::placeholder { font-size: 14px; }
+:is(.worker-measurement, .worker-support) .field { min-height: 44px; font-size: 14px; }
 .worker-measurement .field-label { font-size: 14px; }
-.worker-measurement .btn-lg { min-height: 52px; font-size: 18px; }
+.worker-measurement .btn-lg { min-height: 44px; font-size: 16px; }
 .worker-measurement .note { font-size: 14px; }
 .worker-center > section:last-child table { font-size: 14px; }
 .worker-center > section:last-child th { font-size: 13px; }
-.worker-support-context h2 { font-size: 18px; }
+.worker-support-context h2 { font-size: 16px; }
 .worker-inspection-range { font-size: 13px; }
 .worker-case-browser .worker-case-caption { font-size: 12px; }
-.worker-case-browser .worker-case-card h3 { font-size: 16px; }
+.worker-case-browser .worker-case-card h3 { font-size: 14px; }
 .worker-case-browser .worker-case-list-title { font-size: 14px; }
-.worker-case-browser .worker-case-field { font-size: 15px; }
-.worker-case-narrative .worker-guidance li p { font-size: 16px; line-height: 1.8; }
+.worker-case-browser .worker-case-field { font-size: 14px; }
+.worker-case-narrative .worker-guidance li p { font-size: 14px; line-height: 1.8; }
 .worker-guide-tabs button { min-height: 44px; font-size: 14px; }
 
-/* 관리자 검토 화면: 영상에서 읽히도록 입력·버튼·안내 글자를 키운다 */
+/* 관리자 검토에도 동일한 입력·본문·실행 버튼 크기를 적용한다. */
 
 .admin-review .field-label { font-size: 14px; }
-.admin-review .field { min-height: 44px; font-size: 15px; }
+.admin-review .field { min-height: 44px; font-size: 14px; }
 .admin-review .note { font-size: 14px; }
-.admin-review .btn-lg { min-height: 52px; font-size: 18px; }
+.admin-review .btn-lg { min-height: 44px; font-size: 16px; }
 .admin-review ul[role="alert"] { font-size: 14px; }
-.admin-review header h2 { font-size: 22px; line-height: 1.3; font-weight: 700; }
-.admin-review header p.break-all { font-size: 20px; }
+.admin-review header h2 { font-size: 18px; line-height: 1.3; font-weight: 700; }
+.admin-review header p.break-all { font-size: 16px; }
 
-/* 오른쪽 '측정 전 유의사항' 패널: 현재 검사 항목·오류 DB·오류 기록 글자 키움 */
-.worker-inspection-context .worker-kicker { font-size: 16px; font-weight: 600; color: #3f5064; }
-.worker-inspection-context .worker-case-current { font-size: 22px; padding: 6px 0; }
-.worker-inspection-context .worker-case-current span { font-size: 20px; }
-.worker-inspection-range { font-size: 17px; }
-.worker-inspection-range strong { font-size: 20px; font-weight: 700; }
-.worker-case-heading { font-size: 18px; font-weight: 600; color: #334155; }
+/* 오른쪽 유의사항 패널: 본문과 보조 정보의 크기를 일관되게 맞춘다. */
+.worker-inspection-context .worker-kicker { font-size: 14px; font-weight: 600; color: #3f5064; }
+.worker-inspection-context .worker-case-current { font-size: 18px; padding: 6px 0; }
+.worker-inspection-context .worker-case-current span { font-size: 16px; }
+.worker-inspection-range { font-size: 14px; }
+.worker-inspection-range strong { font-size: 16px; font-weight: 700; }
+.worker-case-heading { font-size: 16px; font-weight: 600; color: #334155; }
 .worker-case-heading svg { width: 20px; height: 20px; }
-.worker-case-browser .worker-case-caption { font-size: 16px; padding: 10px 0 16px; }
-.worker-case-registration .card-header h3 { font-size: 19px; font-weight: 700; }
-.worker-case-registration .card-header h3 span { font-size: 16px; }
-.worker-case-registration .card-header .tag { font-size: 15px; padding: 4px 10px; }
-.worker-case-registration .card-header .btn { height: 38px; font-size: 16px; padding: 0 14px; }
-.worker-case-registration article { font-size: 16px; }
-.worker-case-registration article h4 { font-size: 17px; }
-.worker-case-registration .divide-y > p { font-size: 16px; line-height: 1.7; }
-.worker-case-browser .worker-case-registration .card-body p { font-size: 15px; }
-.worker-case-registration .note { font-size: 15px; }
-.worker-empty { font-size: 16px; }
+.worker-case-browser .worker-case-caption { font-size: 14px; padding: 10px 0 16px; }
+.worker-case-registration .card-header h3 { font-size: 16px; font-weight: 700; }
+.worker-case-registration .card-header h3 span { font-size: 14px; }
+.worker-case-registration .card-header .tag { font-size: 14px; padding: 4px 10px; }
+.worker-case-registration .card-header .btn { height: 38px; font-size: 14px; padding: 0 14px; }
+.worker-case-registration article { font-size: 14px; }
+.worker-case-registration article h4 { font-size: 14px; }
+.worker-case-registration .divide-y > p { font-size: 14px; line-height: 1.7; }
+.worker-case-browser .worker-case-registration .card-body p { font-size: 14px; }
+.worker-case-registration .note { font-size: 14px; }
+.worker-empty { font-size: 14px; }
 
-/* 도면 선택 줄(도면 드롭다운·상태·작업 탭·수정 이력·3D에서 보기·데모 화면) 크게 */
-.dx-toolbar-select { height: 46px; max-width: 620px; padding: 0 16px; font-size: 18px; font-weight: 600; }
-.dx-toolbar-select svg { width: 22px; height: 22px; }
-.dx-toolbar-lg { font-size: 17px; }
-.dx-toolbar-lg .tag { font-size: 16px; padding: 5px 11px; }
-.dx-toolbar-lg .btn { height: 46px; padding: 0 18px; font-size: 17px; gap: 8px; }
-.dx-toolbar-lg .btn svg { width: 20px; height: 20px; }
+/* 도면 도구 모음: 실행 버튼 36px · 탭 32px · 글자 14px. */
+.dx-toolbar-select { height: 36px; max-width: 620px; padding: 0 12px; font-size: 14px; font-weight: 600; }
+.dx-toolbar-select svg { width: 18px; height: 18px; }
+.dx-toolbar-lg { font-size: 14px; }
+.dx-toolbar-lg .tag { font-size: 14px; padding: 5px 11px; }
+.dx-toolbar-lg .btn { height: 36px; padding: 0 12px; font-size: 14px; gap: 8px; }
+.dx-toolbar-lg .btn svg { width: 16px; height: 16px; }
 .dx-toolbar-lg .seg-dark { padding: 3px; }
-.dx-toolbar-lg .seg-item { height: 42px; padding: 0 18px; font-size: 17px; }
+.dx-toolbar-lg .seg-item { height: 32px; padding: 0 12px; font-size: 14px; }
 .dx-toolbar-lg .seg-item > span { font-size: 13px; margin-left: 6px; }
 
 /* 관리자 검토: 패널이 넓으면 '치수 확인'과 '작업자 검사 기준'을 가로로 나란히 (좁으면 세로) */
@@ -607,4 +608,28 @@
 @container (min-width: 680px) {
   .review-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
   .review-pair > .review-pair-wide { grid-column: 1 / -1; }
+}
+
+/* 공통 컨트롤 마감: 크기는 기존 변형 클래스로 정하고 글꼴·기준선만 통일한다. */
+@layer components {
+  :is(.btn, .dx-btn, .seg-item, .dx-tab) { line-height: 1.25; }
+  :is(.btn, .dx-btn, .seg-item, .dx-tab) > svg { flex-shrink: 0; }
+  :is(.field, .field-dark, .dx-input) { line-height: 1.5; }
+  :is(.field-label, .dx-label, .card-title) { line-height: 1.5; }
+  select:is(.field, .field-dark, .dx-input) { padding-right: 1.5rem; }
+}
+.dx-shell { font-variant-numeric: tabular-nums; }
+.worker-range-summary > b { font-variant-numeric: tabular-nums; }
+.worker-measurement header p.break-all,
+.admin-review header p.break-all { overflow-wrap: anywhere; word-break: normal; }
+.worker-case-registration .card-header :is(h3, h3 span) { line-height: 1.5; }
+.worker-case-registration .card-header h3 { min-width: 0; overflow-wrap: anywhere; }
+
+/* 좁은 화면에서도 버튼 글자를 자르지 않고, 폼 입력 시 iOS 자동 확대를 방지한다. */
+@media (max-width: 767px), (max-height: 500px) and (max-width: 1023px) {
+  .dx-shell :is(.field:not([inputmode="decimal"]), .field-dark, .dx-input, #login-account, #login-password, #login-role) {
+    font-size: 16px;
+  }
+  .dx-shell :is(.btn, .dx-btn, .seg-item, .dx-tab) { min-height: 36px; }
+  .dx-shell :is(.btn-icon, .dx-icon-btn) { min-width: 36px; }
 }
