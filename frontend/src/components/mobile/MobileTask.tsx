@@ -124,7 +124,7 @@ function TaskFrame({
     };
   }, [editing]);
   return (
-    <div className="dx-shell mobile-task fixed inset-0 flex flex-col bg-dx-bg" data-purpose={purpose} data-role="worker">
+    <div className="dx-shell mobile-task absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-dx-bg" data-purpose={purpose} data-role="worker">
       <MobileTopBar
         title={title}
         subtitle={subtitle}
@@ -171,7 +171,7 @@ function TaskFrame({
           >
             <div className="space-y-3 p-3">{children}</div>
           </div>
-          <div className="shrink-0 border-t border-dx-line bg-dx-panel px-3 pt-2" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
+          <div aria-label="측정 항목 이동" className="mobile-task-footer shrink-0 border-t border-dx-line bg-dx-panel px-3 pt-2" style={{ paddingBottom: "calc(28px + env(safe-area-inset-bottom, 0px))" }}>
             {footer}
           </div>
         </div>

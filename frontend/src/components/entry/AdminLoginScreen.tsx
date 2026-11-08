@@ -23,7 +23,7 @@ export function AdminLoginScreen() {
   return <main className="entry-screen dx-shell relative isolate flex h-dvh items-center justify-center overflow-y-auto px-4 py-8">
     <EntryBackdrop />
     <section className="entry-card relative z-10 w-full max-w-sm rounded-xl border border-dx-line bg-dx-panel p-6 shadow-lg">
-      <p className="text-xs font-semibold text-dx-muted">도다미</p>
+      <p className="brand-wordmark text-[36px] leading-tight text-dx-strong">도다미</p>
       <h1 className="mt-4 text-xl font-semibold text-dx-strong">관리자 로그인</h1>
       <p className="mt-2 text-sm leading-relaxed text-dx-muted">기존 관리자 아이디와 비밀번호를 입력해주세요.</p>
       <form className="mt-6 space-y-4" onSubmit={submit}>
