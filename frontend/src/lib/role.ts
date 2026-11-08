@@ -13,7 +13,7 @@ export const ROLE_OPTIONS: { key: string; role: UserRole; label: string; descrip
   ...WORK_PURPOSES.map((entry) => ({
     key: entry.value,
     role: { kind: "worker", purpose: entry.value } as UserRole,
-    label: entry.value === "manufacturing" ? "가공작업자" : `${entry.label} 작업자`,
+    label: entry.value === "manufacturing" ? "가공 작업자" : `${entry.label} 작업자`,
     description: `${entry.label} 측정·오류 기록`,
   })),
 ];
@@ -21,7 +21,7 @@ export const ROLE_OPTIONS: { key: string; role: UserRole; label: string; descrip
 export function roleLabel(role: UserRole | null): string {
   if (!role) return "";
   if (role.kind === "admin") return "관리자";
-  if (role.purpose === "manufacturing") return "가공작업자";
+  if (role.purpose === "manufacturing") return "가공 작업자";
   return `${WORK_PURPOSES.find((entry) => entry.value === role.purpose)?.label ?? ""} 작업자`;
 }
 

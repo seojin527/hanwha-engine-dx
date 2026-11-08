@@ -7,7 +7,7 @@
  * 조회 전용(다른 업무의 실제 작업자): 저장된 결과만 보여준다 (기존 규칙).
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, FileDown, List, Lock } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, FileDown, List } from "lucide-react";
 import { MobileDrawingView, type MarkerTone } from "./MobileDrawingView";
 import { MobileOverlay, MobileTopBar, MenuButton, ModeBadge, type WorkMode } from "./ui";
 import { ROLE_GUIDE } from "../../lib/roleGuide";
@@ -662,11 +662,9 @@ export function ManufacturingTask(props: TaskProps) {
             key={key}
             type="button"
             aria-pressed={stage === key}
-            disabled={!s.unlocked}
             onClick={() => machining.setStage(key)}
             className={`flex h-9 items-center justify-center gap-1 rounded-md border text-[13px] ${stage === key ? "border-dx-accent bg-dx-accent/15 font-semibold text-dx-accent" : "border-dx-line text-dx-text"} disabled:opacity-45`}
           >
-            {!s.unlocked && <Lock aria-hidden="true" className="h-3 w-3" />}
             {STAGE_NAME[key]}
             <span className="font-mono text-[11px] text-dx-muted">{s.passed}/{s.required}</span>
           </button>

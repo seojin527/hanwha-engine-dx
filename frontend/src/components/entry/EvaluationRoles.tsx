@@ -13,7 +13,7 @@ export function EvaluationRoleSelect({ onSelect, onSignOut }: { onSelect: (name:
       <label className="mt-4 block text-xs font-medium text-dx-muted">화면에 표시할 이름<input className="dx-input mt-1 h-10 !text-base" value={name} onChange={event => setName(event.target.value)} maxLength={50} /></label>
       <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label="평가 역할 선택">
         {ROLE_OPTIONS.map(entry => <button key={entry.key} type="button" onClick={() => onSelect(name.trim() || '평가자', entry.role)} className="flex min-h-20 flex-col items-start justify-center gap-1 rounded border border-dx-line-strong px-3 py-3 text-left hover:border-dx-accent hover:bg-dx-raised">
-          <span className="text-sm font-semibold text-dx-strong">{entry.role.kind === 'worker' && entry.role.purpose === 'manufacturing' ? '가공작업자' : entry.role.kind === 'admin' ? '관리자' : entry.label.replace('작업자', '검수자')}</span>
+          <span className="text-sm font-semibold text-dx-strong">{entry.role.kind === 'worker' && entry.role.purpose === 'manufacturing' ? '가공 작업자' : entry.role.kind === 'admin' ? '관리자' : entry.label.replace('작업자', '검수자')}</span>
           <span className="text-xs leading-relaxed text-dx-muted">{entry.description}</span>
         </button>)}
       </div>

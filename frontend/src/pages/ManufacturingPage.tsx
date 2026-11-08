@@ -1,8 +1,8 @@
 /**
- * 가공작업자 페이지.
+ * 가공 작업자 페이지.
  * 왼쪽 측정 · 가운데 도면/기존 측정표 · 오른쪽 오류 사례를 배치한다.
  * 상태·API·저장은 App 이 넘겨주는 props 를 쓰고, 화면 배치만 이 페이지가 맡는다.
- * 가공작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
+ * 가공 작업자가 아니면 readOnly 로 열려 조회만 한다. 관리자 검토는 통합 관리자 페이지(AdminPage)에서 한다.
  */
 import { DrawingViewer } from "../components/DrawingViewer";
 import { MeasurementTable } from "../components/MeasurementTable";

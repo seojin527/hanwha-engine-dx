@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDeployMode } from '../hooks/useDeployMode';
-import { Lock, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { type OcrItem, type OcrPoint } from '../lib/ocr';
 import ItemHeader, { Chip } from './review/ItemHeader';
 import { FEATURE_LABEL } from '../lib/inspection/instruments';
@@ -203,18 +203,16 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
           <div role="group" aria-label="가공 단계 선택" className="manufacturing-stage-tabs seg w-full p-0.5">
             {STAGE_KEYS.map((key) => {
               const s = plan.status[key];
-              const disabled = !trial && !s.unlocked;
               return (
                 <button
                   key={key}
                   type="button"
                   aria-pressed={stage === key}
-                  disabled={disabled}
-                  title={disabled ? '앞 단계 측정이 모두 합격해야 열립니다' : plan.stage_labels[key]}
+                  title={`${plan.stage_labels[key]} · 측정 완료 없이 단계 화면을 볼 수 있습니다`}
                   onClick={() => setStage(key)}
                   className="seg-item h-7 flex-1 justify-center gap-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {disabled ? <Lock aria-hidden="true" className="h-4 w-4" /> : <span aria-hidden="true" className={`h-3 w-3 rounded-full ${STAGE_DOT[key]}`} />}
+                  <span aria-hidden="true" className={`h-3 w-3 rounded-full ${STAGE_DOT[key]}`} />
                   {STAGE_NAME[key]}
                   <span className="font-mono text-[10px] font-medium text-slate-500">{s.passed}/{s.required}</span>
                 </button>
@@ -233,7 +231,7 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
             <p className="note note-ok">정삭 측정까지 모두 합격 — 가공 중 측정을 모두 마쳤습니다.</p>
           )}
           {current && !current.complete && current.failed > 0 && (
-            <p className="note note-error">{STAGE_NAME[stage]} 불합격 {current.failed}건 — 재가공·재측정 후 모두 합격해야 다음 단계로 넘어갑니다.</p>
+            <p className="note note-error">{STAGE_NAME[stage]} 불합격 {current.failed}건 — 재가공·재측정 후 모두 합격해야 다음 단계 측정을 저장할 수 있습니다.</p>
           )}
         </>
       )}

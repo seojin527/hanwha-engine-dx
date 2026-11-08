@@ -226,7 +226,7 @@ export function DrawingSelectScreen({
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:overflow-hidden lg:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
+            <h2 className="text-sm font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
             <p className="mt-0.5 text-xs text-neutral-400">부품을 고른 뒤 작업할 도면을 선택하고 「작업 시작」을 눌러주세요.</p>
           </div>
         </div>
@@ -235,13 +235,13 @@ export function DrawingSelectScreen({
           {/* 부품 */}
           <section aria-labelledby="select-parts-title" className="card flex min-h-[200px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-parts-title" className="text-lg font-semibold text-dx-strong">부품</h3>
-              {parts.status === "ready" && <span className="text-base text-neutral-400">{partList.length}개</span>}
+              <h3 id="select-parts-title" className="text-sm font-semibold text-dx-strong">부품</h3>
+              {parts.status === "ready" && <span className="text-xs text-neutral-400">{partList.length}개</span>}
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {parts.status === "loading" ? (
-                <p role="status" className="flex items-center gap-2 p-4 text-base text-neutral-400">
+                <p role="status" className="flex items-center gap-2 p-4 text-xs text-neutral-400">
                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                   부품을 불러오는 중…
                 </p>
@@ -254,7 +254,7 @@ export function DrawingSelectScreen({
                   </button>
                 </div>
               ) : partList.length === 0 ? (
-                <div className="space-y-2 p-4 text-base text-neutral-300">
+                <div className="space-y-2 p-4 text-xs text-neutral-300">
                   <p>등록된 부품이 없습니다.</p>
                   {onRegister ? (
                     <button type="button" onClick={() => onRegister("")} className="btn btn-secondary">
@@ -284,7 +284,7 @@ export function DrawingSelectScreen({
                             </span>
                             <span className="mt-0.5 block text-[11px] text-neutral-400">등록 {part.created_at || "—"}</span>
                           </span>
-                          <span className="shrink-0 text-base tabular-nums text-neutral-400">도면 {part.drawing_count}</span>
+                          <span className="shrink-0 text-xs tabular-nums text-neutral-400">도면 {part.drawing_count}</span>
                         </button>
                       </li>
                     );
@@ -297,7 +297,7 @@ export function DrawingSelectScreen({
           {/* 도면: 목록 / 썸네일 보기 + 미리보기 */}
           <section aria-labelledby="select-drawings-title" className="card flex min-h-[280px] flex-col overflow-hidden bg-[#2e2e2e] md:min-h-0">
             <header className="card-header">
-              <h3 id="select-drawings-title" className="min-w-0 truncate text-lg font-semibold text-dx-strong">
+              <h3 id="select-drawings-title" className="min-w-0 truncate text-sm font-semibold text-dx-strong">
                 {selectedPart ? `${selectedPart.name} 도면` : "도면"}
                 {selectedPart && drawingState.status === "ready" && <span className="ml-1.5 font-normal text-neutral-400">{drawingList.length}개</span>}
               </h3>
@@ -323,11 +323,11 @@ export function DrawingSelectScreen({
             <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] 2xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-rows-1">
             <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                 {!selectedPart ? (
-                <p className="p-8 text-center text-lg text-neutral-400">
+                <p className="p-8 text-center text-sm text-neutral-400">
                     {parts.status === "ready" && partList.length ? "왼쪽에서 부품을 선택해주세요." : ""}
                   </p>
                 ) : drawingState.status === "loading" ? (
-                <p role="status" className="flex items-center gap-2 p-4 text-base text-neutral-400">
+                <p role="status" className="flex items-center gap-2 p-4 text-xs text-neutral-400">
                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                     도면을 불러오는 중…
                   </p>
@@ -340,7 +340,7 @@ export function DrawingSelectScreen({
                     </button>
                   </div>
                 ) : drawingList.length === 0 ? (
-                <div className="space-y-2 p-4 text-base text-neutral-300">
+                <div className="space-y-2 p-4 text-xs text-neutral-300">
                     <p>이 부품에 등록된 도면이 없습니다.</p>
                     {canManage ? (
                       <button type="button" onClick={() => setAdding(true)} className="btn btn-secondary">
@@ -352,14 +352,14 @@ export function DrawingSelectScreen({
                     )}
                   </div>
                 ) : listView === "list" ? (
-                <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-base">
-                  <thead className="sticky top-0 z-10 bg-[#2e2e2e] text-base text-neutral-400">
+                <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-xs">
+                  <thead className="sticky top-0 z-10 bg-[#2e2e2e] text-[11px] text-neutral-400">
                     <tr className="[&>th]:border-b [&>th]:border-neutral-700 [&>th]:px-4 [&>th]:py-2.5 [&>th]:font-medium">
                         <th scope="col">도면</th>
                       <th scope="col" className="w-24">형식</th>
                       <th scope="col" className="w-28 text-right">크기</th>
-                      <th scope="col" className="w-56 whitespace-nowrap">등록일</th>
-                        <th scope="col" className="w-40">상태</th>
+                      <th scope="col" className="w-40 whitespace-nowrap">등록일</th>
+                        <th scope="col" className="w-36">상태</th>
                         {canManage && <th scope="col" className="w-10"><span className="sr-only">메뉴</span></th>}
                       </tr>
                     </thead>
@@ -396,7 +396,7 @@ export function DrawingSelectScreen({
                                 <FileText aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
                               <span className="min-w-0">
                                   <span className={`block truncate ${active ? "font-semibold text-dx-strong" : "text-neutral-100"}`}>{name}</span>
-                                <span className="block font-mono text-sm text-neutral-500">{drawing.drawing_id.slice(0, 8)}</span>
+                                <span className="block font-mono text-[10px] text-neutral-500">{drawing.drawing_id.slice(0, 8)}</span>
                                 </span>
                               </span>
                             </td>
@@ -478,7 +478,7 @@ export function DrawingSelectScreen({
             </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-700 bg-neutral-900/30 px-3 py-2">
-              <p className="min-w-0 truncate text-lg text-neutral-300">
+              <p className="min-w-0 truncate text-sm text-neutral-300">
                 {selectedDrawing ? (
                   <>
                     선택: <b className="font-semibold text-dx-strong">{selectedDrawing.original_filename || selectedDrawing.name}</b>

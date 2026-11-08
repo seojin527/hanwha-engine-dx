@@ -19,11 +19,11 @@ import {
 type Tone = "ok" | "warn" | "bad" | "info" | "muted";
 
 const TONE_CLASS: Record<Tone, string> = {
-  ok: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
-  warn: "border-amber-400/40 bg-amber-400/10 text-amber-200",
-  bad: "border-rose-400/40 bg-rose-400/10 text-rose-300",
-  info: "border-cyan-400/40 bg-cyan-400/10 text-cyan-300",
-  muted: "border-white/15 bg-white/5 text-dx-muted",
+  ok: "border-[#c5d2c9] bg-[#f0f4f1] text-[#355b48]",
+  warn: "border-amber-200 bg-amber-50 text-amber-800",
+  bad: "border-rose-200 bg-rose-50 text-rose-800",
+  info: "border-slate-300 bg-slate-50 text-slate-700",
+  muted: "border-slate-200 bg-slate-50 text-dx-muted",
 };
 
 const OCR_STATE: Record<string, { label: string; tone: Tone }> = {
@@ -51,7 +51,7 @@ export function reviewState(drawing: Pick<Drawing, "ocr_status" | "review_status
 
 export function Badge({ tone, children, title }: { tone: Tone; children: ReactNode; title?: string }) {
   return (
-    <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded border px-1.5 py-px text-sm font-medium leading-4 ${TONE_CLASS[tone]}`}>
+    <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded border px-1.5 py-px text-[11px] font-medium leading-4 ${TONE_CLASS[tone]}`}>
       {children}
     </span>
   );
