@@ -870,27 +870,34 @@ export default function DrawingReviewPanel({
       </div>
 
       <fieldset disabled={saving || picking} className="flex-1 space-y-3 p-3">
-        {source.review.warnings.map((warning, index) => (
-          <p key={index} className="note note-warn">
-            {warning}
-          </p>
-        ))}
+        <details className="review-guidance rounded border border-slate-200 bg-white">
+          <summary className={`cursor-pointer px-2 py-1.5 text-xs font-medium ${source.review.warnings.length ? "text-amber-800" : "text-slate-600"}`}>
+            검토 안내{source.review.warnings.length ? ` · 경고 ${source.review.warnings.length}건` : " · 기본 공차·추천 기준"}
+          </summary>
+          <div className="space-y-2 border-t border-slate-100 p-2">
+            {source.review.warnings.map((warning, index) => (
+              <p key={index} className="note note-warn">
+                {warning}
+              </p>
+            ))}
 
-        <p className="note note-info">
-          {generalEvidence?.applies ? (
-            <>
-              개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
-            </>
-          ) : (
-            <>
-              개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
-              {generalEvidence?.found && (
-                <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
-              )}
-            </>
-          )}{" "}
-          측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
-        </p>
+            <p className="note note-info">
+              {generalEvidence?.applies ? (
+                <>
+                  개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
+                </>
+              ) : (
+                <>
+                  개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
+                  {generalEvidence?.found && (
+                    <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
+                  )}
+                </>
+              )}{" "}
+              측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
+            </p>
+          </div>
+        </details>
 
         {selected && (
           <SelectedItem

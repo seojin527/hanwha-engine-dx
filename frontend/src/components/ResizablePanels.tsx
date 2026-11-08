@@ -13,7 +13,7 @@ export function panelBounds(width: number) {
 }
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function ResizablePanels({left, right, initialWidth, storageScope = ''}: {left: ReactNode; right: ReactNode; initialWidth?: number; storageScope?: string}) {
+export function ResizablePanels({left, right, initialWidth, storageScope = '', panelClassName = ''}: {left: ReactNode; right: ReactNode; initialWidth?: number; storageScope?: string; panelClassName?: string}) {
   const {side, header} = useContext(PanelLayoutContext);
   const onLeft = side === 'left';
   const storageKey = `${onLeft ? `${STORAGE_KEY}-left` : STORAGE_KEY}${storageScope ? `-${storageScope}` : ''}`;
@@ -60,7 +60,7 @@ export function ResizablePanels({left, right, initialWidth, storageScope = ''}: 
         e.preventDefault();setRequested(clamp(next,bounds.min,bounds.max));}}>
       <span aria-hidden="true" className={`h-8 w-0.5 rounded-full ${dragging ? 'bg-white' : 'bg-slate-400 group-hover:bg-white'}`} />
     </div>;
-  const aside = <aside className="flex min-h-0 shrink-0 flex-col bg-white" style={{width:panelWidth}} aria-label={onLeft ? '작업 패널' : '측정 상세 패널'}>
+  const aside = <aside className={`flex min-h-0 shrink-0 flex-col bg-white ${panelClassName}`} style={{width:panelWidth}} aria-label={onLeft ? '작업 패널' : '측정 상세 패널'}>
     {header}
     <div className="min-h-0 flex-1 overflow-y-auto">{right}</div>
   </aside>;

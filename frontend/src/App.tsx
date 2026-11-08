@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Activity, Box, Download, History, Loader2, RotateCcw, ScanText, Upload, X } from "lucide-react";
 import { EngineViewer3D, type EngineModelInfo } from "./components/shell/EngineViewer3D";
 import { EngineExplorerPanel, type EngineSelection } from "./components/shell/EngineExplorerPanel";
@@ -18,6 +18,7 @@ import { DrawingLibrary } from "./components/DrawingLibrary";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 import { apiUrl, drawingFileUrl, drawingThumbnailUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
+import { EvaluationRoleSelect, EvaluationSessionFrame } from './components/entry/EvaluationRoles';
 import { AdminLoginScreen } from './components/entry/AdminLoginScreen';
 import { LoginScreen } from './components/entry/LoginScreen';
 import { DrawingSelectScreen, type AdminView } from './components/entry/DrawingSelectScreen';
@@ -68,13 +69,6 @@ export function App() {
   // 관람객 주소(서버 읽기 전용)에서는 관리자 화면·도구를 열지 않는다. 서버도 변경 요청을 막는다.
   const deployMode = useDeployMode();
   const visitor = deployMode.readOnly;
-  useEffect(() => {
-    if (deployMode.adminSession && new URLSearchParams(window.location.search).get('admin') === '1' && stage === 'login') {
-      setUserLabel('관리자');
-      enterWithRole({ kind: 'admin' });
-      setStage('engine');
-    }
-  }, [deployMode.adminSession, stage]);
   const isAdmin = role?.kind === "admin" && !visitor;
   const ownPurpose: WorkPurpose | null = role?.kind === "worker" ? role.purpose : null;
   const userDisplay = role ? `${userLabel} · ${roleLabel(role)}` : userLabel;
@@ -519,6 +513,20 @@ export function App() {
     setStage("login");
   }
 
+  function returnToRoles() {
+    if ((unsavedRegistry.size > 0 || adminRegistry.size > 0) &&
+      !window.confirm("저장하지 않은 입력이 있습니다. 역할을 바꾸면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    closeWorkspaceOverlays();
+    setRole(null);
+    setAdminView("drawings");
+    setVisited({ progress: false, errors: false });
+    setStage("login");
+  }
+
+  function evaluationFrame(children: ReactNode) {
+    return deployMode.adminSession ? <EvaluationSessionFrame role={role} onSwitch={returnToRoles} onSignOut={logout}>{children}</EvaluationSessionFrame> : children;
+  }
+
   /** 3D 화면(트리·연결 도면)에서 도면을 연다. 도면을 열기 전까지 중앙은 3D 그대로다. */
   function openDrawingFromExplorer(drawing: Drawing) {
     if (!confirmLeave("도면을 열기")) return;
@@ -853,7 +861,7 @@ export function App() {
 
   // 관리자 검토 패널: 통합 관리자 화면에서만 만든다 (목적별로 나누지 않는다).
   const reviewPane = !reviewOpen ? null : (
-    <div className="h-full overflow-y-auto bg-white">
+    <div className="review-pair-wrap h-full overflow-y-auto bg-white">
       {reviewLoading ? (
         <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
           <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
@@ -963,6 +971,11 @@ export function App() {
   if (stage === "login") {
     // 서버 정책(관람객 주소 여부)을 받기 전에는 로그인 칸을 그리지 않는다. 관리자 역할이 잠깐 보였다 사라지지 않게.
     if (!deployMode.loaded) return <main className="dx-shell h-dvh w-screen bg-dx-bg" aria-busy="true" />;
+    if (deployMode.adminSession) return <EvaluationRoleSelect onSignOut={logout} onSelect={(name, nextRole) => {
+      setUserLabel(name);
+      enterWithRole(nextRole);
+      setStage("engine");
+    }} />;
     return (
       <LoginScreen
         visitor={visitor}
@@ -977,14 +990,15 @@ export function App() {
   }
 
   if (compact && !(isAdmin && (stage === "select" || (stage === "workspace" && libraryOpenOnEnter && !selectedDrawing)))) {
-    return (
+    return evaluationFrame(
       <MobileShell
         userLabel={userLabel}
         roleText={visitor ? "관람객 체험" : roleLabel(role)}
         isAdmin={isAdmin}
         trial={visitor}
         ownPurpose={visitor ? null : ownPurpose}
-        onLogout={logout}
+        onLogout={deployMode.adminSession ? returnToRoles : logout}
+        exitLabel={deployMode.adminSession ? "역할 선택으로" : undefined}
         onNavigateAdmin={isAdmin ? navigate : undefined}
         inWorkspace={stage === "workspace" && !demoMode}
         engineModel={engineModel}
@@ -1086,7 +1100,8 @@ export function App() {
       isAdmin={isAdmin}
       drawingAvailable={demoMode || !!selectedDrawing}
       onNavigate={navigate}
-      onLogout={logout}
+      onLogout={deployMode.adminSession ? returnToRoles : logout}
+      logoutLabel={deployMode.adminSession ? "역할 선택으로" : undefined}
       compact={compact}
     />
   );
@@ -1108,7 +1123,7 @@ export function App() {
     />
   );
 
-  return (
+  return evaluationFrame(
     <UnsavedChangesProvider registry={unsavedRegistry}>
     <div className="dx-shell flex h-dvh w-screen overflow-hidden font-sans" data-role={isAdmin ? "admin" : "worker"} data-purpose={purpose}>
       {!compact && railNav}
@@ -1147,7 +1162,7 @@ export function App() {
                 setLibraryOpenOnEnter(true);
                 setStage("workspace");
               }}
-              onExit={logout}
+              onExit={deployMode.adminSession ? returnToRoles : logout}
               onSelectionChange={(partId, drawing) => {
                 setActivePartId(partId);
                 setPickedDrawing(drawing);
