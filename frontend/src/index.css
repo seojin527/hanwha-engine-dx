@@ -778,3 +778,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
  .entry-engine-overview { display:block; top:5px; bottom:auto; right:-3vw; width:92vw; max-width:none; height:128px; object-fit:contain; opacity:.5; mask-image:linear-gradient(to bottom, black 65%, transparent); }
  .mobile-engine-shell [aria-label="선택한 부품"] { max-height:45%; overflow-y:auto; scroll-padding-bottom:32px; }
 }
+
+/* Load just the three Korean brand glyphs; keep existing UI fonts elsewhere. */
+.brand-wordmark { font-family:"Noto Serif KR", "Batang", serif; font-weight:700; letter-spacing:-.045em; }
+.mobile-task-footer { scroll-margin-bottom:28px; }

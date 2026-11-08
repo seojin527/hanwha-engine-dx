@@ -9,9 +9,9 @@ export function EvaluationRoleSelect({ onSelect, onSignOut, readOnly = false }: 
   return <main className="entry-screen dx-shell relative isolate flex h-dvh items-center justify-center overflow-y-auto px-4 py-6">
     <EntryBackdrop />
     <section className="entry-card relative z-10 w-full max-w-xl rounded-lg border border-dx-line bg-dx-panel p-5">
-      <p className="text-xs font-semibold text-dx-muted">도다미 · {readOnly ? "조회·체험" : "관리자 인증 완료"}</p>
-      <h1 className="mt-3 text-lg font-semibold text-dx-strong">체험할 역할을 선택해주세요</h1>
-      <p className="mt-2 text-sm leading-relaxed text-dx-muted">{readOnly ? "관리자와 세 검수자 화면을 비밀번호 없이 둘러볼 수 있습니다. 관리자 화면은 조회 전용이며 등록·수정·삭제는 할 수 없습니다." : "관리자와 세 검수자 화면을 자유롭게 둘러볼 수 있습니다. 화면 위의 「역할 전환」으로 돌아오면 비밀번호를 다시 입력하지 않아도 됩니다."}</p>
+      <div className="flex items-baseline gap-3"><h1 className="brand-wordmark text-[40px] leading-tight text-dx-strong">도다미</h1><span className="text-[10px] text-dx-muted">{readOnly ? "조회·체험" : "관리자 인증 완료"}</span></div>
+      <h2 className="mt-3 text-[14px] font-semibold text-dx-strong">체험할 역할을 선택해주세요</h2>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-dx-muted">{readOnly ? "관리자와 세 검수자 화면을 비밀번호 없이 둘러볼 수 있습니다. 관리자 화면은 조회 전용이며 등록·수정·삭제는 할 수 없습니다." : "관리자와 세 검수자 화면을 자유롭게 둘러볼 수 있습니다. 화면 위의 「역할 전환」으로 돌아오면 비밀번호를 다시 입력하지 않아도 됩니다."}</p>
       <label className="mt-4 block text-xs font-medium text-dx-muted">화면에 표시할 이름<input className="dx-input mt-1 h-10 !text-base" value={name} onChange={event => setName(event.target.value)} maxLength={50} /></label>
       <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label="평가 역할 선택">
         {ROLE_OPTIONS.map(entry => <button key={entry.key} type="button" onClick={() => onSelect(name.trim() || '평가자', entry.role)} className="flex min-h-20 flex-col items-start justify-center gap-1 rounded border border-dx-line-strong px-3 py-3 text-left hover:border-dx-accent hover:bg-dx-raised">

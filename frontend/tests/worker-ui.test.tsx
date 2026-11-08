@@ -598,3 +598,38 @@ test('휴대폰 대표 도면 열기 영역은 하단 안전 여백을 두고 �
     assert.equal(opened, pdfDrawing.drawing_id);
   } finally { await unmount(); }
 });
+
+import { MeasureTask } from '../src/components/mobile/MobileTask';
+
+for (const purpose of ['manufacturing', 'assembly', 'verification'] as const) {
+  test(`휴대폰 ${purpose} 하단 이전·다음 바는 안전 여백을 유지하며 항목을 이동한다`, async () => {
+    mockFetch(); requests.length = 0;
+    const selected: number[] = [];
+    const Component = purpose === 'manufacturing' ? ManufacturingTask : MeasureTask;
+    function TaskHarness() {
+      const [active, setActive] = useState(points[0].id);
+      return (<Component purpose={purpose} mode="view" partName="피스톤 로드" drawing={drawing} document={doc} revision="rev-1" resultUrl={null} points={points} activePoint={points.find(point => point.id === active)} onSelectPoint={id => { selected.push(id); setActive(id); }} measurementRecords={{}} onMeasurementSaved={() => {}} trial={{}} onTrial={() => assert.fail('navigation must not record trial values')} onBack={() => {}} onExports={() => {}} />);
+    }
+    await mount(<TaskHarness />);
+    try {
+      const bar = document.querySelector<HTMLElement>('[aria-label="측정 항목 이동"]')!;
+      assert.ok(bar);
+      assert.ok(bar.getAttribute('style')?.includes('28px'));
+      assert.ok(bar.getAttribute('style')?.includes('safe-area-inset-bottom'));
+      await act(async () => (bar.querySelector('[aria-label="다음 항목"]') as HTMLButtonElement).click());
+      assert.equal(selected.at(-1), points[1].id);
+      await act(async () => (bar.querySelector('[aria-label="이전 항목"]') as HTMLButtonElement).click());
+      assert.ok(selected.length >= 2);
+      assert.ok(requests.every(request => request.method === 'GET'));
+    } finally { await unmount(); }
+  });
+}
+
+test('로그인 첫 제목은 도다미이고 역할 선택 안내는 보조 제목으로 제공한다', async () => {
+  await mount(<EvaluationRoleSelect readOnly onSelect={() => {}} onSignOut={() => {}} />);
+  try {
+    assert.equal(document.querySelector('h1')?.textContent, '도다미');
+    assert.ok(document.querySelector('h1')?.classList.contains('brand-wordmark'));
+    assert.equal(document.querySelector('h2')?.textContent, '체험할 역할을 선택해주세요');
+  } finally { await unmount(); }
+});
