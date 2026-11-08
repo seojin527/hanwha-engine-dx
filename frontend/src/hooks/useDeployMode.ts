@@ -9,6 +9,7 @@ import { apiUrl } from "../lib/drawingAPI";
 export interface DeployMode {
   /** 서버 응답을 받기 전에는 false 로 둔다 (로컬 개발과 같음) */
   loaded: boolean;
+  adminSession?: boolean;
   readOnly: boolean;
   ocrEnabled: boolean;
 }
@@ -18,7 +19,7 @@ let cached: Promise<DeployMode> | null = null;
 function load(): Promise<DeployMode> {
   cached ??= fetch(apiUrl("/api/deploy-mode"))
     .then((response) => (response.ok ? response.json() : null))
-    .then((body) => ({ loaded: true, readOnly: Boolean(body?.read_only), ocrEnabled: body?.ocr_enabled !== false }))
+    .then((body) => ({ loaded: true, readOnly: Boolean(body?.read_only), adminSession: Boolean(body?.admin_session), ocrEnabled: body?.ocr_enabled !== false }))
     .catch(() => ({ loaded: true, readOnly: false, ocrEnabled: true }));
   return cached;
 }
@@ -37,10 +38,5 @@ export function useDeployMode(): DeployMode {
 
 /** 공개 체험 화면에서 기존 인증이 적용된 관리자 주소로 이동한다. */
 export function adminEntryUrl(): string | null {
-  const configured = import.meta.env.VITE_ADMIN_URL;
-  if (configured) return configured;
-  if (window.location.hostname === "dx.165-245-178-152.sslip.io") {
-    return "https://admin.165-245-178-152.sslip.io/";
-  }
-  return null;
+  return new URL('/admin-login', window.location.origin).href;
 }

@@ -321,13 +321,13 @@ test('휴대폰 관리자 메뉴에서 도면 관리·엑셀 오류 DB·작업 �
   }
 });
 
-test('공개 체험에서는 관리자 인증 주소 입구만 보이고 관리 작업 메뉴는 노출하지 않는다', async () => {
+test('작업자 메뉴에는 관리자 DB 링크와 관리 작업 메뉴를 노출하지 않는다', async () => {
   dom.reconfigure({ url: 'https://dx.165-245-178-152.sslip.io/' });
   globalThis.fetch = async () => new Response('{"parts":[]}');
   await mount(<MobileShell {...mobileProps} isAdmin={false} trial onNavigateAdmin={() => assert.fail('visitor must not open admin tools')} />);
   try {
     await act(async () => (document.querySelector('[aria-label="메뉴"]') as HTMLButtonElement).click());
-    assert.equal(document.querySelector('a')?.href, 'https://admin.165-245-178-152.sslip.io/');
+    assert.equal(document.querySelector('a'), null);
     assert.ok(!document.body.textContent?.includes('오류 DB 관리'));
   } finally { await unmount(); dom.reconfigure({ url: 'http://127.0.0.1:3000' }); }
 });
@@ -338,6 +338,29 @@ test('로그인에서 데모 진입을 제거하고 공개 화면은 기존 관�
   try {
     assert.ok(!document.body.textContent?.includes('데모 도면'));
     assert.equal(document.querySelector('a')?.textContent, '관리자 페이지');
-    assert.equal(document.querySelector('a')?.href, 'https://admin.165-245-178-152.sslip.io/');
+    assert.equal(document.querySelector('a')?.href, 'https://dx.165-245-178-152.sslip.io/admin-login');
   } finally { await unmount(); dom.reconfigure({ url: 'http://127.0.0.1:3000' }); }
+});
+
+import { AdminLoginScreen } from '../src/components/entry/AdminLoginScreen';
+import { ShellRail } from '../src/components/shell/ShellChrome';
+
+test('태블릿 관리자 진입은 브라우저 인증 팝업 대신 아이디·비밀번호 입력 화면을 제공한다', async () => {
+  await mount(<AdminLoginScreen />);
+  try {
+    assert.equal(document.querySelector('input[autocomplete="username"]')?.getAttribute('type'), null);
+    assert.equal((document.querySelector('input[autocomplete="username"]') as HTMLInputElement).value, 'admin');
+    assert.equal((document.querySelector('input[type="password"]') as HTMLInputElement).value, '');
+    assert.ok(document.querySelector('button[type="submit"]'));
+    assert.equal(document.querySelector('a')?.getAttribute('href'), '/');
+  } finally { await unmount(); }
+});
+
+test('작업자 메뉴 레일에는 관리자 DB 아이콘이나 인증 주소 링크가 없다', async () => {
+  await mount(<ShellRail view="engine" isAdmin={false} drawingAvailable={false} onNavigate={() => {}} onLogout={() => {}} />);
+  try {
+    assert.equal(document.querySelector('a'), null);
+    assert.equal(document.querySelector('[aria-label="오류 DB 관리"]'), null);
+    assert.equal(document.querySelector('[aria-label="관리자 페이지"]'), null);
+  } finally { await unmount(); }
 });

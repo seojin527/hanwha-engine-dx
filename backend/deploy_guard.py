@@ -47,7 +47,8 @@ def ocr_enabled() -> bool:
 def is_admin_request(request) -> bool:
     expected = os.environ.get("ADMIN_TOKEN", "")
     given = request.headers.get("x-admin-token", "")
-    return bool(expected) and hmac.compare_digest(given.encode(), expected.encode())
+    from admin_session import session_valid
+    return (bool(expected) and hmac.compare_digest(given.encode(), expected.encode())) or session_valid(request)
 
 
 class _Window:
@@ -82,6 +83,8 @@ def _client_ip(request) -> str:
 async def guard_middleware(request, call_next):
     if request.method not in SAFE_METHODS and not ocr_enabled() and OCR_PATHS.match(request.url.path):
         return JSONResponse({"detail": OCR_DISABLED_MESSAGE}, status_code=403)
+    if request.url.path == "/api/admin/session" and request.method == "POST":
+        return await call_next(request)
     if not is_public() or request.method in SAFE_METHODS:
         return await call_next(request)
     if not is_admin_request(request):
@@ -89,6 +92,9 @@ async def guard_middleware(request, call_next):
             {"detail": "체험 모드에서는 조회만 할 수 있습니다. 변경은 관리자 시연 주소에서만 가능합니다."},
             status_code=403,
         )
+    from admin_session import session_valid, same_origin
+    if session_valid(request) and not same_origin(request):
+        return JSONResponse({"detail": "다른 사이트에서 보낸 관리자 변경 요청은 허용하지 않습니다."}, status_code=403)
     limit = int(os.environ.get("WRITE_RATE_PER_MIN", "60"))
     if not _writes.allow(_client_ip(request), limit, 60):
         return JSONResponse({"detail": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}, status_code=429)
@@ -109,4 +115,5 @@ def check_ocr_capacity(active_count: int) -> None:
 
 def mode_info(request) -> dict:
     public = is_public()
-    return {"mode": deploy_mode(), "read_only": public and not is_admin_request(request), "ocr_enabled": ocr_enabled()}
+    from admin_session import session_valid
+    return {"mode": deploy_mode(), "read_only": public and not is_admin_request(request), "ocr_enabled": ocr_enabled(), "admin_session": session_valid(request)}
