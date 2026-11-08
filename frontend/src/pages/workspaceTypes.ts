@@ -45,7 +45,7 @@ export interface DrawingPageProps {
   };
 }
 
-/** 작업자 페이지(부품제작·조립·검증)가 받는 값. */
+/** 작업자 페이지(가공·조립·검증)가 받는 값. */
 export interface WorkspacePageProps extends DrawingPageProps {
   /** 마커 색 표시용 (point.id → 이 목적의 측정 상태) */
   ocrInspectionRecords: Record<number, { status: string }>;

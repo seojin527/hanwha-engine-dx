@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiUrl, type ErrorCandidate } from "./drawingAPI";
 import type { MeasurementRecord } from "./measurementAPI";
 
-/** 부품제작(가공 중 측정) 황삭·중삭·정삭 API. backend/machining_api.py */
+/** 가공(가공 중 측정) 황삭·중삭·정삭 API. backend/machining_api.py */
 
 export type StageKey = "1" | "2" | "3";
 export const STAGE_KEYS: StageKey[] = ["1", "2", "3"];

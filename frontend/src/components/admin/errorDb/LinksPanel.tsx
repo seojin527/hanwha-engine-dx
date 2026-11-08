@@ -1,3 +1,4 @@
+import { useAdminReadOnly } from "../../../lib/adminReadOnly";
 /**
  * 도면·측정항목에 명시적으로 연결한 사례(연결·해제 내역)와 전체 변경 이력.
  * 연결 기준은 도면 ID + OCR 버전 + 항목 ID. 현재 OCR 버전 항목만 도면 위치를 연다 (과거 버전 위치는 재현하지 않는다).
@@ -28,6 +29,7 @@ export function LinksPanel({
   onChanged: () => void;
   onOpenLocation: (target: LocationTarget) => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const [tab, setTab] = useState<"links" | "history">("links");
   const [state, setState] = useState<"active" | "unlinked" | "all">("active");
   const [action, setAction] = useState<HistoryAction | "">("");
@@ -54,6 +56,7 @@ export function LinksPanel({
   }, [purpose, tab, state, action, reload, refreshKey]);
 
   async function unlink(link: CaseLink) {
+    if (readOnly) return;
     if (!window.confirm(`${link.item_id} 항목과 ${link.case_id} 사례의 연결을 해제할까요?\n사례 원문과 다른 항목의 연결은 그대로 남습니다.`)) return;
     try {
       await unlinkCase(purpose, link.link_id);
@@ -130,7 +133,7 @@ export function LinksPanel({
                           <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      {link.linked && (
+                      {!readOnly && link.linked && (
                         <button type="button" title="연결 해제" aria-label="연결 해제" onClick={() => void unlink(link)} className="btn btn-ghost btn-icon">
                           <Unlink aria-hidden="true" className="h-3.5 w-3.5" />
                         </button>
@@ -157,7 +160,7 @@ export function LinksPanel({
                     <span className="block text-neutral-200">{event.case_title ?? "—"}</span>
                     <span className="font-mono text-[11px] text-neutral-400">{event.case_id}</span>
                   </td>
-                  <td className="text-neutral-300">{event.purpose === "manufacturing" ? "부품제작" : event.purpose === "assembly" ? "조립" : "검증"}</td>
+                  <td className="text-neutral-300">{event.purpose === "manufacturing" ? "가공" : event.purpose === "assembly" ? "조립" : "검증"}</td>
                   <td className="text-neutral-300">{event.drawing_id ? `${event.part_name ?? "—"} · ${event.drawing_name ?? event.drawing_id}` : historyDetail(event.detail)}</td>
                   <td className="text-[11px] text-neutral-400">
                     {event.item_id ? <><span className="font-mono">{event.ocr_revision?.slice(0, 8)}</span> · {event.item_id}</> : "—"}

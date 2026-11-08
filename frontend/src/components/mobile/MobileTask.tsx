@@ -42,7 +42,7 @@ export type TrialStore = Record<string, TrialEntry>;
 export interface TaskProps {
   purpose: WorkPurpose;
   mode: WorkMode;
-  /** 조회 전용일 때 이유 (예: 조립 작업자는 부품제작을 조회만) */
+  /** 조회 전용일 때 이유 (예: 조립 작업자는 가공을 조회만) */
   viewReason?: string;
   partName: string;
   drawing: Drawing;
@@ -546,7 +546,7 @@ export function MeasureTask(props: TaskProps) {
   );
 }
 
-// ====================================================================== 부품제작
+// ====================================================================== 가공
 
 export function ManufacturingTask(props: TaskProps) {
   const { mode, document, drawing, revision, points, activePoint, onSelectPoint, trial, onTrial } = props;

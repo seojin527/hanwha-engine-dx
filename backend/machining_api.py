@@ -1,4 +1,4 @@
-"""부품제작(가공 중 측정) — 황삭 · 중삭 · 정삭 단계 관리.
+"""가공(가공 중 측정) — 황삭 · 중삭 · 정삭 단계 관리.
 
 - 부품별 기준 템플릿(machining_templates.py)으로 각 OCR 항목을 어느 단계에서 재는지 정한다.
   같은 부품은 모양이 같고 치수만 바뀌므로 '도면 위 위치 + 표기 종류'로 항목을 맞춘다. 여유값은 라벨마다 고정.
@@ -29,7 +29,7 @@ from purpose_errors.api import search_part
 from purpose_errors.purposes import STORES, Purpose
 from purpose_errors.vectors import query_active
 
-router = APIRouter(prefix="/api/machining", tags=["부품제작 단계 측정"])
+router = APIRouter(prefix="/api/machining", tags=["가공 단계 측정"])
 
 MATCH_DISTANCE = 0.08  # 도면 폭·높이 대비 위치 차이 허용값
 SERIAL_RE = r"^[0-9A-Za-z가-힣._-]{1,40}$"
@@ -392,7 +392,7 @@ def save_stage_record(drawing_id: str, item_id: str, payload: StageInput):
 @router.get("/{drawing_id}/items/{item_id}/errors")
 def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal["1", "2", "3"],
                  top_k: int = Query(default=3, ge=1, le=10)):
-    """부품제작(manufacturing) 오류사례 중 선택한 단계(황삭 후·중삭 후·정삭 후)와 '가공 공통'만 찾는다.
+    """가공(manufacturing) 오류사례 중 선택한 단계(황삭 후·중삭 후·정삭 후)와 '가공 공통'만 찾는다.
 
     공정을 비워 둔 사용자 등록 사례는 모든 단계에 보인다.
     """
@@ -411,7 +411,7 @@ def stage_errors(drawing_id: str, item_id: str, request: Request, stage: Literal
     collections = getattr(request.app.state, "purpose_collections", None) or {}
     collection = collections.get(Purpose.manufacturing)
     if collection is None:
-        raise HTTPException(503, "부품제작 오류사례 검색 저장소가 준비되지 않았습니다.")
+        raise HTTPException(503, "가공 오류사례 검색 저장소가 준비되지 않았습니다.")
 
     conditions = [{"part_family": {"$in": families}},
                   {"process_stage": {"$in": [f"{STAGE_NAMES[stage]} 후", "가공 공통", ""]}}]

@@ -1,3 +1,4 @@
+import { AdminReadOnlyContext } from "./lib/adminReadOnly";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -66,7 +67,7 @@ export function App() {
   const [userLabel, setUserLabel] = useState("");
   // 화면 역할 (인증 아님). 관리자는 통합 관리자 화면, 작업자는 자기 업무 페이지에서 입력한다.
   const [role, setRole] = useState<UserRole | null>(null);
-  // 관람객 주소(서버 읽기 전용)에서는 관리자 화면·도구를 열지 않는다. 서버도 변경 요청을 막는다.
+  // 일반 사용자도 DB·진행 현황은 조회한다. 관리자 변경 도구와 서버 변경 요청은 보호한다.
   const deployMode = useDeployMode();
   const visitor = deployMode.readOnly;
   const isAdmin = role?.kind === "admin" && !visitor;
@@ -75,7 +76,7 @@ export function App() {
   // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
   const [activePartId, setActivePartId] = useState("");
   const [libraryOpenOnEnter, setLibraryOpenOnEnter] = useState(false);
-  // 작업 페이지(부품제작·조립·검증). 선택 도면과 저장 데이터는 세 페이지가 함께 쓴다.
+  // 작업 페이지(가공·조립·검증). 선택 도면과 저장 데이터는 세 페이지가 함께 쓴다.
   const [purpose, setPurpose] = useState<WorkPurpose>("manufacturing");
   // 입력 컴포넌트가 '저장하지 않은 입력 있음'을 등록하는 곳
   const unsavedRegistry = useRef<UnsavedRegistry>(new Set()).current;
@@ -989,7 +990,7 @@ export function App() {
     );
   }
 
-  if (compact && !(isAdmin && (stage === "select" || (stage === "workspace" && libraryOpenOnEnter && !selectedDrawing)))) {
+  if (compact && !(stage === "select" || (isAdmin && stage === "workspace" && libraryOpenOnEnter && !selectedDrawing))) {
     return evaluationFrame(
       <MobileShell
         userLabel={userLabel}
@@ -999,7 +1000,7 @@ export function App() {
         ownPurpose={visitor ? null : ownPurpose}
         onLogout={deployMode.adminSession ? returnToRoles : logout}
         exitLabel={deployMode.adminSession ? "역할 선택으로" : undefined}
-        onNavigateAdmin={isAdmin ? navigate : undefined}
+        onNavigateAdmin={navigate}
         inWorkspace={stage === "workspace" && !demoMode}
         engineModel={engineModel}
         onEngineReady={setEngineModel}
@@ -1169,7 +1170,7 @@ export function App() {
               }}
             />
           )}
-          {isAdmin && (
+          <AdminReadOnlyContext.Provider value={!isAdmin}>
             <UnsavedChangesProvider registry={adminRegistry}>
               {visited.progress && (
                 <div className={`entry-gray min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 ${stage === "select" && adminView === "progress" ? "flex" : "hidden"}`}>
@@ -1186,7 +1187,7 @@ export function App() {
                 </div>
               )}
             </UnsavedChangesProvider>
-          )}
+          </AdminReadOnlyContext.Provider>
 
           {moveOpen && selectedDrawing && (
             <MoveDrawingDialog

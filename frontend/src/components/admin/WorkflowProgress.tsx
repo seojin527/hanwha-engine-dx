@@ -1,3 +1,4 @@
+import { useAdminReadOnly } from "../../lib/adminReadOnly";
 /**
  * 관리자 「작업 진행 현황」: 선택한 부품·도면 한 대상의 제작 → 조립 → 검증 현황판 (조회 전용).
  *
@@ -61,6 +62,7 @@ export function WorkflowProgress({
   /** 부품·도면 관리로 돌아가 다른 도면을 고른다 */
   onChooseDrawing: () => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const [progress, setProgress] = useState<DrawingProgress | null>(null);
   const [snapshot, setSnapshot] = useState<OcrSnapshot | null>(null);
   const [error, setError] = useState("");
@@ -139,7 +141,7 @@ export function WorkflowProgress({
           <button type="button" onClick={onChooseDrawing} className="btn btn-secondary">다른 도면 선택</button>
           <button type="button" onClick={() => onOpenDrawing(drawing, selectedItem ?? undefined)} className="btn btn-primary">
             <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
-            도면 검토 화면으로
+            {readOnly ? "도면 작업 화면으로" : "도면 검토 화면으로"}
           </button>
         </div>
       </div>
@@ -207,7 +209,7 @@ export function WorkflowProgress({
           </div>
           <p className="text-[11px] text-neutral-500">
             진행률 = 완료 ÷ 대상. 완료는 합격 판정 후 확정한 기록, 불합격은 최신 판정이 불합격인 기록, 미완료는 미측정·확정 전·기준 확인 필요입니다.
-            조립·검증 기록은 제품 번호 없이 도면 항목별 최신 1건만 셉니다. 그래서 부품제작의 제품 번호(예: CR01)와 같은 실물의 이력으로 묶지 않습니다.
+            조립·검증 기록은 제품 번호 없이 도면 항목별 최신 1건만 셉니다. 그래서 가공의 제품 번호(예: CR01)와 같은 실물의 이력으로 묶지 않습니다.
             관람객 체험값은 서버에 저장되지 않아 여기에 나오지 않습니다.
           </p>
 
@@ -343,6 +345,7 @@ function ItemDetail({
   purpose: WorkPurpose;
   onLinked: () => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const [detail, setDetail] = useState<ItemProgress | null>(null);
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<ErrorCandidate[] | null>(null);
@@ -370,6 +373,7 @@ function ItemDetail({
   }
 
   async function link(caseId: string) {
+    if (readOnly) return;
     if (!window.confirm(`${caseId} 사례를 이 항목(${itemId})에 연결할까요?`)) return;
     try {
       await createLink(purpose, { case_id: caseId, drawing_id: drawingId, item_id: itemId, revision });
@@ -492,12 +496,12 @@ function ItemDetail({
                   </span>
                   {linkedIds.has(candidate.case_id) ? (
                     <span className="text-[10px] text-neutral-400">연결됨</span>
-                  ) : (
+                  ) : !readOnly ? (
                     <button type="button" onClick={() => void link(candidate.case_id)} className="btn btn-secondary h-6" title="이 항목에 명시적으로 연결">
                       <Link2 aria-hidden="true" className="h-3 w-3" />
                       연결
                     </button>
-                  )}
+                  ) : null}
                 </li>
               ))}
             </ul>

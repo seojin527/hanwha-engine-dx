@@ -1,6 +1,6 @@
 /**
- * 부품제작 오류사례 등록 폼 정의.
- * 이 파일만 고치면 부품제작 페이지의 등록 폼 항목을 바꿀 수 있다.
+ * 가공 오류사례 등록 폼 정의.
+ * 이 파일만 고치면 가공 페이지의 등록 폼 항목을 바꿀 수 있다.
  * 서버 쪽 필드·검증은 backend/purpose_errors/schemas/manufacturing.py 와 맞춘다.
  */
 import type { ErrorFormDefinition } from "./types";

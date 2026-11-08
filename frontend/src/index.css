@@ -48,7 +48,7 @@
   .btn-dark-ghost { @apply border-transparent bg-transparent text-dx-muted hover:bg-dx-raised hover:text-dx-strong; }
   .btn-dark-danger { @apply border-rose-300 bg-transparent text-rose-700 hover:bg-rose-50; }
 
-  /* ---------- 세그먼트 전환 (작업자/관리자, 부품제작/조립/검증, 선택/이동) ---------- */
+  /* ---------- 세그먼트 전환 (작업자/관리자, 가공/조립/검증, 선택/이동) ---------- */
   .seg { @apply inline-flex shrink-0 rounded border border-slate-300 bg-slate-100 p-0.5; }
   .seg-item {
     @apply inline-flex h-6 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-[3px] px-3 text-xs font-medium text-slate-600 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40;
@@ -475,8 +475,8 @@
 @media (max-width: 1400px) { .worker-range-summary { column-gap: 10px; padding: 11px; } .worker-range-summary > b { font-size: 17px; } .worker-nominal strong { font-size: 21px; } }
 
 /*
- * 업무(부품제작 · 조립 · 검증)별 강조색.
- * 작업 화면(.dx-shell[data-purpose])에서만 강조색 변수를 바꾼다: 부품제작=파랑, 조립=청록(teal), 검증=보라.
+ * 업무(가공 · 조립 · 검증)별 강조색.
+ * 작업 화면(.dx-shell[data-purpose])에서만 강조색 변수를 바꾼다: 가공=파랑, 조립=청록(teal), 검증=보라.
  * 합격(emerald)·주의(amber)·불합격(rose) 상태색은 업무와 상관없이 그대로다.
  * 강조색으로 쓰던 cyan-* 단계와 dx-accent 토큰, 작업 화면 CSS 의 --wk-* 변수를 함께 바꾼다.
  */

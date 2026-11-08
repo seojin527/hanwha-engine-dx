@@ -1,3 +1,4 @@
+import { useAdminReadOnly } from "../../../lib/adminReadOnly";
 /**
  * 오류 DB 사례 목록 · 검색 · 상세 · 개별 등록·수정 · 비활성화·재활성화 · 벡터 재시도.
  * 폼 항목은 서버의 목적별 스키마(/schema)를 그대로 쓴다. 목적마다 스키마 파일만 고치면 폼·엑셀 열이 함께 바뀐다.
@@ -49,6 +50,7 @@ export function CasePanel({
   onChanged: () => void;
   onOpenLocation: (target: LocationTarget) => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [active, setActive] = useState<"all" | "active" | "inactive">("all");
@@ -93,6 +95,7 @@ export function CasePanel({
   }
 
   async function retryAll() {
+    if (readOnly) return;
     setBusy("retry");
     setNotice("");
     try {
@@ -142,7 +145,7 @@ export function CasePanel({
             <option value="failed">반영 실패</option>
             <option value="pending">반영 대기</option>
           </select>
-          {mode === "vector" ? (
+          {!readOnly && (mode === "vector" ? (
             <button type="button" disabled={busy === "retry"} onClick={() => void retryAll()} className="btn btn-primary">
               <RotateCw aria-hidden="true" className={`h-3.5 w-3.5 ${busy === "retry" ? "animate-spin" : ""}`} />
               실패·대기 전체 재시도
@@ -152,7 +155,7 @@ export function CasePanel({
               <Plus aria-hidden="true" className="h-3.5 w-3.5" />
               사례 등록
             </button>
-          )}
+          ))}
         </header>
 
         {notice && <p role="status" className="note note-ok m-2">{notice}</p>}
@@ -229,7 +232,7 @@ export function CasePanel({
       </section>
 
       <section aria-label="사례 상세" className="card flex min-h-[320px] flex-col overflow-hidden">
-        {editing && schema ? (
+        {!readOnly && editing && schema ? (
           <CaseForm
             key={`${purpose}:${editing}:${selected ?? ""}`}
             purpose={purpose}
@@ -275,6 +278,7 @@ function CaseDetailView({
   onChanged: (message?: string) => void;
   onOpenLocation: (target: LocationTarget) => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -290,6 +294,7 @@ function CaseDetailView({
   }, [purpose, caseId]);
 
   async function run(action: () => Promise<string>) {
+    if (readOnly) return;
     setBusy(true);
     setError("");
     try {
@@ -312,7 +317,7 @@ function CaseDetailView({
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 text-xs">
         <ErrorNote message={error} />
-        <div className="flex flex-wrap gap-1.5">
+        {!readOnly && <div className="flex flex-wrap gap-1.5">
           <button type="button" disabled={busy} onClick={onEdit} className="btn btn-secondary">수정</button>
           {row.active ? (
             <button
@@ -345,7 +350,7 @@ function CaseDetailView({
               벡터 재시도
             </button>
           )}
-        </div>
+        </div>}
         {!row.active && (
           <p className="note note-warn">비활성 사례입니다. 신규 검색·연결에서 빠지며, 기존 연결 {linked.length}건과 이력은 그대로 남아 있습니다.</p>
         )}
