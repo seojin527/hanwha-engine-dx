@@ -18,6 +18,7 @@ import { DrawingLibrary } from "./components/DrawingLibrary";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
 import { apiUrl, drawingFileUrl, drawingThumbnailUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
+import { AdminLoginScreen } from './components/entry/AdminLoginScreen';
 import { LoginScreen } from './components/entry/LoginScreen';
 import { DrawingSelectScreen, type AdminView } from './components/entry/DrawingSelectScreen';
 import { ErrorDbManager } from './components/admin/errorDb/ErrorDbManager';
@@ -67,6 +68,13 @@ export function App() {
   // 관람객 주소(서버 읽기 전용)에서는 관리자 화면·도구를 열지 않는다. 서버도 변경 요청을 막는다.
   const deployMode = useDeployMode();
   const visitor = deployMode.readOnly;
+  useEffect(() => {
+    if (deployMode.adminSession && new URLSearchParams(window.location.search).get('admin') === '1' && stage === 'login') {
+      setUserLabel('관리자');
+      enterWithRole({ kind: 'admin' });
+      setStage('engine');
+    }
+  }, [deployMode.adminSession, stage]);
   const isAdmin = role?.kind === "admin" && !visitor;
   const ownPurpose: WorkPurpose | null = role?.kind === "worker" ? role.purpose : null;
   const userDisplay = role ? `${userLabel} · ${roleLabel(role)}` : userLabel;
@@ -495,6 +503,13 @@ export function App() {
   function logout() {
     if ((unsavedRegistry.size > 0 || adminRegistry.size > 0) &&
       !window.confirm("저장하지 않은 입력이 있습니다. 처음 화면으로 이동하면 입력한 내용이 사라집니다. 계속할까요?")) return;
+    if (deployMode.adminSession) {
+      void fetch(apiUrl('/api/admin/session'), { method: 'DELETE', credentials: 'same-origin' }).then(response => {
+        if (!response.ok) throw new Error('로그아웃하지 못했습니다. 다시 시도해주세요.');
+        window.location.assign('/admin-login');
+      }).catch(cause => window.alert(cause.message));
+      return;
+    }
     closeWorkspaceOverlays();
     setUserLabel("");
     setRole(null);
@@ -942,6 +957,8 @@ export function App() {
     // 작업자는 자기 업무 페이지에서 시작한다.
     if (next.kind === "worker") setPurpose(next.purpose);
   }
+
+  if (window.location.pathname === "/admin-login") return <AdminLoginScreen />;
 
   if (stage === "login") {
     // 서버 정책(관람객 주소 여부)을 받기 전에는 로그인 칸을 그리지 않는다. 관리자 역할이 잠깐 보였다 사라지지 않게.

@@ -6,7 +6,6 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { Activity, Database, Box, ChevronRight, FileDown, FileText, Layers, ListTree, LogOut, Menu } from "lucide-react";
-import { adminEntryUrl } from "../../hooks/useDeployMode";
 import { EngineViewer3D, type EngineModelInfo } from "../shell/EngineViewer3D";
 import type { ShellView } from "../shell/ShellChrome";
 import type { EngineSelection } from "../shell/EngineExplorerPanel";
@@ -394,7 +393,6 @@ export function MobileShell(props: MobileShellProps) {
       {menuOpen && (
         <MobileOverlay title="메뉴" onClose={() => setMenuOpen(false)}>
           <nav className="divide-y divide-dx-line">
-            {!isAdmin && adminEntryUrl() && <a href={adminEntryUrl()!} className="flex min-h-14 items-center gap-3 px-4 py-4 text-[15px] text-dx-strong active:bg-dx-raised"><Database aria-hidden="true" className="h-5 w-5 text-dx-accent" />관리자 페이지<ChevronRight aria-hidden="true" className="ml-auto h-5 w-5" /></a>}
             {isAdmin && props.onNavigateAdmin && <>
               <MenuRow icon={<FileText className="h-5 w-5" />} label="부품·도면 관리" detail="도면 등록·목록 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("library"); }} />
               <MenuRow icon={<Database className="h-5 w-5" />} label="오류 DB 관리" detail="엑셀 적재·오류사례 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("errors"); }} />

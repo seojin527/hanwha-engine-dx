@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 지정한 브랜치·커밋으로 배포(또는 재배포)한다. root 로 실행. 데이터(/srv/hanwha-dx)는 건드리지 않는다.
+# 지정한 브랜치·커밋으로 배포(또는 재배포)한다. root 로 실행. 데이터는 배포 전 백업한다.
 #   sudo bash /opt/hanwha-dx/app/deploy/deploy.sh main4
 #   sudo bash /opt/hanwha-dx/app/deploy/deploy.sh 6f2c6fb           # 커밋 고정
 #   WITH_OCR=1 sudo -E bash .../deploy.sh main4                      # OCR 환경도 설치 (OCR_ENABLED=1 인 4GB 이상 서버만)
@@ -91,6 +91,10 @@ caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 chown -R caddy:caddy /var/log/caddy
 systemctl enable --now caddy hanwha-dx-backup.timer
 systemctl reload caddy || systemctl restart caddy
+
+# 사용자 요청으로 식별한 과거 예시만 정리한다. 배포 전 백업 + DB 내 원본 스냅샷을 보관한다.
+echo "== 6b. 과거 검토 완료 예시 정리 (1회, 소프트 삭제)"
+as_app "$VENV/bin/python" "$APP/backend/maintenance/remove_legacy_reviewed_example.py" --db "$DATA/storage/library.sqlite3"
 
 echo "== 7. 백엔드 재시작"
 systemctl enable hanwha-dx

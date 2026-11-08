@@ -24,6 +24,7 @@ from paths import LEGACY_ERROR_COLLECTION, SAMPLE_METADATA, VECTOR_DB_DIR
 from machining_api import init_machining
 from machining_api import router as machining_router
 from deploy_guard import guard_middleware, mode_info
+from admin_session import router as admin_session_router
 
 
 
@@ -68,6 +69,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(admin_session_router)
 
 # 부품·도면 관리
 app.include_router(library_router)
