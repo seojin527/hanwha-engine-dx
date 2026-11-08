@@ -780,5 +780,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 
 /* Load just the three Korean brand glyphs; keep existing UI fonts elsewhere. */
-.brand-wordmark { font-family:"Noto Serif KR", "Batang", serif; font-weight:700; letter-spacing:-.045em; }
+@font-face { font-family:"Dodami SsangmunDong B"; src:url("/fonts/Typo-SsangmunDongB-dodami.woff") format("woff"); font-style:normal; font-weight:700; font-display:swap; }
+.brand-wordmark { font-family:"Dodami SsangmunDong B", "Pretendard Variable", sans-serif; font-weight:700; letter-spacing:-.025em; }
 .mobile-task-footer { scroll-margin-bottom:28px; }

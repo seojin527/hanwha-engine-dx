@@ -258,7 +258,7 @@ export function MobileShell(props: MobileShellProps) {
               <p className="p-6 text-center text-[14px] text-dx-muted">{props.ocrStatus === "loading" ? "도면을 불러오는 중…" : "이 도면은 OCR 결과가 없어 측정 항목을 보여줄 수 없습니다."}</p>
             )}
           </div>
-          <section aria-label="업무 고르기" className="shrink-0 border-t border-dx-line bg-dx-panel px-3 pt-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+          <section aria-label="업무 고르기" className="shrink-0 border-t border-dx-line bg-dx-panel px-3 pt-3" style={{ paddingBottom: isAdmin ? "calc(28px + env(safe-area-inset-bottom, 0px))" : "max(12px, env(safe-area-inset-bottom))" }}>
             {isAdmin ? (
               <>
                 <p className="mb-2 text-[13px] text-dx-text">

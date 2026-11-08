@@ -561,6 +561,7 @@ test('휴대폰 관리자 검토에서 도면을 접어도 아래 확인사항�
   globalThis.fetch = async () => new Response('{"parts":[]}');
   await mount(<MobileShell {...mobileProps} inWorkspace selectedDrawing={pdfDrawing} document={doc} revision="rev-1" resultUrl="/drawing.png" points={points} activePoint={points[0]} reviewPane={<div className="review-pair-wrap h-full"><label>치수 확인<input aria-label="검토 입력 유지" defaultValue="76" /></label><p>작업자 검사 기준</p></div>} />);
   try {
+    assert.ok(document.querySelector('[aria-label="업무 고르기"]')?.getAttribute('style')?.includes('28px'));
     await act(async () => Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent === '항목 검토 시작')!.click());
     const toggle = document.querySelector<HTMLButtonElement>('[aria-controls="mobile-admin-review-drawing"]')!;
     const input = document.querySelector<HTMLInputElement>('[aria-label="검토 입력 유지"]')!;
