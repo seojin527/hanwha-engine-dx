@@ -324,7 +324,7 @@ export function MobileShell(props: MobileShellProps) {
   const selectedName = partName(selection.engineKey);
   return (
     <>
-      <div className="dx-shell fixed inset-0 flex flex-col bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
+      <div className="mobile-engine-shell dx-shell absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
         <MobileTopBar
           title={selectedName ?? engineModel?.title ?? "엔진 3D"}
           subtitle={selectedName ? engineModel?.title : `${props.userLabel} · ${props.roleText}`}
@@ -347,7 +347,7 @@ export function MobileShell(props: MobileShellProps) {
           )}
         </div>
         {selection.engineKey && (
-          <section aria-label="선택한 부품" className="shrink-0 border-t border-dx-line bg-dx-panel px-4 pt-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+          <section aria-label="선택한 부품" className="shrink-0 border-t border-dx-line bg-dx-panel px-4 pt-3" style={{ paddingBottom: "calc(28px + env(safe-area-inset-bottom, 0px))" }}>
             <div className="flex items-baseline gap-2">
               <h2 className="text-[17px] font-semibold text-dx-strong">{selectedName}</h2>
               <span className="min-w-0 truncate text-[12px] text-dx-muted">

@@ -547,10 +547,10 @@ test('일반 접속자의 관리자 도면 검토는 입력·저장을 막고 �
   } finally { await unmount(); }
 });
 
-test('첫 역할 선택 화면은 도다미. 이름과 기존 엔진 선화 배경을 표시한다', async () => {
+test('첫 역할 선택 화면은 도다미 이름과 기존 엔진 선화 배경을 표시한다', async () => {
   await mount(<EvaluationRoleSelect readOnly onSelect={() => {}} onSignOut={() => {}} />);
   try {
-    assert.ok(document.body.textContent?.includes('도다미.'));
+    assert.ok(document.body.textContent?.includes('도다미'));
     assert.ok(document.querySelector('img[src$="login-engine-lineart.png"]'));
     assert.ok(document.querySelector('img[src$="login-engine-full-lineart.png"]'));
     assert.equal(document.querySelectorAll('[aria-label="평가 역할 선택"] button').length, 4);
@@ -575,5 +575,26 @@ test('휴대폰 관리자 검토에서 도면을 접어도 아래 확인사항�
     await act(async () => toggle.click());
     assert.ok(document.querySelector('#mobile-admin-review-drawing'));
     assert.ok(document.body.textContent?.includes('작업자 검사 기준'));
+  } finally { await unmount(); }
+});
+
+test('휴대폰 대표 도면 열기 영역은 하단 안전 여백을 두고 기존 도면을 연다', async () => {
+  let opened = '';
+  globalThis.fetch = async input => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith('/parts')) return new Response(JSON.stringify({ parts: [{ part_id: 'part', name: '피스톤 로드', engine_part_key: 'piston_rod' }] }));
+    if (path.endsWith('/drawings')) return new Response(JSON.stringify({ drawings: [pdfDrawing] }));
+    throw Error(`Unexpected representative drawing request: ${path}`);
+  };
+  await mount(<MobileShell {...mobileProps} selection={{ engineKey: 'piston_rod', partId: null, drawingId: null }} onOpenDrawing={value => { opened = value.drawing_id; }} />);
+  try {
+    const panel = document.querySelector<HTMLElement>('[aria-label="선택한 부품"]')!;
+    assert.ok(panel.closest('.mobile-engine-shell'));
+    assert.ok(panel.getAttribute('style')?.includes('28px'));
+    assert.ok(panel.getAttribute('style')?.includes('safe-area-inset-bottom'));
+    const open = Array.from(panel.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent?.includes('대표 도면 열기'))!;
+    assert.ok(open);
+    await act(async () => open.click());
+    assert.equal(opened, pdfDrawing.drawing_id);
   } finally { await unmount(); }
 });
