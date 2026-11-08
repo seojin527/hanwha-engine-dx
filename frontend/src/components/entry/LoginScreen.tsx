@@ -81,7 +81,7 @@ export function LoginScreen({ onLogin, visitor = false, compact = false }: Login
           {/* 제품명 · 제목 · 설명 */}
           <header>
             <p className="flex items-baseline gap-1.5 text-[13px] font-semibold leading-none tracking-[0.04em] text-dx-strong" aria-label="도다미">
-              <span>도다미</span>
+              <span className="brand-wordmark">도다미</span>
             </p>
             <h1 className="mt-5 [@media(max-height:820px)]:mt-3 text-[20px] font-semibold leading-[1.3] tracking-[-0.01em] text-dx-strong">로그인</h1>
             <p className="mt-1.5 text-[13px] leading-[1.5] text-dx-muted">도면 측정 가이드 · 엔진 부품 품질검사</p>
