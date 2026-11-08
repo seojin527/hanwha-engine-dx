@@ -70,7 +70,8 @@ export function App() {
   // 일반 사용자도 DB·진행 현황은 조회한다. 관리자 변경 도구와 서버 변경 요청은 보호한다.
   const deployMode = useDeployMode();
   const visitor = deployMode.readOnly;
-  const isAdmin = role?.kind === "admin" && !visitor;
+  const isAdmin = role?.kind === "admin";
+  const canManage = isAdmin && !visitor;
   const ownPurpose: WorkPurpose | null = role?.kind === "worker" ? role.purpose : null;
   const userDisplay = role ? `${userLabel} · ${roleLabel(role)}` : userLabel;
   // 선택 화면과 작업 화면의 DrawingLibrary 가 함께 쓰는 현재 부품
@@ -525,7 +526,7 @@ export function App() {
   }
 
   function evaluationFrame(children: ReactNode) {
-    return deployMode.adminSession ? <EvaluationSessionFrame role={role} onSwitch={returnToRoles} onSignOut={logout}>{children}</EvaluationSessionFrame> : children;
+    return <EvaluationSessionFrame readOnly={visitor} role={role} onSwitch={returnToRoles} onSignOut={logout}>{children}</EvaluationSessionFrame>;
   }
 
   /** 3D 화면(트리·연결 도면)에서 도면을 연다. 도면을 열기 전까지 중앙은 3D 그대로다. */
@@ -763,7 +764,7 @@ export function App() {
 
       {!demoMode && selectedDrawing && (
         <>
-          {isAdmin && (
+          {canManage && (
           <button
             type="button"
             disabled={ocrBusy}
@@ -823,7 +824,7 @@ export function App() {
         3D에서 보기
       </button>
 
-      {isAdmin && (
+      {canManage && (
         <button
           type="button"
           onClick={() => setUploadRequest((value) => value + 1)}
@@ -879,6 +880,7 @@ export function App() {
         <DrawingReviewPanel
           key={`${activeReviewSource.drawing_id}:${activeReviewSource.revision}`}
           source={activeReviewSource}
+          readOnly={!canManage}
           defaultReviewer={userLabel}
           selectedItemId={activeOcrPoint?.source.id ?? null}
           imageUrl={resultUrl}
@@ -972,35 +974,24 @@ export function App() {
   if (stage === "login") {
     // 서버 정책(관람객 주소 여부)을 받기 전에는 로그인 칸을 그리지 않는다. 관리자 역할이 잠깐 보였다 사라지지 않게.
     if (!deployMode.loaded) return <main className="dx-shell h-dvh w-screen bg-dx-bg" aria-busy="true" />;
-    if (deployMode.adminSession) return <EvaluationRoleSelect onSignOut={logout} onSelect={(name, nextRole) => {
+    return <EvaluationRoleSelect readOnly={visitor} onSignOut={logout} onSelect={(name, nextRole) => {
       setUserLabel(name);
       enterWithRole(nextRole);
       setStage("engine");
     }} />;
-    return (
-      <LoginScreen
-        visitor={visitor}
-        compact={compact}
-        onLogin={(account, nextRole) => {
-          setUserLabel(account);
-          enterWithRole(nextRole);
-          setStage("engine");
-        }}
-      />
-    );
   }
 
   if (compact && !(stage === "select" || (isAdmin && stage === "workspace" && libraryOpenOnEnter && !selectedDrawing))) {
     return evaluationFrame(
       <MobileShell
         userLabel={userLabel}
-        roleText={visitor ? "관람객 체험" : roleLabel(role)}
+        roleText={roleLabel(role)}
         isAdmin={isAdmin}
         trial={visitor}
         ownPurpose={visitor ? null : ownPurpose}
-        onLogout={deployMode.adminSession ? returnToRoles : logout}
-        exitLabel={deployMode.adminSession ? "역할 선택으로" : undefined}
-        onNavigateAdmin={navigate}
+        onLogout={returnToRoles}
+        exitLabel="역할 선택으로"
+        onNavigateAdmin={isAdmin ? navigate : undefined}
         inWorkspace={stage === "workspace" && !demoMode}
         engineModel={engineModel}
         onEngineReady={setEngineModel}
@@ -1080,7 +1071,7 @@ export function App() {
         startWorkspace(next);
       }}
       onBackTo3D={backTo3D}
-      extra={isAdmin && (
+      extra={canManage && (
         <button
           type="button"
           className="dx-btn shrink-0"
@@ -1101,8 +1092,8 @@ export function App() {
       isAdmin={isAdmin}
       drawingAvailable={demoMode || !!selectedDrawing}
       onNavigate={navigate}
-      onLogout={deployMode.adminSession ? returnToRoles : logout}
-      logoutLabel={deployMode.adminSession ? "역할 선택으로" : undefined}
+      onLogout={returnToRoles}
+      logoutLabel="역할 선택으로"
       compact={compact}
     />
   );
@@ -1111,7 +1102,7 @@ export function App() {
       model={engineModel}
       selection={engineSelection}
       onSelect={setEngineSelection}
-      canManage={isAdmin}
+      canManage={canManage}
       refreshKey={libraryVersion}
       onOpenDrawing={openDrawingFromExplorer}
       onUploaded={(drawing) => {
@@ -1149,12 +1140,12 @@ export function App() {
           {stage === "select" && adminView === "drawings" && (
             <DrawingSelectScreen
               embedded
-              canManage={isAdmin}
+              canManage={canManage}
               userLabel={userDisplay}
               initialPartId={activePartId}
               initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
               onStart={openDrawingFromExplorer}
-              onRegister={!isAdmin ? undefined : (partId) => {
+              onRegister={!canManage ? undefined : (partId) => {
                 // 도면 없이 관리자 도면 화면을 열고 부품·도면 관리 영역을 펼친다.
                 setActivePartId(partId);
                 setSelectedDrawing(null);
@@ -1170,7 +1161,7 @@ export function App() {
               }}
             />
           )}
-          <AdminReadOnlyContext.Provider value={!isAdmin}>
+          <AdminReadOnlyContext.Provider value={!canManage}>
             <UnsavedChangesProvider registry={adminRegistry}>
               {visited.progress && (
                 <div className={`entry-gray min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 ${stage === "select" && adminView === "progress" ? "flex" : "hidden"}`}>
@@ -1218,7 +1209,7 @@ export function App() {
         initialPartId={activePartId}
         initialDrawingId={selectedDrawing?.part_id === activePartId ? selectedDrawing.drawing_id : ""}
         initialOpen={libraryOpenOnEnter}
-        canManage={isAdmin}
+        canManage={canManage}
         onSelectPart={setActivePartId}
         onSelectDrawing={(drawing, url) => {
           setSelectedPointId(1);

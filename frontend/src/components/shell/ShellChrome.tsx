@@ -45,7 +45,7 @@ export function ShellRail({
         <Ruler className="h-4 w-4" />
         </span>
       )}
-      {ITEMS.map(({ view: key, label: originalLabel, icon: Icon }) => {
+      {ITEMS.filter(item => isAdmin || (item.view !== "errors" && item.view !== "progress")).map(({ view: key, label: originalLabel, icon: Icon }) => {
         const label = !isAdmin && key === "errors" ? "관리자 · 오류 DB 조회" : originalLabel;
         return (
         <button
