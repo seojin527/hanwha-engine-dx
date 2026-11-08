@@ -364,3 +364,24 @@ test('작업자 메뉴 레일에는 관리자 DB 아이콘이나 인증 주소 �
     assert.equal(document.querySelector('[aria-label="관리자 페이지"]'), null);
   } finally { await unmount(); }
 });
+
+import DrawingReviewPanel from '../src/components/DrawingReviewPanel';
+
+test('관리자 검토는 치수와 검사 기준을 함께 유지하고 긴 안내는 펼쳐 확인한다', async () => {
+  const source = { drawing_id: doc.drawing_id, revision: 'rev-1', result: { ...doc, review_status: 'unreviewed' as const }, review: { gdt: [], dimensions: doc.items.map((item, index) => ({ item_id: item.id, no: index + 1, text: `${item.nominal_value}±0.3`, position: item.position, position_image: item.position })), warnings: ['도면 원본의 공차를 확인해주세요.'] } };
+  await mount(<UnsavedChangesProvider registry={registry}><DrawingReviewPanel source={source} onSaved={() => {}} defaultReviewer="관리자" selectedItemId="item-1" imageUrl="/drawing.png" /></UnsavedChangesProvider>);
+  try {
+    const pair = document.querySelector('.review-pair')!;
+    assert.ok(pair.textContent?.includes('치수 확인'));
+    assert.ok(pair.textContent?.includes('작업자 검사 기준'));
+    assert.ok(pair.querySelector('input'));
+    assert.ok(pair.querySelector('select'));
+    const guidance = document.querySelector<HTMLDetailsElement>('details.review-guidance')!;
+    assert.equal(guidance.open, false);
+    assert.ok(guidance.querySelector('summary')?.textContent?.includes('경고 1건'));
+    await act(async () => guidance.querySelector('summary')!.click());
+    assert.equal(guidance.open, true);
+    assert.ok(guidance.textContent?.includes('도면 원본의 공차를 확인해주세요.'));
+    assert.ok(document.querySelector('button[type="button"]'));
+  } finally { await unmount(); }
+});

@@ -65,7 +65,7 @@ export function WorkerWorkspace({ left, right, support }: { left: ReactNode; rig
     <div ref={workspace} className="worker-workspace relative flex min-h-0 min-w-0 flex-1 overflow-hidden" style={dragging ? { cursor: 'col-resize', userSelect: 'none' } : undefined}>
       <div className="worker-main flex min-h-0 min-w-0 flex-1">
         <PanelLayoutContext.Provider value={{ ...context, side: 'left' }}>
-          <ResizablePanels initialWidth={360} storageScope="worker"
+          <ResizablePanels initialWidth={300} storageScope="worker-dense-v2"
             left={<section aria-label="도면 및 측정항목" className="worker-center flex min-h-0 min-w-0 flex-1 flex-col"><PaneHeading icon={<ScanLine aria-hidden="true" size={17} />} title="도면·측정 위치" />{left}</section>}
             right={<div className="worker-measurement min-h-full">
               <PaneHeading icon={<Ruler aria-hidden="true" size={17} />} title="측정·판정" />
