@@ -35,14 +35,14 @@ interface Props {
 /** 관리자·작업자 공통 항목 머리글: 번호, 항목명, 도면 표기, 이전/다음 이동, 상태 칩. */
 export default function ItemHeader({ number, total, title, rawText, itemId, onNavigate, chips }: Props) {
   return (
-    <header className="border-b border-slate-200 bg-white px-3 py-2.5">
+    <header className="item-header border-b border-slate-200 bg-white px-3 py-1">
       <div className="flex items-start gap-2.5">
         <span className="mt-px shrink-0 rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[13px] font-semibold tabular-nums text-white">
           {String(number).padStart(2, "0")}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="item-header-label min-w-0 flex-1">
           <h2 className="text-sm font-semibold leading-snug text-slate-900">{title}</h2>
-          <p className="mt-0.5 break-all font-mono text-[13px] font-medium text-slate-800">
+          <p title={rawText} className="item-header-value truncate font-mono text-[13px] font-medium text-slate-800">
             {rawText.replace(/\n/g, "  ")}
           </p>
         </div>
@@ -68,7 +68,7 @@ export default function ItemHeader({ number, total, title, rawText, itemId, onNa
           </button>
         </div>
       </div>
-      {chips && <div className="mt-2 flex flex-wrap gap-1">{chips}</div>}
+      {chips && <div className="mt-1 flex flex-wrap items-center gap-1">{chips}</div>}
     </header>
   );
 }

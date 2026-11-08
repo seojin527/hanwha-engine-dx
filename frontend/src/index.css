@@ -728,3 +728,29 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .drawing-context-header > div p.text-\[16px\] { font-size: 13px; }
 .review-export-menu > div { flex-wrap: wrap; justify-content: flex-start; }
 .admin-review fieldset { min-inline-size: 0; }
+
+/* Keep the tablet workspace focused on editable dimensions and measurement inputs. */
+.item-header-label { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 8px; }
+.item-header-label h2 { font-size:13px; line-height:20px; }
+.item-header-value { min-width:0; max-width:100%; line-height:20px; }
+.review-panel-actions { justify-content:flex-start; gap:4px 8px; padding:3px 8px; }
+.review-panel-actions .btn { min-height:26px; height:26px; padding:2px 7px; font-size:11px; }
+.review-panel-actions > div { margin-left:auto; }
+.worker-measurement { overflow:hidden; }
+.worker-measurement > .measurement-panel { height:100%; }
+.manufacturing-stage-bar { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+.manufacturing-stage-bar > div:first-child { gap:3px; }
+.manufacturing-stage-tabs { flex:1; min-width:170px; }
+.manufacturing-stage-tabs .seg-item { min-height:28px; height:28px; padding:2px 3px; font-size:11px; }
+.manufacturing-stage-tabs .seg-item > span[aria-hidden] { display:none; }
+.manufacturing-stage-bar > .note { flex-basis:100%; }
+@media (min-width:600px) {
+ .worker-pane-heading { min-height:28px; height:28px; padding:4px 8px; }
+ .worker-measurement .item-header h2 { font-size:13px; line-height:20px; }
+ .worker-measurement .item-header p { font-size:12px; line-height:20px; margin:0; }
+ .worker-measurement .item-header { padding:4px 8px; }
+ .drawing-context-header { padding:3px 8px; }
+ .drawing-context-header > div > div > p { font-size:12px; line-height:18px; }
+ .drawing-context-options > summary { padding:0; line-height:16px; }
+ .review-panel-body { padding:8px; }
+}

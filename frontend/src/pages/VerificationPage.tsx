@@ -115,8 +115,8 @@ export function VerificationPage(props: WorkspacePageProps) {
           onSelectItemId={demo.onSelectItemId}
         />
       ) : document && selectedDrawing && revision ? (
-        <div className="flex min-h-full flex-col">
-          <div className="min-w-0">
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="min-h-0 min-w-0 flex-1">
             <VerificationPanel
               readOnly={readOnly}
               drawingId={selectedDrawing.drawing_id}

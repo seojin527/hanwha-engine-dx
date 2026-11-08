@@ -71,7 +71,7 @@ export function ManufacturingPanel({
 
   if (!point) {
     return (
-      <section className="flex min-h-full flex-col bg-slate-50 text-slate-800">
+      <section className="measurement-panel flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-800">
         <StageBar machining={machining} drawingId={drawingId} revision={revision} />
         <p className="p-5 text-sm text-slate-500">{plan ? '이 단계에서 잴 항목이 없습니다.' : '측정항목을 선택해주세요.'}</p>
       </section>
@@ -83,8 +83,8 @@ export function ManufacturingPanel({
   const record = machining.stageRecords[item.id] ?? null;
 
   return (
-    <section className="flex min-h-full flex-col bg-slate-50 text-slate-800">
-      <div className="sticky top-0 z-10 shadow-sm">
+    <section className="measurement-panel flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-800">
+      <div className="shrink-0 z-10 shadow-sm">
         <StageBar machining={machining} drawingId={drawingId} revision={revision} />
         <ItemHeader
           number={point.displayNumber}
@@ -111,7 +111,7 @@ export function ManufacturingPanel({
         />
       </div>
 
-      <div className="flex-1 space-y-3 p-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-2">
         {!item.inspection_approved && (!criteria || criteria.role !== 'allowance') && <CriteriaCard item={item} />}
       {!plan ? (
           <p className="note note-info">가공 단계 정보를 불러오는 중입니다.</p>
@@ -169,12 +169,12 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
   const nextStage = STAGE_KEYS[STAGE_KEYS.indexOf(stage) + 1];
 
   return (
-    <div className="space-y-1.5 border-b border-slate-200 bg-white px-3 py-2">
+    <div className="manufacturing-stage-bar border-b border-slate-200 bg-white px-2 py-1">
         <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          제품 번호
+          <span className="sr-only">제품 번호</span>
           <input
-            className="field h-7 w-28 font-mono text-xs"
+            className="field h-7 w-20 font-mono text-xs"
             list="machining-serials"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -189,18 +189,18 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
         {plan && (
           <a href={stageReportUrl(drawingId, revision)} download className="btn btn-secondary ml-auto h-7" title="제품 번호별 실측·편차·판정 (치수 검사 기록서 양식)">
             <Download aria-hidden="true" className="h-3.5 w-3.5" />
-            자주검사 성적서
+            <span className="sr-only">자주검사 성적서</span>
           </a>
         )}
       </div>
-      {trial && <p className="note note-info">체험 모드 · 측정 체크 없이 황삭·중삭·정삭 탭으로 이동할 수 있습니다. 합격 처리되지는 않습니다.</p>}
+      {trial && <p className="sr-only">체험 모드 · 측정 체크 없이 황삭·중삭·정삭 탭으로 이동할 수 있습니다. 합격 처리되지는 않습니다.</p>}
       {!plan ? (
         <p className="text-[11px] text-slate-500">
           {error ? <span className="text-rose-700">가공 단계 조회 실패: {error}</span> : loading ? '가공 단계 불러오는 중…' : '가공 단계 정보 없음'}
         </p>
       ) : (
         <>
-          <div role="group" aria-label="가공 단계 선택" className="seg w-full p-1">
+          <div role="group" aria-label="가공 단계 선택" className="manufacturing-stage-tabs seg w-full p-0.5">
             {STAGE_KEYS.map((key) => {
               const s = plan.status[key];
               const disabled = !trial && !s.unlocked;
@@ -212,16 +212,16 @@ function StageBar({ machining, drawingId, revision }: { machining: MachiningStat
                   disabled={disabled}
                   title={disabled ? '앞 단계 측정이 모두 합격해야 열립니다' : plan.stage_labels[key]}
                   onClick={() => setStage(key)}
-                  className="seg-item h-11 flex-1 justify-center gap-1.5 text-[16px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  className="seg-item h-7 flex-1 justify-center gap-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {disabled ? <Lock aria-hidden="true" className="h-4 w-4" /> : <span aria-hidden="true" className={`h-3 w-3 rounded-full ${STAGE_DOT[key]}`} />}
                   {STAGE_NAME[key]}
-                  <span className="font-mono text-[13px] font-medium text-slate-500">{s.passed}/{s.required}</span>
+                  <span className="font-mono text-[10px] font-medium text-slate-500">{s.passed}/{s.required}</span>
                 </button>
               );
             })}
           </div>
-          {(trial || current?.complete) && nextStage && (
+          {current?.complete && nextStage && (
             <div className="note note-ok flex flex-wrap items-center justify-between gap-2">
               <span>{trial ? "체험 모드에서는 측정 없이 다음 단계를 볼 수 있습니다." : `${STAGE_NAME[stage]} 측정 ${current?.required ?? 0}건 모두 합격했습니다.`}</span>
               <button type="button" className="btn btn-primary h-7" onClick={() => setStage(nextStage)}>

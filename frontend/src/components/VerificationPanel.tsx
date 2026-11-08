@@ -59,8 +59,8 @@ export function VerificationPanel({
   const failed = recordList.filter((entry) => entry.judgement === 'fail').length;
 
   return (
-    <section className="flex min-h-full flex-col bg-slate-50 text-slate-800">
-      <div className="sticky top-0 z-10 shadow-sm">
+    <section className="measurement-panel flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-800">
+      <div className="shrink-0 z-10 shadow-sm">
         <ItemHeader
           number={point.displayNumber}
           total={total}
@@ -87,7 +87,7 @@ export function VerificationPanel({
         />
       </div>
 
-      <div className="flex-1 space-y-3 p-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-2">
         {!item.inspection_approved && <CriteriaCard item={item} />}
         <OcrMeasurementEntry
           onNextUnmeasured={onNextUnmeasured}
