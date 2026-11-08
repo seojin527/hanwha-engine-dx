@@ -1,6 +1,7 @@
+import { useAdminReadOnly } from "../../../lib/adminReadOnly";
 /**
  * 관리자 「오류 DB 관리」. 도면을 열지 않아도 쓰는 전체 관리 화면.
- * 목적(부품제작·조립·검증)을 고르면 그 목적의 원문·벡터 컬렉션·연결·이력만 보여준다 (섞지 않는다).
+ * 목적(가공·조립·검증)을 고르면 그 목적의 원문·벡터 컬렉션·연결·이력만 보여준다 (섞지 않는다).
  *
  * 흐름 카드: 엑셀 업로드 → 목적별 오류 DB → 벡터 반영 → 도면·항목 연결
  * 카드마다 단위가 다르다: 업로드 = 업로드 횟수·파일 수, 오류 DB·벡터 = 사례 수, 도면 연결 = 연결 수.
@@ -18,6 +19,7 @@ import { UploadPanel } from "./UploadPanel";
 type Step = "upload" | "cases" | "vector" | "links";
 
 export function ErrorDbManager({ onOpenLocation }: { onOpenLocation: (target: LocationTarget) => void }) {
+  const readOnly = useAdminReadOnly();
   const confirmDiscard = useConfirmDiscard();
   const [purpose, setPurpose] = useState<WorkPurpose>("manufacturing");
   const [step, setStep] = useState<Step>("cases");
@@ -76,6 +78,7 @@ export function ErrorDbManager({ onOpenLocation }: { onOpenLocation: (target: Lo
           {label} 오류 DB만 표시합니다. 원문 테이블·벡터 컬렉션은 목적마다 따로 있고, 다른 목적 사례는 섞지 않습니다.
         </p>
       </div>
+      {readOnly && <p className="note note-info">관리자 · 조회 전용: 오류사례 검색·상세·이력을 볼 수 있습니다. 등록·수정·삭제는 관리자 로그인 후 사용할 수 있습니다.</p>}
       <ErrorNote message={error} />
 
       <div role="group" aria-label="오류 DB 흐름" className="flex flex-col gap-2 md:flex-row md:items-stretch">

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 /**
  * 작업 패널 위치. 기본은 오른쪽(기존 화면). ENGINE DX 셸은 왼쪽에 두고, 패널 위에 현재 엔진·부품·도면 맥락(header)을 붙인다.
- * 페이지(관리자·부품제작·조립·검증)는 이 값을 몰라도 된다.
+ * 페이지(관리자·가공·조립·검증)는 이 값을 몰라도 된다.
  */
 export const PanelLayoutContext = createContext<{ side: 'left' | 'right'; header?: ReactNode }>({ side: 'right' });
 

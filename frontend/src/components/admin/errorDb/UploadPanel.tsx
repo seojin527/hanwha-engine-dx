@@ -1,3 +1,4 @@
+import { useAdminReadOnly } from "../../../lib/adminReadOnly";
 /**
  * 목적별 엑셀 일괄 업로드·다운로드.
  * 흐름: 목적 선택 → 파일 선택 → 서버 검증 → 미리보기(신규·갱신·변경 없음) → 반영(서버에서 다시 검증) → 결과
@@ -34,6 +35,7 @@ export function UploadPanel({
   refreshKey: number;
   onChanged: () => void;
 }) {
+  const readOnly = useAdminReadOnly();
   const input = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [preview, setPreview] = useState<UploadPreview | null>(null);
@@ -72,6 +74,7 @@ export function UploadPanel({
   }
 
   async function runPreview(selected: File[]) {
+    if (readOnly) return;
     setBusy("preview");
     setError("");
     setPreview(null);
@@ -87,6 +90,7 @@ export function UploadPanel({
   }
 
   async function runApply() {
+    if (readOnly) return;
     setBusy("apply");
     setError("");
     try {
@@ -106,6 +110,7 @@ export function UploadPanel({
 
   return (
     <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+      {readOnly ? <p className="note note-info">엑셀 적재는 관리자 전용입니다. 업로드 이력과 오류 DB는 조회할 수 있습니다.</p> : (
       <section aria-label="엑셀 업로드" className="card flex min-h-[320px] flex-col overflow-hidden">
         <header className="card-header">
           <h3 className="text-xs font-semibold text-dx-strong">{label} 엑셀 업로드</h3>
@@ -230,6 +235,7 @@ export function UploadPanel({
           )}
         </div>
       </section>
+      )}
 
       <section aria-label="업로드 이력" className="card flex min-h-[320px] flex-col overflow-hidden">
         <header className="card-header">

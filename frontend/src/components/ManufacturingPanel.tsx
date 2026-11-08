@@ -29,7 +29,7 @@ const READ_ONLY_MESSAGE = '이 업무의 담당 작업자만 입력할 수 있�
 export const STAGE_DOT: Record<StageKey, string> = { '1': 'bg-orange-500', '2': 'bg-violet-600', '3': 'bg-indigo-600' };
 
 /**
- * 부품제작(가공 중 측정) 왼쪽 측정 패널.
+ * 가공(가공 중 측정) 왼쪽 측정 패널.
  * 제품 번호 → 단계(황삭·중삭·정삭) → 이 단계에서 잴 항목의 기준·측정 입력. 오류 사례는 오른쪽에서 표시한다.
  */
 export function ManufacturingPanel({

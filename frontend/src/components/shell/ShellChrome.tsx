@@ -9,12 +9,12 @@ import { StatusText, reviewLabel } from "./EngineExplorerPanel";
 
 export type ShellView = "engine" | "drawing" | "library" | "progress" | "errors";
 
-const ITEMS: { view: ShellView; label: string; icon: typeof Box; adminOnly?: boolean }[] = [
+const ITEMS: { view: ShellView; label: string; icon: typeof Box }[] = [
   { view: "engine", label: "3D 엔진 탐색", icon: Box },
   { view: "drawing", label: "도면 작업", icon: PenTool },
   { view: "library", label: "부품·도면 목록", icon: FileStack },
-  { view: "progress", label: "작업 진행 현황", icon: Activity, adminOnly: true },
-  { view: "errors", label: "오류 DB 관리", icon: Database, adminOnly: true },
+  { view: "progress", label: "작업 진행 현황", icon: Activity },
+  { view: "errors", label: "오류 DB 관리", icon: Database },
 ];
 
 export function ShellRail({
@@ -45,7 +45,9 @@ export function ShellRail({
         <Ruler className="h-4 w-4" />
         </span>
       )}
-      {ITEMS.filter((item) => !item.adminOnly || isAdmin).map(({ view: key, label, icon: Icon }) => (
+      {ITEMS.map(({ view: key, label: originalLabel, icon: Icon }) => {
+        const label = !isAdmin && key === "errors" ? "관리자 · 오류 DB 조회" : originalLabel;
+        return (
         <button
           key={key}
           type="button"
@@ -58,7 +60,7 @@ export function ShellRail({
         >
           <Icon aria-hidden="true" className="h-[18px] w-[18px]" />
         </button>
-      ))}
+      ); })}
       {!compact && <span className="flex-1" />}
       <button type="button" title={logoutLabel} aria-label={logoutLabel} onClick={onLogout} className="dx-rail-btn">
         <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />

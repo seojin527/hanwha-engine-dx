@@ -394,9 +394,10 @@ export function MobileShell(props: MobileShellProps) {
       {menuOpen && (
         <MobileOverlay title="메뉴" onClose={() => setMenuOpen(false)}>
           <nav className="divide-y divide-dx-line">
-            {isAdmin && props.onNavigateAdmin && <>
-              <MenuRow icon={<FileText className="h-5 w-5" />} label="부품·도면 관리" detail="도면 등록·목록 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("library"); }} />
-              <MenuRow icon={<Database className="h-5 w-5" />} label="오류 DB 관리" detail="엑셀 적재·오류사례 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("errors"); }} />
+            {props.onNavigateAdmin && <>
+              <p className="px-4 py-2 text-xs font-semibold text-dx-muted">관리자{isAdmin ? "" : " · 조회 전용"}</p>
+              {isAdmin && <MenuRow icon={<FileText className="h-5 w-5" />} label="부품·도면 관리" detail="도면 등록·목록 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("library"); }} />}
+              <MenuRow icon={<Database className="h-5 w-5" />} label={isAdmin ? "오류 DB 관리" : "오류 DB 조회"} detail={isAdmin ? "엑셀 적재·오류사례 관리" : "사례·벡터 상태·연결 이력 조회"} onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("errors"); }} />
               <MenuRow icon={<Activity className="h-5 w-5" />} label="작업 진행 현황" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("progress"); }} />
             </>}
             <MenuRow icon={<ListTree className="h-5 w-5" />} label="부품·도면 목록" detail="3D 부품별 등록 부품과 도면" onClick={() => { setMenuOpen(false); setListPart(null); setListOpen(true); }} />
@@ -587,7 +588,7 @@ function ExportsOverlay({ files, drawing, revision, reviewed: isReviewed, onClos
             <li>
               <a href={stageReportUrl(drawing.drawing_id, revision)} download className="flex items-center gap-3 px-4 py-4 text-[15px] text-dx-strong active:bg-dx-raised">
                 <FileDown aria-hidden="true" className="h-5 w-5 text-dx-accent" />
-                <span className="min-w-0 flex-1">부품제작 자주검사 성적서 (서버 저장 기록 기준)</span>
+                <span className="min-w-0 flex-1">가공 자주검사 성적서 (서버 저장 기록 기준)</span>
               </a>
             </li>
           )}

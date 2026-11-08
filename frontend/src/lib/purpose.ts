@@ -2,7 +2,7 @@
 export type WorkPurpose = "manufacturing" | "assembly" | "verification";
 
 export const WORK_PURPOSES: { value: WorkPurpose; label: string }[] = [
-  { value: "manufacturing", label: "부품제작" },
+  { value: "manufacturing", label: "가공" },
   { value: "assembly", label: "조립" },
   { value: "verification", label: "검증" },
 ];

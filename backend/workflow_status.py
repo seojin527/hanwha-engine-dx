@@ -3,7 +3,7 @@
 기존 기록만 읽는다. 측정값·검토값을 바꾸거나 새 업무 규칙(제작 완료 전 조립 차단 등)을 만들지 않는다.
 
 기록 단위 (서로 연결돼 있지 않다)
-- 부품제작: machining_stage_records — 도면 · OCR 버전 · 제품 번호(시리얼) · 항목 · 단계(황삭·중삭·정삭)
+- 가공: machining_stage_records — 도면 · OCR 버전 · 제품 번호(시리얼) · 항목 · 단계(황삭·중삭·정삭)
 - 조립·검증: measurement_records — 도면 · OCR 버전 · 목적 · 항목 (제품 번호 없음, 항목마다 최신 1건)
   → 제작의 제품 번호와 조립·검증 기록은 같은 실물인지 알 수 없으므로 한 실물의 이력으로 합치지 않는다.
 
@@ -129,7 +129,7 @@ def _manufacturing(drawing_id: str, revision: str, document: dict) -> tuple[dict
     if not serials:
         example = f"{plan.get('part_key') or 'S'}01"
         state, reason = "unavailable", (
-            f"아직 부품제작 측정 기록이 없습니다. 제품 번호(예: {example})를 정해 첫 측정을 저장하면 진행률이 계산됩니다."
+            f"아직 가공 측정 기록이 없습니다. 제품 번호(예: {example})를 정해 첫 측정을 저장하면 진행률이 계산됩니다."
         )
     elif target == 0:
         state, reason = "no_target", "단계 측정 대상 항목이 없습니다."

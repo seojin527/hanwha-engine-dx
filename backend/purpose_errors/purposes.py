@@ -1,4 +1,4 @@
-"""작업 목적(부품제작·조립·검증)별 오류사례 저장소 정의.
+"""작업 목적(가공·조립·검증)별 오류사례 저장소 정의.
 
 목적마다 원문 테이블 · 포인트 연결 기록 테이블 · 벡터 컬렉션 · 스키마 모듈이 따로 있다.
 목적 이름이 없거나 잘못되면 거부한다. 다른 목적이나 기존 공통 저장소로 대체하지 않는다.
@@ -42,7 +42,7 @@ class PurposeStore:
 STORES: dict[Purpose, PurposeStore] = {
     Purpose.manufacturing: PurposeStore(
         purpose=Purpose.manufacturing,
-        label="부품제작",
+        label="가공",
         case_table="manufacturing_error_cases",
         report_table="manufacturing_point_error_reports",
         collection="manufacturing_errors_v1",

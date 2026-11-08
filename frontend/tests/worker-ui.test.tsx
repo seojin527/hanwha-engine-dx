@@ -321,14 +321,18 @@ test('휴대폰 관리자 메뉴에서 도면 관리·엑셀 오류 DB·작업 �
   }
 });
 
-test('작업자 메뉴에는 관리자 DB 링크와 관리 작업 메뉴를 노출하지 않는다', async () => {
+test('일반 사용자도 관리자 메뉴에서 DB와 작업 현황을 조회한다', async () => {
   dom.reconfigure({ url: 'https://dx.165-245-178-152.sslip.io/' });
   globalThis.fetch = async () => new Response('{"parts":[]}');
-  await mount(<MobileShell {...mobileProps} isAdmin={false} trial onNavigateAdmin={() => assert.fail('visitor must not open admin tools')} />);
+  let target = '';
+  await mount(<MobileShell {...mobileProps} isAdmin={false} trial onNavigateAdmin={view => { target = view; }} />);
   try {
     await act(async () => (document.querySelector('[aria-label="메뉴"]') as HTMLButtonElement).click());
     assert.equal(document.querySelector('a'), null);
-    assert.ok(!document.body.textContent?.includes('오류 DB 관리'));
+    assert.ok(document.body.textContent?.includes('조회 전용'));
+    assert.ok(!document.body.textContent?.includes('부품·도면 관리'));
+    await act(async () => Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes('오류 DB 조회'))!.click());
+    assert.equal(target, 'errors');
   } finally { await unmount(); dom.reconfigure({ url: 'http://127.0.0.1:3000' }); }
 });
 
@@ -356,11 +360,12 @@ test('태블릿 관리자 진입은 브라우저 인증 팝업 대신 아이디�
   } finally { await unmount(); }
 });
 
-test('작업자 메뉴 레일에는 관리자 DB 아이콘이나 인증 주소 링크가 없다', async () => {
+test('일반 사용자 메뉴 레일에서 관리자 DB 조회와 작업 현황에 접근한다', async () => {
   await mount(<ShellRail view="engine" isAdmin={false} drawingAvailable={false} onNavigate={() => {}} onLogout={() => {}} />);
   try {
     assert.equal(document.querySelector('a'), null);
-    assert.equal(document.querySelector('[aria-label="오류 DB 관리"]'), null);
+    assert.ok(document.querySelector('[aria-label="관리자 · 오류 DB 조회"]'));
+    assert.ok(document.querySelector('[aria-label="작업 진행 현황"]'));
     assert.equal(document.querySelector('[aria-label="관리자 페이지"]'), null);
   } finally { await unmount(); }
 });
@@ -396,7 +401,7 @@ test('관리자 인증 후 네 역할을 선택하며 역할 전환에는 인증
   try {
     const choices = document.querySelectorAll<HTMLButtonElement>('[aria-label="평가 역할 선택"] button');
     assert.equal(choices.length, 4);
-    assert.ok(document.body.textContent?.includes('부품제작 검수자'));
+    assert.ok(document.body.textContent?.includes('가공작업자'));
     assert.ok(document.body.textContent?.includes('조립 검수자'));
     assert.ok(document.body.textContent?.includes('검증 검수자'));
     for (const button of choices) await act(async () => button.click());
@@ -444,5 +449,51 @@ test('공개 로그인에는 빈 파란 안내 박스와 비활성 비밀번호 
     assert.equal(document.querySelector('p[class*="bg-cyan-300"]'), null);
     assert.ok(document.querySelector('#login-account'));
     assert.ok(document.querySelector('#login-role'));
+  } finally { await unmount(); }
+});
+
+import { AdminReadOnlyContext } from '../src/lib/adminReadOnly';
+import { ErrorDbManager } from '../src/components/admin/errorDb/ErrorDbManager';
+import { ROLE_OPTIONS, roleLabel } from '../src/lib/role';
+
+test('가공 역할은 로그인과 작업 화면에서 가공작업자로 표시한다', () => {
+  assert.equal(ROLE_OPTIONS.find(entry => entry.key === 'manufacturing')?.label, '가공작업자');
+  assert.equal(roleLabel({ kind: 'worker', purpose: 'manufacturing' }), '가공작업자');
+});
+
+test('일반 사용자 DB 조회는 사례 상세와 이력을 열고 변경 요청을 보내지 않는다', async () => {
+  const calls: string[] = [];
+  const row = { case_id: 'case-public', case_title: '영점 확인 사례', active: true, vector_status: 'failed', link_count: 0 };
+  globalThis.fetch = async (input, options = {}) => {
+    calls.push(options.method ?? 'GET');
+    const path = new URL(String(input)).pathname;
+    let body: any;
+    if (path.endsWith('/schema')) body = { fields: [], excel: { required_columns: [], columns: [], info_columns: [] } };
+    else if (path.endsWith('/summary')) body = { uploads: { applied: 0, files: 0, rows: 0, rejected: 0 }, cases: { total: 1, active: 1, inactive: 0 }, vector: { ready: 0, failed: 1, pending: 0 }, links: { active: 0, cases: 0, unlinked: 0 } };
+    else if (path.endsWith('/error-cases')) body = { total: 1, items: [row] };
+    else if (path.endsWith('/case-public')) body = { case: row, links: [], history: [] };
+    else if (path.endsWith('/uploads') || path.endsWith('/links')) body = { items: [] };
+    else throw Error(`Unexpected DB request: ${path}`);
+    return new Response(JSON.stringify(body));
+  };
+  await mount(<AdminReadOnlyContext.Provider value={true}><UnsavedChangesProvider registry={registry}><ErrorDbManager onOpenLocation={() => {}} /></UnsavedChangesProvider></AdminReadOnlyContext.Provider>);
+  try {
+    const button = (text: string) => Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes(text));
+    assert.ok(!button('사례 등록'));
+    await act(async () => (Array.from(document.querySelectorAll('tbody tr'))[0] as HTMLElement).click());
+    assert.ok(document.querySelector('[aria-label="사례 상세"]')?.textContent?.includes('영점 확인 사례'));
+    assert.ok(!button('수정'));
+    assert.ok(!button('비활성화'));
+    assert.ok(!button('벡터 재시도'));
+    await act(async () => button('③ 벡터 반영')!.click());
+    assert.ok(!button('실패·대기 전체 재시도'));
+    await act(async () => button('① 엑셀 업로드')!.click());
+    assert.equal(document.querySelector('input[type="file"]'), null);
+    assert.ok(document.body.textContent?.includes('업로드 이력'));
+    assert.ok(calls.every(method => method === 'GET'));
+    await act(async () => root.render(<AdminReadOnlyContext.Provider value={false}><UnsavedChangesProvider registry={registry}><ErrorDbManager onOpenLocation={() => {}} /></UnsavedChangesProvider></AdminReadOnlyContext.Provider>));
+    assert.ok(document.querySelector('input[type="file"]'), 'administrator retains Excel upload');
+    await act(async () => button('② 가공 오류 DB')!.click());
+    assert.ok(button('사례 등록'), 'administrator retains case registration');
   } finally { await unmount(); }
 });
