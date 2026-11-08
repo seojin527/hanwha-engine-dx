@@ -34,7 +34,7 @@ import {
   recommendedInstruments,
   threadCriteria,
 } from "../lib/inspection/instruments";
-import ItemHeader, { Chip, ProgressBar } from "./review/ItemHeader";
+import ItemHeader, { Chip } from "./review/ItemHeader";
 import InstrumentSelect from "./review/InstrumentSelect";
 import OcrCrop, { dimensionCropBox, gdtCropBox } from "./review/OcrCrop";
 
@@ -769,11 +769,7 @@ export default function DrawingReviewPanel({
             chips={
               <>
                 {confirmed[selected.id] ? <Chip tone="ok">✓ 확인 완료</Chip> : <Chip tone="warn">미확인</Chip>}
-                {hasInvalidValue(selected) ? (
-                  <Chip tone="error">형식 오류</Chip>
-                ) : (
-                  <Chip tone={STATUS_TONE[statusOf(selected)]}>{STATUS_LABEL[statusOf(selected)]}</Chip>
-                )}
+                {hasInvalidValue(selected) && <Chip tone="error">형식 오류</Chip>}
                 {isEdited(selected) && <Chip tone="neutral">OCR 값 수정됨</Chip>}
               </>
             }
@@ -782,26 +778,27 @@ export default function DrawingReviewPanel({
         {/* 확인 동작: 스크롤 없이 「확인 후 다음」을 반복할 수 있게 상단에 고정 */}
         {selected && (
           <div className="review-panel-actions flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-2 py-1.5">
-            {allConfirmed ? (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs font-semibold text-emerald-700">✓ 전체 {points.length}개 항목 확인 완료</span>
-
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="sr-only">
-                  {confirmed[selected.id] ? "이 항목은 확인했습니다. 값을 바꾸면 다시 확인해야 합니다." : "값이 맞으면 확인하고 다음 미확인 항목으로 넘어갑니다."}
-                </span>
-                <button
-                  type="button"
-                  disabled={saving || picking}
-                  onClick={() => confirmAndNext(selected)}
-              className="btn btn-primary btn-lg ml-auto shrink-0"
-                >
-                  {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
-                </button>
-              </div>
-            )}
+            <span role="progressbar" aria-label="확인" aria-valuemin={0} aria-valuemax={points.length} aria-valuenow={confirmedCount} className="text-[11px] font-medium text-emerald-700">
+              확인 {confirmedCount}/{points.length}{allConfirmed ? " · 전체 완료" : ""}
+            </span>
+              {invalidItems.length > 0 && (
+                <Chip tone="error" onClick={() => selectItem(invalidItems[0].id)}>
+                  형식 오류 {invalidItems.length} → 이동
+                </Chip>
+              )}
+              {needsItems.length > 0 && (
+                <Chip tone="warn" onClick={() => selectItem(needsItems[0].id)}>
+                  설정 필요 {needsItems.length} → 이동
+                </Chip>
+              )}
+              {unconfirmedItems.length > 0 && (
+                <Chip tone="neutral" onClick={() => selectItem(unconfirmedItems[0].id)}>
+                  미확인 {unconfirmedItems.length} → 이동
+                </Chip>
+              )}
+            {!allConfirmed && <button type="button" disabled={saving || picking} onClick={() => confirmAndNext(selected)} className="btn btn-primary">
+              {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
+            </button>}
             <div className="flex items-center justify-end gap-2">
               <span className="sr-only">
                 {excluded[selected.id] ? "측정 항목에서 제외했습니다. 작업자 화면에 나오지 않습니다." : "치수가 아닌 기호·글자를 잘못 읽었다면"}
@@ -818,62 +815,12 @@ export default function DrawingReviewPanel({
             )}
           </div>
         )}
-        <ProgressBar
-          label="확인"
-          done={confirmedCount}
-          total={points.length}
-          chips={
-            <>
-              {invalidItems.length > 0 && (
-                <Chip tone="error" onClick={() => selectItem(invalidItems[0].id)}>
-                  형식 오류 {invalidItems.length} → 이동
-                </Chip>
-              )}
-              {needsItems.length > 0 && (
-                <Chip tone="warn" onClick={() => selectItem(needsItems[0].id)}>
-                  설정 필요 {needsItems.length} → 이동
-                </Chip>
-              )}
-              {unconfirmedItems.length > 0 && (
-                <Chip tone="neutral" onClick={() => selectItem(unconfirmedItems[0].id)}>
-                  미확인 {unconfirmedItems.length} → 이동
-                </Chip>
-              )}
-            </>
-          }
-        />
+
 
       </div>
 
       <fieldset disabled={saving || picking} className="review-panel-body min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
-        <details className="review-guidance rounded border border-slate-200 bg-white">
-          <summary className={`cursor-pointer px-2 py-1.5 text-xs font-medium ${source.review.warnings.length ? "text-amber-800" : "text-slate-600"}`}>
-            검토 안내{source.review.warnings.length ? ` · 경고 ${source.review.warnings.length}건` : " · 기본 공차·추천 기준"}
-          </summary>
-          <div className="space-y-2 border-t border-slate-100 p-2">
-            {source.review.warnings.map((warning, index) => (
-              <p key={index} className="note note-warn">
-                {warning}
-              </p>
-            ))}
 
-            <p className="note note-info">
-              {generalEvidence?.applies ? (
-                <>
-                  개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
-                </>
-              ) : (
-                <>
-                  개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
-                  {generalEvidence?.found && (
-                    <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
-                  )}
-                </>
-              )}{" "}
-              측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
-            </p>
-          </div>
-        </details>
 
         {selected && (
           <SelectedItem
@@ -903,6 +850,35 @@ export default function DrawingReviewPanel({
             onDraft={(patch) => updateDraft(selected.id, patch)}
           />
         )}
+
+        <details className="review-guidance rounded border border-slate-200 bg-white">
+          <summary className={`cursor-pointer px-2 py-1.5 text-xs font-medium ${source.review.warnings.length ? "text-amber-800" : "text-slate-600"}`}>
+            검토 안내{source.review.warnings.length ? ` · 경고 ${source.review.warnings.length}건` : " · 기본 공차·추천 기준"}
+          </summary>
+          <div className="space-y-2 border-t border-slate-100 p-2">
+            {source.review.warnings.map((warning, index) => (
+              <p key={index} className="note note-warn">
+                {warning}
+              </p>
+            ))}
+
+            <p className="note note-info">
+              {generalEvidence?.applies ? (
+                <>
+                  개별 공차가 없는 치수: 도면 주석 <span className="font-mono">{generalEvidence.text}</span>에 따라 {GENERAL_LABEL}를 기본 적용했습니다.
+                </>
+              ) : (
+                <>
+                  개별 공차가 없는 치수: <b>프로젝트 기본 정책</b>으로 {GENERAL_LABEL}를 적용했습니다 (도면 표기 아님).
+                  {generalEvidence?.found && (
+                    <> 도면 표기 <span className="font-mono">{generalEvidence.text}</span> — {generalEvidence.reason}</>
+                  )}
+                </>
+              )}{" "}
+              측정 방식·형상·측정기도 추천 규칙으로 채웠으며, 모두 바꿀 수 있습니다. 항목마다 「확인 후 다음」으로 확인한 뒤 「검토 완료 및 서버 저장」을 눌러야 확정됩니다.
+            </p>
+          </div>
+        </details>
 
         <details className="card">
           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
