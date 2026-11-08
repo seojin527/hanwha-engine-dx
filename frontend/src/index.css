@@ -768,3 +768,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
  .mobile-admin-review .review-panel-footer input { height:32px; font-size:12px; }
  .mobile-admin-review .admin-review[data-readonly="true"] .review-panel-footer { display:none; }
 }
+
+/* Give phone entry screens visible engine artwork above the role/login card. */
+@media (max-width: 599px) {
+ .entry-screen { align-items:flex-start; padding-top:136px; padding-bottom:max(28px, env(safe-area-inset-bottom)); background:#eaf0f5; }
+ .entry-card { background:rgb(255 255 255 / 94%); box-shadow:0 12px 32px rgb(44 62 80 / 9%); }
+ .entry-engine-backdrop { background:linear-gradient(145deg, #dce6ee, #edf2f6 42%, #e4ebf1); }
+ .entry-engine-lineart { left:-34vw; top:53%; height:105vh; opacity:.3; }
+ .entry-engine-overview { display:block; top:5px; bottom:auto; right:-3vw; width:92vw; max-width:none; height:128px; object-fit:contain; opacity:.5; mask-image:linear-gradient(to bottom, black 65%, transparent); }
+ .mobile-engine-shell [aria-label="선택한 부품"] { max-height:45%; overflow-y:auto; scroll-padding-bottom:32px; }
+}
