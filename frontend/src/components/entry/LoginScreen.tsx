@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, Lock, User, Users } from "lucide-react";
+import { ChevronDown, User, Users } from "lucide-react";
 import { ROLE_OPTIONS, type UserRole } from "../../lib/role";
 import { adminEntryUrl } from "../../hooks/useDeployMode";
 import { EngineeringBackdrop } from "../shell/EngineeringBackdrop";
@@ -16,7 +16,7 @@ interface LoginScreenProps {
 /**
  * 시연용 진입 화면.
  * 현재 서버에는 인증·권한 API 가 없으므로 계정 확인을 하지 않는다 (작은 안내 문구로 표시).
- * 비밀번호 입력란은 형태만 보여주며 값을 받거나 저장하지 않는다. 비밀번호 찾기·로그인 유지는 기능이 없어 두지 않는다.
+ * 공개 체험은 이름·역할만 받는다. 실제 관리자 비밀번호는 별도 관리자 로그인에서 처리한다.
  * 역할은 lib/role.ts 의 실제 역할(관리자 · 부품제작/조립/검증 작업자)을 그대로 쓴다.
  *
  * 글자 체계 (Pretendard Variable · 4px 간격 기준)
@@ -112,32 +112,6 @@ export function LoginScreen({ onLogin, visitor = false, compact = false }: Login
               />
             </Field>
 
-            {askRole && <Field
-              label="비밀번호"
-              htmlFor="login-password"
-              icon={<Lock className="h-4 w-4" />}
-              disabled
-              hint="시연 환경에서는 입력하지 않습니다. 인증 서버가 연결되면 사용합니다."
-            >
-              {/* 시연용: 값을 받지 않도록 비활성화하고 name 도 두지 않는다. */}
-              <input
-                id="login-password"
-                type="password"
-                disabled
-                value=""
-                readOnly
-                aria-describedby="login-password-hint"
-                autoComplete="off"
-                className="h-11 min-w-0 flex-1 cursor-not-allowed bg-transparent pr-3 text-[14px] text-dx-strong focus:outline-none"
-              />
-            </Field>}
-
-            {visitor && (
-              <p className="rounded-md border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-[12px] leading-[1.5] text-cyan-50/90">
-                관람객 체험 주소입니다. 입력한 값은 이 화면에서만 쓰는 체험 결과이며 서버에 저장되지 않습니다.
-                관리자 기능은 관리자 주소에서 사용합니다.
-              </p>
-            )}
             {askRole && <Field
               label="역할"
               htmlFor="login-role"
