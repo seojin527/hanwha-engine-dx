@@ -257,11 +257,13 @@ for (const mode of ['trial', 'save', 'view'] as const) {
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('[aria-label="가공 단계"] button'));
       const stageButtons = buttons.length ? buttons : Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(b => /^(황삭|중삭|정삭)/.test(b.textContent ?? ''));
       assert.equal(stageButtons.length, 3);
-      assert.equal(stageButtons[1].disabled, mode !== 'trial');
-      assert.equal(stageButtons[2].disabled, mode !== 'trial');
+      assert.equal(stageButtons[1].disabled, false);
+      assert.equal(stageButtons[2].disabled, false);
+      await act(async () => stageButtons[1].click());
+      assert.equal(stageButtons[1].getAttribute('aria-pressed'), 'true');
+      await act(async () => stageButtons[2].click());
+      assert.equal(stageButtons[2].getAttribute('aria-pressed'), 'true');
       if (mode === 'trial') {
-        await act(async () => stageButtons[2].click());
-        assert.equal(stageButtons[2].getAttribute('aria-pressed'), 'true');
         assert.ok(document.body.textContent?.includes('체험 모드'));
         assert.equal(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked, false);
       }
@@ -401,7 +403,7 @@ test('관리자 인증 후 네 역할을 선택하며 역할 전환에는 인증
   try {
     const choices = document.querySelectorAll<HTMLButtonElement>('[aria-label="평가 역할 선택"] button');
     assert.equal(choices.length, 4);
-    assert.ok(document.body.textContent?.includes('가공작업자'));
+    assert.ok(document.body.textContent?.includes('가공 작업자'));
     assert.ok(document.body.textContent?.includes('조립 검수자'));
     assert.ok(document.body.textContent?.includes('검증 검수자'));
     for (const button of choices) await act(async () => button.click());
@@ -456,9 +458,9 @@ import { AdminReadOnlyContext } from '../src/lib/adminReadOnly';
 import { ErrorDbManager } from '../src/components/admin/errorDb/ErrorDbManager';
 import { ROLE_OPTIONS, roleLabel } from '../src/lib/role';
 
-test('가공 역할은 로그인과 작업 화면에서 가공작업자로 표시한다', () => {
-  assert.equal(ROLE_OPTIONS.find(entry => entry.key === 'manufacturing')?.label, '가공작업자');
-  assert.equal(roleLabel({ kind: 'worker', purpose: 'manufacturing' }), '가공작업자');
+test('가공 역할은 로그인과 작업 화면에서 가공 작업자로 표시한다', () => {
+  assert.equal(ROLE_OPTIONS.find(entry => entry.key === 'manufacturing')?.label, '가공 작업자');
+  assert.equal(roleLabel({ kind: 'worker', purpose: 'manufacturing' }), '가공 작업자');
 });
 
 test('일반 사용자 DB 조회는 사례 상세와 이력을 열고 변경 요청을 보내지 않는다', async () => {
@@ -495,5 +497,22 @@ test('일반 사용자 DB 조회는 사례 상세와 이력을 열고 변경 요
     assert.ok(document.querySelector('input[type="file"]'), 'administrator retains Excel upload');
     await act(async () => button('② 가공 오류 DB')!.click());
     assert.ok(button('사례 등록'), 'administrator retains case registration');
+  } finally { await unmount(); }
+});
+
+import { ManufacturingPanel } from '../src/components/ManufacturingPanel';
+
+test('태블릿 가공 단계는 앞 단계 미완료 상태에서도 중삭·정삭 화면으로 이동한다', async () => {
+  const transitions: string[] = [];
+  const status = { unlocked: false, required: 2, passed: 0, failed: 0, complete: false };
+  const machining: any = { plan: { stage_labels: { '1': '황삭', '2': '중삭', '3': '정삭' }, serials: ['PR01'], status: { '1': { ...status, unlocked: true }, '2': status, '3': status } }, stage: '1', setStage: (value: string) => transitions.push(value), serial: 'PR01', setSerial() {}, loading: false, error: '' };
+  await mount(<ManufacturingPanel drawingId="test-drawing" revision="rev-1" position={0} total={0} labelTotal={2} onNavigate={() => {}} machining={machining} />);
+  try {
+    const stages = Array.from(document.querySelectorAll<HTMLButtonElement>('[aria-label="가공 단계 선택"] button'));
+    assert.equal(stages.length, 3);
+    for (const stage of stages) assert.equal(stage.disabled, false);
+    await act(async () => { stages[1].click(); stages[2].click(); });
+    assert.deepEqual(transitions, ['2', '3']);
+    assert.equal(machining.plan.status['1'].passed, 0, '단계 탐색은 측정 완료를 만들지 않는다');
   } finally { await unmount(); }
 });

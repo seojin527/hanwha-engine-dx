@@ -56,7 +56,7 @@ export function reviewLabel(drawing: Pick<Drawing, "review_status" | "ocr_status
 
 export function StatusText({ tone, children }: { tone: "ok" | "warn" | "bad" | "muted"; children: ReactNode }) {
   const Icon = tone === "ok" ? CheckCircle2 : tone === "bad" ? AlertTriangle : tone === "warn" ? Clock3 : Clock3;
-  const color = tone === "ok" ? "text-emerald-300" : tone === "bad" ? "text-rose-300" : tone === "warn" ? "text-amber-200" : "text-dx-faint";
+  const color = tone === "ok" ? "text-[#355b48]" : tone === "bad" ? "text-rose-800" : tone === "warn" ? "text-amber-800" : "text-dx-faint";
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] ${color}`}>
       <Icon aria-hidden="true" className="h-3 w-3" />
@@ -478,7 +478,7 @@ export function EngineExplorerPanel({
       {(drag || moveNotice) && (
         <div role="status" aria-live="polite" className={`shrink-0 border-b px-3 py-2 text-[11px] ${
           drag ? "border-dx-accent/40 bg-dx-accent/10 text-dx-text"
-            : moveNotice?.tone === "ok" ? "border-dx-line text-emerald-300"
+            : moveNotice?.tone === "ok" ? "border-dx-line text-[#355b48]"
               : moveNotice?.tone === "bad" ? "border-dx-line text-rose-300" : "border-dx-line text-amber-200"
         }`}>
           {drag ? (
@@ -934,7 +934,7 @@ function PreviewDock({
               {canManage ? " 왼쪽 정보 탭에서 등록 부품을 연결하세요." : ""}
             </p>
           ) : failed?.status === "error" ? (
-            <p role="alert" className="text-rose-300">{failed.message}</p>
+            <p role="alert" className="text-rose-800">{failed.message}</p>
           ) : loading && !entries.length ? (
             <p role="status" className="flex items-center gap-1.5 text-dx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" />도면 불러오는 중…</p>
           ) : entries.length === 0 ? (
@@ -966,7 +966,7 @@ function PreviewDock({
                       >
                         <DrawingThumb drawing={drawing} className="h-[62px] w-full rounded-sm" />
                         <span className="block truncate text-[10.5px] text-dx-text">{name}</span>
-                        <span className={`block truncate text-[10px] ${drawing.review_status === "reviewed" ? "text-emerald-300" : "text-dx-muted"}`}>{reviewState(drawing).label}</span>
+                        <span className={`block truncate text-[10px] ${drawing.review_status === "reviewed" ? "text-[#355b48]" : "text-dx-muted"}`}>{reviewState(drawing).label}</span>
                       </button>
                     </li>
                   );
