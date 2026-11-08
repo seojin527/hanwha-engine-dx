@@ -385,3 +385,35 @@ test('관리자 검토는 치수와 검사 기준을 함께 유지하고 긴 안
     assert.ok(document.querySelector('button[type="button"]'));
   } finally { await unmount(); }
 });
+
+import { EvaluationRoleSelect, EvaluationSessionFrame } from '../src/components/entry/EvaluationRoles';
+
+test('관리자 인증 후 네 역할을 선택하며 역할 전환에는 인증 요청을 다시 보내지 않는다', async () => {
+  const selected: string[] = [];
+  globalThis.fetch = async () => { assert.fail('role selection must not submit credentials again'); };
+  await mount(<EvaluationRoleSelect onSelect={(name, role) => { assert.equal(name, '평가자'); selected.push(role.kind === 'admin' ? 'admin' : role.purpose); }} onSignOut={() => {}} />);
+  try {
+    const choices = document.querySelectorAll<HTMLButtonElement>('[aria-label="평가 역할 선택"] button');
+    assert.equal(choices.length, 4);
+    assert.ok(document.body.textContent?.includes('부품제작 검수자'));
+    assert.ok(document.body.textContent?.includes('조립 검수자'));
+    assert.ok(document.body.textContent?.includes('검증 검수자'));
+    for (const button of choices) await act(async () => button.click());
+    assert.deepEqual(selected, ['admin', 'manufacturing', 'assembly', 'verification']);
+  } finally { await unmount(); }
+});
+
+test('역할 전환과 인증 종료는 별도 버튼으로 모든 인증 작업 화면 위에 제공한다', async () => {
+  let switched = 0, signedOut = 0;
+  await mount(<EvaluationSessionFrame role={{ kind: 'worker', purpose: 'assembly' }} onSwitch={() => { switched++; }} onSignOut={() => { signedOut++; }}><div>작업 화면</div></EvaluationSessionFrame>);
+  try {
+    const bar = document.querySelector('[aria-label="평가자 역할 전환"]')!;
+    assert.ok(bar.textContent?.includes('조립'));
+    const buttons = bar.querySelectorAll<HTMLButtonElement>('button');
+    await act(async () => buttons[0].click());
+    assert.equal(switched, 1); assert.equal(signedOut, 0);
+    await act(async () => buttons[1].click());
+    assert.equal(signedOut, 1);
+    assert.ok(document.querySelector('.evaluation-content')?.textContent?.includes('작업 화면'));
+  } finally { await unmount(); }
+});

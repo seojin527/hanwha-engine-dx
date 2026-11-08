@@ -706,3 +706,8 @@
   .mobile-task .p-3 { padding: 9px; }
   .mobile-task .space-y-3 > * + * { margin-top: 9px; }
 }
+
+/* 인증은 유지하면서 역할을 전환한다. 고정 모바일 화면이 공통 전환 바를 덮지 않게 한다. */
+.evaluation-session .evaluation-content > .dx-shell { height: 100%; width: 100%; min-height: 0; }
+.evaluation-session .evaluation-content .fixed.inset-0 { top: 36px; }
+.evaluation-session .evaluation-content .h-dvh { height: calc(100dvh - 36px); }

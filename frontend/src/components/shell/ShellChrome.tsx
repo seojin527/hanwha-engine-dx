@@ -24,12 +24,14 @@ export function ShellRail({
   onNavigate,
   onLogout,
   compact = false,
+  logoutLabel = "로그아웃",
 }: {
   view: ShellView;
   isAdmin: boolean;
   drawingAvailable: boolean;
   onNavigate: (view: ShellView) => void;
   onLogout: () => void;
+  logoutLabel?: string;
   /** 휴대폰: 상단 바 안에 가로로 아이콘만 둔다 */
   compact?: boolean;
 }) {
@@ -58,7 +60,7 @@ export function ShellRail({
         </button>
       ))}
       {!compact && <span className="flex-1" />}
-      <button type="button" title="로그아웃 (처음 화면)" aria-label="로그아웃" onClick={onLogout} className="dx-rail-btn">
+      <button type="button" title={logoutLabel} aria-label={logoutLabel} onClick={onLogout} className="dx-rail-btn">
         <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />
       </button>
     </nav>

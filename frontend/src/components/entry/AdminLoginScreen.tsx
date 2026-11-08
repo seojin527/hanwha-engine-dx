@@ -16,7 +16,7 @@ export function AdminLoginScreen() {
       const body = await response.json();
       if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : '로그인 정보를 확인해주세요.');
       setPassword('');
-      window.location.assign('/?admin=1');
+      window.location.assign('/');
     } catch (cause) { setError(cause instanceof Error ? cause.message : '관리자 로그인에 연결하지 못했습니다.'); setBusy(false); }
   }
   return <main className="dx-shell flex min-h-dvh items-center justify-center overflow-y-auto px-4 py-8">

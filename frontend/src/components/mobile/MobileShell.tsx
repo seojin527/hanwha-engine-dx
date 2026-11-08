@@ -30,6 +30,7 @@ export interface MobileShellProps {
   /** 실제 작업자의 자기 업무 (관람객·관리자는 null) */
   ownPurpose: WorkPurpose | null;
   onLogout: () => void;
+  exitLabel?: string;
   onNavigateAdmin?: (view: ShellView) => void;
 
   inWorkspace: boolean;
@@ -400,7 +401,7 @@ export function MobileShell(props: MobileShellProps) {
             </>}
             <MenuRow icon={<ListTree className="h-5 w-5" />} label="부품·도면 목록" detail="3D 부품별 등록 부품과 도면" onClick={() => { setMenuOpen(false); setListPart(null); setListOpen(true); }} />
             <MenuRow icon={<Box className="h-5 w-5" />} label="3D 엔진 처음 보기" detail="선택 해제" onClick={() => { setMenuOpen(false); props.onSelect({ engineKey: null, partId: null, drawingId: null }); }} />
-            <MenuRow icon={<LogOut className="h-5 w-5" />} label="처음 화면으로" detail={`${props.userLabel} · ${props.roleText}`} onClick={() => { setMenuOpen(false); props.onLogout(); }} />
+            <MenuRow icon={<LogOut className="h-5 w-5" />} label={props.exitLabel ?? "처음 화면으로"} detail={`${props.userLabel} · ${props.roleText}`} onClick={() => { setMenuOpen(false); props.onLogout(); }} />
           </nav>
           {trial && <p className="px-4 py-3 text-[13px] leading-relaxed text-dx-muted">관람객 체험 주소입니다. 입력한 값은 서버에 저장되지 않습니다. 부품 연결·도면 등록·검토 같은 관리자 기능은 관리자 주소에서 사용합니다.</p>}
         </MobileOverlay>
