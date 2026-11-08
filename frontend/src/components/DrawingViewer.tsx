@@ -58,7 +58,7 @@ export const DrawingViewer: React.FC<DrawingViewerProps> = ({
   const touchPan = useRef<{ pointerId: number; startX: number; startY: number; initialX: number; initialY: number; active: boolean } | null>(null);
   const pinch = useRef<{ distance: number; midX: number; midY: number; scale: number; offsetX: number; offsetY: number } | null>(null);
 
-  const isPdf = mediaType === "application/pdf";
+  const isPdf = mediaType === "application/pdf" && !drawingUrl?.includes("/thumbnail?");
   const fitScale = imageSize.width && imageSize.height && viewport.width && viewport.height
     ? Math.max(0.001, Math.min(1, (viewport.width-32)/imageSize.width, (viewport.height-76)/imageSize.height)) : 1;
   const displayScale = fitMode ? fitScale : manualScale;

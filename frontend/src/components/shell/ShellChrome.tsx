@@ -4,6 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { Activity, Box, ChevronRight, Database, FileStack, LogOut, PenTool, Ruler, Search } from "lucide-react";
+import { adminEntryUrl } from "../../hooks/useDeployMode";
 import type { Drawing } from "../../lib/drawingAPI";
 import { StatusText, reviewLabel } from "./EngineExplorerPanel";
 
@@ -57,6 +58,7 @@ export function ShellRail({
           <Icon aria-hidden="true" className="h-[18px] w-[18px]" />
         </button>
       ))}
+      {!isAdmin && adminEntryUrl() && <a href={adminEntryUrl()!} title="관리자 페이지" aria-label="관리자 페이지" className="dx-rail-btn"><Database aria-hidden="true" className="h-[18px] w-[18px]" /></a>}
       {!compact && <span className="flex-1" />}
       <button type="button" title="로그아웃 (처음 화면)" aria-label="로그아웃" onClick={onLogout} className="dx-rail-btn">
         <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />

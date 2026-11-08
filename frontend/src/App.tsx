@@ -17,7 +17,7 @@ import { ENGINE_PART_LABEL, type EnginePartKey } from "./lib/engineParts";
 import { DrawingLibrary } from "./components/DrawingLibrary";
 import { MOCK_MEASUREMENT_POINTS } from "./data/mockData";
 import { DEFAULT_INITIAL_RESULTS, STORAGE_KEYS } from "./lib/inspection";
-import { apiUrl, drawingFileUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
+import { apiUrl, drawingFileUrl, drawingThumbnailUrl, fetchDrawings, fetchParts, moveDrawingToPart } from './lib/drawingAPI';
 import { LoginScreen } from './components/entry/LoginScreen';
 import { DrawingSelectScreen, type AdminView } from './components/entry/DrawingSelectScreen';
 import { ErrorDbManager } from './components/admin/errorDb/ErrorDbManager';
@@ -56,7 +56,7 @@ export function App() {
   const [selectedItemId, setSelectedItemId] = useState("p1-item");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [demoMode, setDemoMode] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
   // 진입 흐름: 시연용 로그인 → 전체 엔진 3D(engine) → 부품 선택 → 도면 작업(workspace).
   // select 는 셸 안의 목록·관리 화면(부품·도면 목록 · 작업 진행 현황 · 오류 DB)이다.
   const [stage, setStage] = useState<"login" | "engine" | "select" | "workspace">("login");
@@ -111,7 +111,7 @@ export function App() {
     const query = searchQuery.toLowerCase();
     return `${point.displayNumber} ${point.source.raw_text} ${point.feature.name} ${point.source.id}`.toLowerCase().includes(query);
   });
-  const resultUrl = document && ocr.snapshot?.image_url ? apiUrl(ocr.snapshot.image_url) : drawingUrl;
+  const resultUrl = document && ocr.snapshot?.image_url ? apiUrl(ocr.snapshot.image_url) : selectedDrawing ? drawingThumbnailUrl(selectedDrawing, "lg") : drawingUrl;
   const reviewOpen =
     isAdmin && stage === "workspace" && !demoMode && !!document && ocr.status === "ready";
   const [reviewSource, setReviewSource] =
@@ -424,6 +424,7 @@ export function App() {
 
   /** 화면을 바꾸면 사라지는 입력이 있으면 사용자에게 확인한다 (관리자 검토 · 측정값 · 오류사례 · 도면 등록 입력). */
   function confirmLeave(destination: string) {
+    if (compact && adminRegistry.size > 0 && !window.confirm(`저장하지 않은 관리자 입력이 있습니다. ${destination}하면 입력이 사라질 수 있습니다. 계속할까요?`)) return false;
     if (unsavedRegistry.size === 0) return true;
     if (!demoMode && reviewOpen) {
       return window.confirm(`관리자 검토 중 저장하지 않은 내용은 사라집니다. ${destination}할까요?`);
@@ -811,16 +812,6 @@ export function App() {
 
       {(demoMode || selectedDrawing) && divider}
 
-      {!demoMode && (
-        <button
-          type="button"
-          onClick={() => setDemoMode(true)}
-          className="btn btn-dark-ghost"
-        >
-          데모 화면
-        </button>
-      )}
-
       {demoMode && selectedDrawing && (
         <button
           type="button"
@@ -964,16 +955,11 @@ export function App() {
           enterWithRole(nextRole);
           setStage("engine");
         }}
-        onDemo={(nextRole) => {
-          setUserLabel("데모 체험");
-          enterWithRole(nextRole);
-          enterDemo();
-        }}
       />
     );
   }
 
-  if (compact) {
+  if (compact && !(isAdmin && (stage === "select" || (stage === "workspace" && libraryOpenOnEnter && !selectedDrawing)))) {
     return (
       <MobileShell
         userLabel={userLabel}
@@ -982,6 +968,7 @@ export function App() {
         trial={visitor}
         ownPurpose={visitor ? null : ownPurpose}
         onLogout={logout}
+        onNavigateAdmin={isAdmin ? navigate : undefined}
         inWorkspace={stage === "workspace" && !demoMode}
         engineModel={engineModel}
         onEngineReady={setEngineModel}
@@ -1083,6 +1070,7 @@ export function App() {
       drawingAvailable={demoMode || !!selectedDrawing}
       onNavigate={navigate}
       onLogout={logout}
+      compact={compact}
     />
   );
   const explorerPanel = () => (
@@ -1106,12 +1094,13 @@ export function App() {
   return (
     <UnsavedChangesProvider registry={unsavedRegistry}>
     <div className="dx-shell flex h-dvh w-screen overflow-hidden font-sans" data-role={isAdmin ? "admin" : "worker"} data-purpose={purpose}>
-      {railNav}
+      {!compact && railNav}
       <div className="flex min-w-0 flex-1 flex-col">
         <ShellTopBar
           path={shellPath}
           userLabel={userLabel}
           roleLabel={roleLabel(role)}
+          nav={compact ? railNav : undefined}
           search={shellView === "drawing" ? { value: searchQuery, onChange: setSearchQuery } : undefined}
         />
         <div className="relative flex min-h-0 flex-1">
@@ -1141,7 +1130,6 @@ export function App() {
                 setLibraryOpenOnEnter(true);
                 setStage("workspace");
               }}
-              onDemo={enterDemo}
               onExit={logout}
               onSelectionChange={(partId, drawing) => {
                 setActivePartId(partId);

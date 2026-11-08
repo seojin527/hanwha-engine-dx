@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, Lock, PlayCircle, User, Users } from "lucide-react";
+import { ChevronDown, Lock, User, Users } from "lucide-react";
 import { ROLE_OPTIONS, type UserRole } from "../../lib/role";
+import { adminEntryUrl } from "../../hooks/useDeployMode";
 import { EngineeringBackdrop } from "../shell/EngineeringBackdrop";
 
 interface LoginScreenProps {
   /** 계정 이름·역할로 전체 엔진 3D 화면에 들어간다. 이름은 화면 표시용으로 메모리에만 둔다. */
   onLogin: (account: string, role: UserRole) => void;
-  /** 고른 역할로 샘플 도면 화면을 바로 연다. */
-  onDemo: (role: UserRole) => void;
   /** 관람객 주소(서버 읽기 전용): 관리자 역할을 빼고 체험 안내를 보인다 */
   visitor?: boolean;
   /** 휴대폰: 샘플 도면 진입을 숨긴다. 관람객이면 역할은 도면을 본 뒤 고르므로 묻지 않는다 */
@@ -28,11 +27,12 @@ interface LoginScreenProps {
  *   보조    12px/400 행간 1.5 흰색 50%
  *   버튼    14px/600 높이 44px
  */
-export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false }: LoginScreenProps) {
+export function LoginScreen({ onLogin, visitor = false, compact = false }: LoginScreenProps) {
   const [account, setAccount] = useState("");
   const [roleKey, setRoleKey] = useState("");
   const [fullEngineArt, setFullEngineArt] = useState(true);
   const trimmed = account.trim();
+  const adminUrl = visitor ? adminEntryUrl() : null;
   // 관람객 주소에서는 관리자 역할을 고를 수 없다 (서버도 변경 요청을 막는다).
   const options = visitor ? ROLE_OPTIONS.filter((entry) => entry.role.kind !== "admin") : ROLE_OPTIONS;
   // 휴대폰 관람객: 역할은 도면을 본 뒤 업무 선택에서 고른다. 진입용 기본값만 둔다.
@@ -171,18 +171,9 @@ export function LoginScreen({ onLogin, onDemo, visitor = false, compact = false 
               {askRole ? "로그인" : "체험 시작"}
             </button>
           </form>
+          {adminUrl && <a href={adminUrl} className="mt-4 flex min-h-11 items-center justify-center rounded-md border border-dx-line-strong px-3 text-[14px] font-medium text-dx-text hover:bg-dx-raised">관리자 페이지</a>}
 
-          {!compact && <div className="mt-5 border-t border-white/8 pt-4">
-            <button
-              type="button"
-              disabled={!role}
-              onClick={() => role && onDemo(role)}
-              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-dx-muted underline-offset-4 transition-colors hover:text-dx-strong hover:underline focus-visible:outline-2 focus-visible:outline-dx-accent disabled:cursor-not-allowed disabled:font-normal disabled:text-dx-muted disabled:no-underline"
-            >
-              <PlayCircle aria-hidden="true" className="h-4 w-4" />
-              {role ? "데모 도면으로 체험하기" : "역할을 고르면 데모 도면을 볼 수 있습니다"}
-            </button>
-          </div>}
+
         </div>
         <p className="mt-5 break-keep text-center text-[12px] [@media(max-height:820px)]:mt-3 leading-[1.5] text-dx-muted">
           입력한 이름은 화면 표시에만 쓰고 저장하지 않습니다. 로그인하면 전체 엔진 3D 화면에서 시작합니다.

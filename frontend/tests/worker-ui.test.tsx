@@ -19,6 +19,9 @@ Object.assign(globalThis, { window: dom.window, document: dom.window.document, H
 Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
 (globalThis as any).ResizeObserver = class { observe() {} disconnect() {} };
 (dom.window.HTMLElement.prototype as any).scrollIntoView = () => {};
+// React loads before JSDOM globals in this runner and selects its legacy input-event fallback.
+(dom.window.HTMLElement.prototype as any).attachEvent = () => {};
+(dom.window.HTMLElement.prototype as any).detachEvent = () => {};
 let narrow = false;
 (dom.window as any).matchMedia = () => ({ matches: narrow, addEventListener() {}, removeEventListener() {} });
 const doc: OcrDocument = { drawing_id: 'test-drawing', review_status: 'reviewed', part_name: '피스톤 로드', image: { width_px: 1200, height_px: 800 }, items: [1, 2].map(n => ({ id: 'item-'+n, category: 'DIMENSION', raw_text: String(75+n), position: { x: n*100, y: 100 }, measurement_characteristic: 'LINEAR_DIMENSION', feature_type: 'PLANE', nominal_value: 75+n, unit: 'mm', lower_limit: 74.7+n, upper_limit: 75.3+n, inspection_approved: true, measurement_mode: 'numeric', instrument: '버니어 캘리퍼스' })) };
@@ -266,3 +269,75 @@ for (const mode of ['trial', 'save', 'view'] as const) {
     } finally { await unmount(); }
   });
 }
+
+// Regression: opening a drawing must stay inside the site, without navigating to a raw PDF.
+import { DrawingPreview } from '../src/components/drawings/DrawingParts';
+import { DrawingViewer } from '../src/components/DrawingViewer';
+import { MobileShell, type MobileShellProps } from '../src/components/mobile/MobileShell';
+import { LoginScreen } from '../src/components/entry/LoginScreen';
+
+const pdfDrawing = { ...drawing, original_filename: '피스톤 도면.pdf', file_url: '/api/drawings/test-drawing/file', media_type: 'application/pdf', size_bytes: 1024, created_at: '2026-11-08T08:00:00', ocr_status: 'ready', review_status: 'reviewed' };
+
+test('PDF 도면 미리보기는 새 탭·파일 다운로드 대신 사이트 안 PNG 확대 창을 연다', async () => {
+  (dom.window.HTMLDialogElement.prototype as any).showModal = function () { this.setAttribute('open', ''); };
+  let selected = '';
+  await mount(<DrawingPreview drawing={pdfDrawing} onStart={d => { selected = d.drawing_id; }} />);
+  try {
+    assert.equal(document.querySelector('a[href*="/file"]'), null);
+    await act(async () => (document.querySelector('button[title="도면 확대 보기"]') as HTMLButtonElement).click());
+    const dialog = document.querySelector('dialog[open]')!;
+    assert.ok(dialog);
+    assert.equal(dialog.querySelector('iframe'), null);
+    assert.ok(dialog.querySelector('img[src*="/thumbnail?size=lg"]'));
+    await act(async () => (dialog.querySelector('[aria-label="도면 미리보기 닫기"]') as HTMLButtonElement).click());
+    assert.equal(document.querySelector('dialog'), null);
+    await act(async () => (Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes('작업 시작')) as HTMLButtonElement).click());
+    assert.equal(selected, pdfDrawing.drawing_id);
+  } finally { await unmount(); }
+});
+
+test('PDF 원본의 썸네일을 측정창에 전달하면 PDF iframe 대신 이미지로 표시한다', async () => {
+  await mount(<DrawingViewer drawingUrl="http://127.0.0.1:3000/api/drawings/test-drawing/thumbnail?size=lg" mediaType="application/pdf" points={[]} selectedPointId={0} onSelectPoint={() => {}} inspectionRecords={{}} isAnalyzing={false} analyzingStep={0} />);
+  try {
+    assert.equal(document.querySelector('iframe'), null);
+    assert.ok(document.querySelector('img[src*="/thumbnail?size=lg"]'));
+  } finally { await unmount(); }
+});
+
+const mobileProps: MobileShellProps = { userLabel: '관리자', roleText: '관리자', isAdmin: true, trial: false, ownPurpose: null, onLogout() {}, inWorkspace: false, engineModel: null, onEngineReady() {}, selection: { engineKey: null, partId: null, drawingId: null }, onSelect() {}, onOpenDrawing() {}, onBackTo3D() {}, selectedDrawing: null, siblingDrawings: [], document: null, ocrStatus: 'idle', resultUrl: null, points: [], onSelectPoint() {}, purpose: 'manufacturing', onPurpose() {}, measurementRecords: {}, onMeasurementSaved() {}, reviewFiles: [], reviewPane: null, picking: false, onPickAt() {}, onCancelPick() {} };
+
+test('휴대폰 관리자 메뉴에서 도면 관리·엑셀 오류 DB·작업 현황으로 이동한다', async () => {
+  globalThis.fetch = async () => new Response('{"parts":[]}');
+  for (const [label, expected] of [['부품·도면 관리', 'library'], ['오류 DB 관리', 'errors'], ['작업 진행 현황', 'progress']]) {
+    let target = '';
+    await mount(<MobileShell {...mobileProps} onNavigateAdmin={view => { target = view; }} />);
+    try {
+      await act(async () => (document.querySelector('[aria-label="메뉴"]') as HTMLButtonElement).click());
+      const button = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes(label))!;
+      assert.ok(button);
+      await act(async () => button.click());
+      assert.equal(target, expected);
+    } finally { await unmount(); }
+  }
+});
+
+test('공개 체험에서는 관리자 인증 주소 입구만 보이고 관리 작업 메뉴는 노출하지 않는다', async () => {
+  dom.reconfigure({ url: 'https://dx.165-245-178-152.sslip.io/' });
+  globalThis.fetch = async () => new Response('{"parts":[]}');
+  await mount(<MobileShell {...mobileProps} isAdmin={false} trial onNavigateAdmin={() => assert.fail('visitor must not open admin tools')} />);
+  try {
+    await act(async () => (document.querySelector('[aria-label="메뉴"]') as HTMLButtonElement).click());
+    assert.equal(document.querySelector('a')?.href, 'https://admin.165-245-178-152.sslip.io/');
+    assert.ok(!document.body.textContent?.includes('오류 DB 관리'));
+  } finally { await unmount(); dom.reconfigure({ url: 'http://127.0.0.1:3000' }); }
+});
+
+test('로그인에서 데모 진입을 제거하고 공개 화면은 기존 관리자 인증 주소로 연결한다', async () => {
+  dom.reconfigure({ url: 'https://dx.165-245-178-152.sslip.io/' });
+  await mount(<LoginScreen visitor compact onLogin={() => {}} />);
+  try {
+    assert.ok(!document.body.textContent?.includes('데모 도면'));
+    assert.equal(document.querySelector('a')?.textContent, '관리자 페이지');
+    assert.equal(document.querySelector('a')?.href, 'https://admin.165-245-178-152.sslip.io/');
+  } finally { await unmount(); dom.reconfigure({ url: 'http://127.0.0.1:3000' }); }
+});
