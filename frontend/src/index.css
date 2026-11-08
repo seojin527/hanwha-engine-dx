@@ -754,3 +754,17 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
  .drawing-context-options > summary { padding:0; line-height:16px; }
  .review-panel-body { padding:8px; }
 }
+
+/* Phone administrator review: prioritize the selected dimension and inspection fields. */
+@media (max-width: 599px) {
+ .mobile-admin-review .review-panel-header { box-shadow:none; }
+ .mobile-admin-review .review-panel-body { padding:6px 8px; }
+ .mobile-admin-review .review-pair { gap:8px; }
+ .mobile-admin-review .review-pair > .card { padding:8px; }
+ .mobile-admin-review .review-pair figure { max-width:220px; margin-inline:auto; }
+ .mobile-admin-review .review-pair h3 { font-size:12px; }
+ .mobile-admin-review .review-panel-footer { padding:5px 8px max(5px, env(safe-area-inset-bottom)); }
+ .mobile-admin-review .review-panel-footer .btn { min-height:32px; height:32px; font-size:11px; padding-inline:8px; }
+ .mobile-admin-review .review-panel-footer input { height:32px; font-size:12px; }
+ .mobile-admin-review .admin-review[data-readonly="true"] .review-panel-footer { display:none; }
+}

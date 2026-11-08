@@ -31,7 +31,7 @@ interface DrawingSelectScreenProps {
   adminContent?: ReactNode;
   /** 선택한 부품·도면이 바뀔 때 (관리자 작업 현황에서 같은 대상을 쓴다) */
   onSelectionChange?: (partId: string, drawing: Drawing | null) => void;
-  /** ENGINE DX 셸 안에 넣을 때: 자체 머리글(이름·처음 화면)을 숨긴다. 셸의 상단 바가 같은 정보를 보여준다. */
+  /** 도다미. 셸 안에 넣을 때: 자체 머리글(이름·처음 화면)을 숨긴다. 셸의 상단 바가 같은 정보를 보여준다. */
   embedded?: boolean;
   /** 관리자: 선택한 부품에 도면 추가 · 도면 ⋯ 메뉴 삭제 (서버도 관리자 요청만 허용한다) */
   canManage?: boolean;

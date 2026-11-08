@@ -83,6 +83,7 @@ export function MobileShell(props: MobileShellProps) {
   const [listPart, setListPart] = useState<string | null>(null);
   const [exportsOpen, setExportsOpen] = useState(false);
   const [othersOpen, setOthersOpen] = useState(false);
+  const [reviewDrawingOpen, setReviewDrawingOpen] = useState(true);
   const [workView, setWorkView] = useState<WorkView>("drawing");
   const [trialStore, setTrialStore] = useState<TrialStore>({});
 
@@ -187,7 +188,7 @@ export function MobileShell(props: MobileShellProps) {
     if (workView === "review" && isAdmin && props.reviewPane) {
       return (
         <>
-          <div className="dx-shell fixed inset-0 flex flex-col bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
+          <div className="mobile-admin-review dx-shell absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-dx-bg" data-role={props.isAdmin ? "admin" : "worker"} data-purpose={props.purpose}>
             <MobileTopBar
               title={`검토 · ${title}`}
               subtitle={`${formatTime(drawing.created_at)} 등록 · ${docReviewed ? "검토 완료" : "검토 전"}`}
@@ -201,7 +202,10 @@ export function MobileShell(props: MobileShellProps) {
                 <button type="button" onClick={props.onCancelPick} className="rounded border border-white/40 px-2 py-1">취소</button>
               </div>
             )}
-            <div className="relative h-[36dvh] min-h-[150px] shrink-0 border-b border-dx-line">
+            <button type="button" aria-expanded={reviewDrawingOpen || props.picking} aria-controls="mobile-admin-review-drawing" onClick={() => setReviewDrawingOpen(value => !value)} disabled={props.picking} className="flex min-h-8 shrink-0 items-center justify-between border-b border-dx-line bg-dx-panel px-3 text-xs text-dx-text">
+              <span>도면 · 선택한 치수 위치</span><span>{reviewDrawingOpen || props.picking ? "도면 접기 ▴" : "도면 펼치기 ▾"}</span>
+            </button>
+            {(reviewDrawingOpen || props.picking) && <div id="mobile-admin-review-drawing" className="relative h-[20dvh] min-h-[96px] max-h-[160px] shrink-0 border-b border-dx-line">
               {doc && (
                 <MobileDrawingView
                   className="h-full"
@@ -214,9 +218,9 @@ export function MobileShell(props: MobileShellProps) {
                   focusOnStart
                 />
               )}
-            </div>
+            </div>}
             {/* 검토 패널은 자체 하단 저장 영역(미확인 개수 표시)을 가진다 */}
-            <div className="min-h-0 flex-1 overflow-y-auto bg-white">{props.reviewPane}</div>
+            <div className="min-h-0 flex-1 overflow-hidden bg-white">{props.reviewPane}</div>
           </div>
           {exportsOverlay}
         </>

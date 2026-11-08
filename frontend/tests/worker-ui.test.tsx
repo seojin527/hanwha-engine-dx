@@ -546,3 +546,34 @@ test('일반 접속자의 관리자 도면 검토는 입력·저장을 막고 �
     assert.equal(navigated, 'dimension_2');
   } finally { await unmount(); }
 });
+
+test('첫 역할 선택 화면은 도다미. 이름과 기존 엔진 선화 배경을 표시한다', async () => {
+  await mount(<EvaluationRoleSelect readOnly onSelect={() => {}} onSignOut={() => {}} />);
+  try {
+    assert.ok(document.body.textContent?.includes('도다미.'));
+    assert.ok(document.querySelector('img[src$="login-engine-lineart.png"]'));
+    assert.ok(document.querySelector('img[src$="login-engine-full-lineart.png"]'));
+    assert.equal(document.querySelectorAll('[aria-label="평가 역할 선택"] button').length, 4);
+  } finally { await unmount(); }
+});
+
+test('휴대폰 관리자 검토에서 도면을 접어도 아래 확인사항과 입력 DOM이 유지된다', async () => {
+  globalThis.fetch = async () => new Response('{"parts":[]}');
+  await mount(<MobileShell {...mobileProps} inWorkspace selectedDrawing={pdfDrawing} document={doc} revision="rev-1" resultUrl="/drawing.png" points={points} activePoint={points[0]} reviewPane={<div className="review-pair-wrap h-full"><label>치수 확인<input aria-label="검토 입력 유지" defaultValue="76" /></label><p>작업자 검사 기준</p></div>} />);
+  try {
+    await act(async () => Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent === '항목 검토 시작')!.click());
+    const toggle = document.querySelector<HTMLButtonElement>('[aria-controls="mobile-admin-review-drawing"]')!;
+    const input = document.querySelector<HTMLInputElement>('[aria-label="검토 입력 유지"]')!;
+    assert.ok(document.querySelector('.mobile-admin-review'));
+    assert.ok(document.querySelector('#mobile-admin-review-drawing'));
+    input.value = '76.2';
+    await act(async () => toggle.click());
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(document.querySelector('#mobile-admin-review-drawing'), null);
+    assert.equal(document.querySelector('[aria-label="검토 입력 유지"]'), input);
+    assert.equal(input.value, '76.2');
+    await act(async () => toggle.click());
+    assert.ok(document.querySelector('#mobile-admin-review-drawing'));
+    assert.ok(document.body.textContent?.includes('작업자 검사 기준'));
+  } finally { await unmount(); }
+});

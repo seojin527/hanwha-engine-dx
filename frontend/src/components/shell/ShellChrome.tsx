@@ -1,5 +1,5 @@
 /**
- * ENGINE DX 셸의 공통 틀: 왼쪽 메뉴 레일 · 상단 바 · 도면 작업 중 맥락 머리글.
+ * 도다미. 셸의 공통 틀: 왼쪽 메뉴 레일 · 상단 바 · 도면 작업 중 맥락 머리글.
  * 화면 상태와 이동 판단(미저장 확인 등)은 App 이 맡고, 여기서는 표시와 클릭 전달만 한다.
  */
 import type { ReactNode } from "react";
@@ -96,7 +96,7 @@ export function ShellTopBar({
               ‹ {back.label}
             </button>
           ) : (
-            <p className="text-[11px] font-semibold tracking-tight text-dx-muted">ENGINE DX · {roleLabel}</p>
+            <p className="text-[11px] font-semibold tracking-tight text-dx-muted">도다미. · {roleLabel}</p>
           )}
           <p className="truncate text-[13px] font-semibold text-dx-strong">{current?.label}</p>
         </div>
@@ -107,7 +107,7 @@ export function ShellTopBar({
   return (
     <header className="flex h-12 shrink-0 items-center gap-4 border-b border-dx-line bg-dx-panel px-4">
       <p className="shrink-0 text-[13px] font-semibold tracking-tight text-dx-strong">
-        ENGINE DX <span className="ml-1 hidden font-normal text-dx-muted xl:inline">도면 측정 가이드</span>
+        도다미. <span className="ml-1 hidden font-normal text-dx-muted xl:inline">도면 측정 가이드</span>
       </p>
       <span aria-hidden="true" className="h-4 w-px bg-dx-line" />
       <nav aria-label="현재 대상" className="flex min-w-0 flex-1 items-center gap-1 text-xs">
