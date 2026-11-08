@@ -6,10 +6,10 @@
  * - 삭제: 기존 소프트 삭제 API. 목록에서 숨길 뿐 파일·OCR·측정 기록은 서버에 남는다.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowRight, ExternalLink, FileText, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { MobileDrawingView } from "../mobile/MobileDrawingView";
+import { AlertTriangle, ArrowRight, Maximize, X, FileText, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import {
   deleteDrawing,
-  drawingFileUrl,
   drawingThumbnailUrl,
   fetchDeleteImpact,
   type Drawing,
@@ -266,17 +266,19 @@ export function DrawingPreview({
 }) {
   const name = drawing.original_filename || drawing.name;
   const review = reviewState(drawing);
+  const [previewOpen, setPreviewOpen] = useState(false);
   return (
     <div className={`flex min-h-0 flex-col gap-2 ${wide ? "sm:flex-row sm:items-start sm:gap-3" : ""}`}>
-      <a
-        href={drawingFileUrl(drawing)}
-        target="_blank"
-        rel="noreferrer"
-        title="원본을 새 탭에서 보기"
+      <button
+        type="button"
+        onClick={() => setPreviewOpen(true)}
+        aria-label={`${name} 미리보기`}
+        title="도면 확대 보기"
         className={`block shrink-0 overflow-hidden rounded border border-dx-line ${wide ? "sm:w-[220px]" : ""}`}
       >
         <DrawingThumb drawing={drawing} size="lg" className="aspect-[1.414] w-full" />
-      </a>
+      </button>
+      {previewOpen && <DrawingImagePreview drawing={drawing} onClose={() => setPreviewOpen(false)} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -295,12 +297,28 @@ export function DrawingPreview({
           작업 시작
           <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
         </button>
-        <a href={drawingFileUrl(drawing)} target="_blank" rel="noreferrer" className="dx-btn" title="원본 파일을 새 탭에서 엽니다">
-          <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
-          원본
-        </a>
+        <button type="button" onClick={() => setPreviewOpen(true)} className="dx-btn" title="도면을 사이트 안에서 확대합니다">
+          <Maximize aria-hidden="true" className="h-3.5 w-3.5" />
+          확대 보기
+        </button>
       </div>
       </div>
     </div>
   );
+}
+
+
+function DrawingImagePreview({ drawing, onClose }: { drawing: Drawing; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  return <dialog ref={dialog} aria-label="도면 확대 보기" onCancel={(event) => { event.preventDefault(); onClose(); }} className="fixed inset-0 m-auto h-[90dvh] w-[min(1200px,96vw)] max-w-none overflow-hidden rounded-md border border-dx-line bg-dx-panel p-0 text-dx-text shadow-xl backdrop:bg-black/60">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 items-center gap-2 border-b border-dx-line px-3 py-2">
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{drawing.original_filename || drawing.name}</h2>
+        <button type="button" autoFocus aria-label="도면 미리보기 닫기" onClick={onClose} className="dx-btn dx-icon-btn"><X aria-hidden="true" className="h-4 w-4" /></button>
+      </header>
+      <MobileDrawingView url={drawingThumbnailUrl(drawing, "lg")} points={[]} className="min-h-0 flex-1" />
+      <p className="shrink-0 border-t border-dx-line px-3 py-2 text-xs text-dx-muted">첫 페이지 미리보기 · 두 손가락 또는 확대 버튼으로 확인하세요.</p>
+    </div>
+  </dialog>;
 }

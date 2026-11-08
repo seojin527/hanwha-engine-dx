@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Activity, ArrowRight, Database, FileText, LayoutGrid, List, Loader2, LogOut, PlayCircle, Plus, RotateCw, Ruler, Trash2 } from "lucide-react";
+import { Activity, ArrowRight, Database, FileText, LayoutGrid, List, Loader2, LogOut, Plus, RotateCw, Ruler, Trash2 } from "lucide-react";
 import { fetchDrawings, fetchParts, type Drawing, type Part } from "../../lib/drawingAPI";
 import { ENGINE_PART_LABEL, type EnginePartKey } from "../../lib/engineParts";
 import { DeleteDrawingDialog, DrawingMenu, DrawingPreview, DrawingThumb, StatusBadges, formatSize, formatType } from "../drawings/DrawingParts";
@@ -24,7 +24,6 @@ interface DrawingSelectScreenProps {
   onStart: (drawing: Drawing) => void;
   /** 도면 없이 관리자 화면을 열어 부품·도면을 등록한다. 관리자만 넘긴다 (없으면 등록 버튼을 숨긴다). */
   onRegister?: (partId: string) => void;
-  onDemo: () => void;
   onExit: () => void;
   /** 관리자만: 메뉴 탭. 없으면(작업자) 기존 선택 화면만 보인다. */
   adminMenu?: { view: AdminView; onChange: (view: AdminView) => void };
@@ -81,7 +80,6 @@ export function DrawingSelectScreen({
   initialDrawingId = "",
   onStart,
   onRegister,
-  onDemo,
   onExit,
   adminMenu,
   embedded = false,
@@ -231,10 +229,6 @@ export function DrawingSelectScreen({
             <h2 className="text-3xl font-semibold tracking-tight text-dx-strong">부품·도면 선택</h2>
             <p className="mt-0.5 text-xs text-neutral-400">부품을 고른 뒤 작업할 도면을 선택하고 「작업 시작」을 눌러주세요.</p>
           </div>
-          <button type="button" onClick={onDemo} className="btn btn-ghost h-11 px-4 text-lg">
-            <PlayCircle aria-hidden="true" className="h-5 w-5" />
-            데모 도면으로 보기
-          </button>
         </div>
 
         <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(260px,360px)_1fr]">

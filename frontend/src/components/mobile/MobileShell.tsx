@@ -5,8 +5,10 @@
  * 상태·API·정책은 App 이 넘겨준다. 관람객 주소(trial)에서는 관리자 도구를 보이지 않고 입력은 서버로 보내지 않는다.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, ChevronRight, FileDown, FileText, Layers, ListTree, LogOut, Menu } from "lucide-react";
+import { Activity, Database, Box, ChevronRight, FileDown, FileText, Layers, ListTree, LogOut, Menu } from "lucide-react";
+import { adminEntryUrl } from "../../hooks/useDeployMode";
 import { EngineViewer3D, type EngineModelInfo } from "../shell/EngineViewer3D";
+import type { ShellView } from "../shell/ShellChrome";
 import type { EngineSelection } from "../shell/EngineExplorerPanel";
 import { MobileDrawingView } from "./MobileDrawingView";
 import { ManufacturingTask, MeasureTask, type TaskProps, type TrialEntry, type TrialStore } from "./MobileTask";
@@ -29,6 +31,7 @@ export interface MobileShellProps {
   /** 실제 작업자의 자기 업무 (관람객·관리자는 null) */
   ownPurpose: WorkPurpose | null;
   onLogout: () => void;
+  onNavigateAdmin?: (view: ShellView) => void;
 
   inWorkspace: boolean;
   engineModel: EngineModelInfo | null;
@@ -239,12 +242,12 @@ export function MobileShell(props: MobileShellProps) {
             }
           />
           <div className="relative min-h-[140px] flex-1">
-            {doc ? (
+            {props.resultUrl ? (
               <MobileDrawingView
                 className="h-full"
                 url={props.resultUrl}
-                coordinateSize={{ width: doc.image.width_px, height: doc.image.height_px }}
-                points={props.points}
+                coordinateSize={doc ? { width: doc.image.width_px, height: doc.image.height_px } : undefined}
+                points={doc ? props.points : []}
                 toneOf={() => "todo"}
               />
             ) : (
@@ -391,6 +394,12 @@ export function MobileShell(props: MobileShellProps) {
       {menuOpen && (
         <MobileOverlay title="메뉴" onClose={() => setMenuOpen(false)}>
           <nav className="divide-y divide-dx-line">
+            {!isAdmin && adminEntryUrl() && <a href={adminEntryUrl()!} className="flex min-h-14 items-center gap-3 px-4 py-4 text-[15px] text-dx-strong active:bg-dx-raised"><Database aria-hidden="true" className="h-5 w-5 text-dx-accent" />관리자 페이지<ChevronRight aria-hidden="true" className="ml-auto h-5 w-5" /></a>}
+            {isAdmin && props.onNavigateAdmin && <>
+              <MenuRow icon={<FileText className="h-5 w-5" />} label="부품·도면 관리" detail="도면 등록·목록 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("library"); }} />
+              <MenuRow icon={<Database className="h-5 w-5" />} label="오류 DB 관리" detail="엑셀 적재·오류사례 관리" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("errors"); }} />
+              <MenuRow icon={<Activity className="h-5 w-5" />} label="작업 진행 현황" onClick={() => { setMenuOpen(false); props.onNavigateAdmin!("progress"); }} />
+            </>}
             <MenuRow icon={<ListTree className="h-5 w-5" />} label="부품·도면 목록" detail="3D 부품별 등록 부품과 도면" onClick={() => { setMenuOpen(false); setListPart(null); setListOpen(true); }} />
             <MenuRow icon={<Box className="h-5 w-5" />} label="3D 엔진 처음 보기" detail="선택 해제" onClick={() => { setMenuOpen(false); props.onSelect({ engineKey: null, partId: null, drawingId: null }); }} />
             <MenuRow icon={<LogOut className="h-5 w-5" />} label="처음 화면으로" detail={`${props.userLabel} · ${props.roleText}`} onClick={() => { setMenuOpen(false); props.onLogout(); }} />

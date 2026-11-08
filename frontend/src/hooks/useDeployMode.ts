@@ -34,3 +34,13 @@ export function useDeployMode(): DeployMode {
   }, []);
   return mode;
 }
+
+/** 공개 체험 화면에서 기존 인증이 적용된 관리자 주소로 이동한다. */
+export function adminEntryUrl(): string | null {
+  const configured = import.meta.env.VITE_ADMIN_URL;
+  if (configured) return configured;
+  if (window.location.hostname === "dx.165-245-178-152.sslip.io") {
+    return "https://admin.165-245-178-152.sslip.io/";
+  }
+  return null;
+}
