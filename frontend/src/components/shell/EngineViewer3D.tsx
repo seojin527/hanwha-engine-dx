@@ -103,7 +103,7 @@ export function EngineViewer3D({
     if (status === "ready") send({ type: "dx:select", key: selectedKey });
   }, [selectedKey, status]);
 
-  const src = `${import.meta.env.BASE_URL}engine-viewer/index.html?embed=1&v=ui-safe-2`;
+  const src = `${import.meta.env.BASE_URL}engine-viewer/index.html?embed=1&v=ui-red-selection-3`;
   const disabled = status !== "ready";
 
   return (

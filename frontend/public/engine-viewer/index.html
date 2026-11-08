@@ -691,10 +691,10 @@ assembled.then(() => {
   setRun(false);
 
   // ---------- 강조 규칙 ----------
-  // 선택: 시안 얇은 윤곽선 + 아주 약한 시안 발광 (표면 색은 그대로 보인다)
+  // 선택: 빨간 표면 + 빨간 윤곽선과 약한 발광
   // 마우스를 올림: 회청색 얇은 윤곽선만 (발광 없음) → 선택과 구별
   // 선택이 있을 때 나머지 부품은 밝기만 조금 낮춘다 (불투명 유지 → 전체 구조가 보인다)
-  const EDGE_SELECTED = new THREE.LineBasicMaterial({ color: 0x45d6ec, transparent: true, opacity: 0.95 });
+  const EDGE_SELECTED = new THREE.LineBasicMaterial({ color: HILITE_RED, transparent: true, opacity: 0.95 });
   const EDGE_HOVER = new THREE.LineBasicMaterial({ color: 0x9db4cb, transparent: true, opacity: 0.6 });
   const BASE_COLOR = {};
   PARTS.forEach(p => { BASE_COLOR[p.key] = MAT[p.key].color.clone(); });
@@ -719,8 +719,9 @@ assembled.then(() => {
     PARTS.forEach(p => {
       const m = MAT[p.key];
       m.color.copy(BASE_COLOR[p.key]);
+      if (p.key === selKey) m.color.setHex(HILITE_RED);
       if (selKey && p.key !== selKey) m.color.multiplyScalar(DIM);
-      m.emissive.setHex(p.key === selKey ? 0x06343e : 0x000000);
+      m.emissive.setHex(p.key === selKey ? 0x3b080a : 0x000000);
       inst[p.key].forEach(obj => obj.traverse(o => {
         if (!o.userData.edge) return;
         const sel = o.userData.edge === selKey, hov = o.userData.edge === hoverKey && !sel;
