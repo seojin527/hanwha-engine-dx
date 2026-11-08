@@ -759,7 +759,7 @@ export default function DrawingReviewPanel({
   const blocked = selected && confirmBlocked?.itemId === selected.id ? selectedIssues : [];
 
   return (
-    <section className="admin-review flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-900">
+    <section data-readonly={readOnly} className="admin-review flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-900">
       {readOnly && <p className="shrink-0 border-b border-slate-200 px-2 py-1 text-[11px] text-slate-600">관리자 화면 · 조회 전용</p>}
       <div className="review-panel-header z-10 shrink-0 shadow-sm">
         {selected && (

@@ -1,3 +1,4 @@
+import { EntryBackdrop } from "./EntryBackdrop";
 import { useState, type ReactNode } from 'react';
 import { ArrowLeftRight, LogOut } from 'lucide-react';
 import { ROLE_OPTIONS, roleLabel, type UserRole } from '../../lib/role';
@@ -5,9 +6,10 @@ import { ROLE_OPTIONS, roleLabel, type UserRole } from '../../lib/role';
 /** Same role choices for visitors and authenticated administrators; editing permission stays separate. */
 export function EvaluationRoleSelect({ onSelect, onSignOut, readOnly = false }: { readOnly?: boolean; onSelect: (name: string, role: UserRole) => void; onSignOut: () => void }) {
   const [name, setName] = useState('평가자');
-  return <main className="dx-shell flex min-h-dvh items-center justify-center overflow-y-auto px-4 py-6">
-    <section className="w-full max-w-xl rounded-lg border border-dx-line bg-dx-panel p-5">
-      <p className="text-xs font-semibold text-dx-muted">HANWHA ENGINE DX · {readOnly ? "조회·체험" : "관리자 인증 완료"}</p>
+  return <main className="dx-shell relative isolate flex min-h-dvh items-center justify-center overflow-y-auto px-4 py-6">
+    <EntryBackdrop />
+    <section className="relative z-10 w-full max-w-xl rounded-lg border border-dx-line bg-dx-panel p-5">
+      <p className="text-xs font-semibold text-dx-muted">도다미. · {readOnly ? "조회·체험" : "관리자 인증 완료"}</p>
       <h1 className="mt-3 text-lg font-semibold text-dx-strong">체험할 역할을 선택해주세요</h1>
       <p className="mt-2 text-sm leading-relaxed text-dx-muted">{readOnly ? "관리자와 세 검수자 화면을 비밀번호 없이 둘러볼 수 있습니다. 관리자 화면은 조회 전용이며 등록·수정·삭제는 할 수 없습니다." : "관리자와 세 검수자 화면을 자유롭게 둘러볼 수 있습니다. 화면 위의 「역할 전환」으로 돌아오면 비밀번호를 다시 입력하지 않아도 됩니다."}</p>
       <label className="mt-4 block text-xs font-medium text-dx-muted">화면에 표시할 이름<input className="dx-input mt-1 h-10 !text-base" value={name} onChange={event => setName(event.target.value)} maxLength={50} /></label>

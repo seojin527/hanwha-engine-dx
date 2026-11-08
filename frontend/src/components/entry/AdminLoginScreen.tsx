@@ -1,3 +1,4 @@
+import { EntryBackdrop } from "./EntryBackdrop";
 import { useState, type FormEvent } from 'react';
 import { apiUrl } from '../../lib/drawingAPI';
 
@@ -19,9 +20,10 @@ export function AdminLoginScreen() {
       window.location.assign('/');
     } catch (cause) { setError(cause instanceof Error ? cause.message : '관리자 로그인에 연결하지 못했습니다.'); setBusy(false); }
   }
-  return <main className="dx-shell flex min-h-dvh items-center justify-center overflow-y-auto px-4 py-8">
-    <section className="w-full max-w-sm rounded-xl border border-dx-line bg-dx-panel p-6 shadow-lg">
-      <p className="text-xs font-semibold text-dx-muted">HANWHA ENGINE DX</p>
+  return <main className="dx-shell relative isolate flex min-h-dvh items-center justify-center overflow-y-auto px-4 py-8">
+    <EntryBackdrop />
+    <section className="relative z-10 w-full max-w-sm rounded-xl border border-dx-line bg-dx-panel p-6 shadow-lg">
+      <p className="text-xs font-semibold text-dx-muted">도다미.</p>
       <h1 className="mt-4 text-xl font-semibold text-dx-strong">관리자 로그인</h1>
       <p className="mt-2 text-sm leading-relaxed text-dx-muted">기존 관리자 아이디와 비밀번호를 입력해주세요.</p>
       <form className="mt-6 space-y-4" onSubmit={submit}>
