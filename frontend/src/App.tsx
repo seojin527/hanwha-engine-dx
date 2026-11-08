@@ -861,7 +861,7 @@ export function App() {
 
   // 관리자 검토 패널: 통합 관리자 화면에서만 만든다 (목적별로 나누지 않는다).
   const reviewPane = !reviewOpen ? null : (
-    <div className="review-pair-wrap h-full overflow-y-auto bg-white">
+    <div className="review-pair-wrap h-full min-h-0 overflow-hidden bg-white">
       {reviewLoading ? (
         <p role="status" className="flex items-center gap-2 p-4 text-xs text-slate-600">
           <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
@@ -1272,6 +1272,8 @@ export function App() {
       )}
 
       {showFileBar && (
+        <details className="review-export-menu shrink-0 border-b border-dx-line bg-dx-panel">
+          <summary className="cursor-pointer px-3 py-1.5 text-xs text-dx-muted">검수 결과 파일·내보내기</summary>
         <div className="flex shrink-0 items-center justify-end gap-2 border-b border-dx-line bg-dx-panel px-3 py-1">
           <span className="text-[11px] text-slate-400">
             {!documentReviewed
@@ -1310,6 +1312,7 @@ export function App() {
             </p>
           )}
         </div>
+        </details>
       )}
 
       {isAdmin ? (

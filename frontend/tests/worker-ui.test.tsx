@@ -368,8 +368,9 @@ test('작업자 메뉴 레일에는 관리자 DB 아이콘이나 인증 주소 �
 import DrawingReviewPanel from '../src/components/DrawingReviewPanel';
 
 test('관리자 검토는 치수와 검사 기준을 함께 유지하고 긴 안내는 펼쳐 확인한다', async () => {
-  const source = { drawing_id: doc.drawing_id, revision: 'rev-1', result: { ...doc, review_status: 'unreviewed' as const }, review: { gdt: [], dimensions: doc.items.map((item, index) => ({ item_id: item.id, no: index + 1, text: `${item.nominal_value}±0.3`, position: item.position, position_image: item.position })), warnings: ['도면 원본의 공차를 확인해주세요.'] } };
-  await mount(<UnsavedChangesProvider registry={registry}><DrawingReviewPanel source={source} onSaved={() => {}} defaultReviewer="관리자" selectedItemId="item-1" imageUrl="/drawing.png" /></UnsavedChangesProvider>);
+  const reviewItems = doc.items.map((item, index) => ({ ...item, id: `dimension_${index + 1}`, raw_text: `${item.nominal_value}±0.3` }));
+  const source = { drawing_id: doc.drawing_id, revision: 'rev-1', result: { ...doc, items: reviewItems, review_status: 'unreviewed' as const }, review: { gdt: [], dimensions: reviewItems.map((item, index) => ({ item_id: item.id, no: index + 1, text: `${item.nominal_value}±0.3`, position: item.position, position_image: item.position })), warnings: ['도면 원본의 공차를 확인해주세요.'] } };
+  await mount(<UnsavedChangesProvider registry={registry}><DrawingReviewPanel source={source} onSaved={() => {}} defaultReviewer="관리자" selectedItemId="dimension_1" imageUrl="/drawing.png" /></UnsavedChangesProvider>);
   try {
     const pair = document.querySelector('.review-pair')!;
     assert.ok(pair.textContent?.includes('치수 확인'));
@@ -415,5 +416,33 @@ test('역할 전환과 인증 종료는 별도 버튼으로 모든 인증 작업
     await act(async () => buttons[1].click());
     assert.equal(signedOut, 1);
     assert.ok(document.querySelector('.evaluation-content')?.textContent?.includes('작업 화면'));
+  } finally { await unmount(); }
+});
+
+test('저장된 검토자 이름은 현재 검토 입력에 복사하지 않고 공차 선택·수정 기능은 유지한다', async () => {
+  const item = { ...doc.items[0], id: 'dimension_1', raw_text: '76±0.3' };
+  const source = { drawing_id: doc.drawing_id, revision: 'rev-1', result: { ...doc, reviewer: 'Claude (마서진 요청)', items: [item], review_status: 'reviewed' as const }, review: { gdt: [], dimensions: [{ item_id: item.id, no: 1, text: item.raw_text, position: item.position, position_image: item.position }], warnings: [] } };
+  await mount(<UnsavedChangesProvider registry={registry}><DrawingReviewPanel source={source} onSaved={() => {}} defaultReviewer="평가자" selectedItemId={item.id} imageUrl="/drawing.png" /></UnsavedChangesProvider>);
+  try {
+    assert.ok(!document.body.textContent?.includes('저장된 검토 ·'));
+    assert.ok(!document.body.textContent?.includes('Claude'));
+    assert.equal((document.querySelector('[aria-label="검토자"]') as HTMLInputElement).value, '평가자');
+    assert.ok(document.querySelector('[aria-label="치수 표기"]'));
+    const tolerance = document.querySelector<HTMLSelectElement>('[aria-label="공차 출처"]')!;
+    assert.ok(tolerance);
+    await act(async () => { tolerance.value = 'special'; tolerance.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
+    assert.ok(Array.from(document.querySelectorAll('input')).some(input => input.placeholder === '예: +0.05'));
+    assert.ok(Array.from(document.querySelectorAll('input')).some(input => input.placeholder === '예: -0.02'));
+    assert.equal(Array.from(document.querySelectorAll('button')).filter(b => b.textContent === '검토 완료 및 서버 저장').length, 1);
+  } finally { await unmount(); }
+});
+
+test('공개 로그인에는 빈 파란 안내 박스와 비활성 비밀번호 칸을 두지 않는다', async () => {
+  await mount(<LoginScreen visitor onLogin={() => {}} />);
+  try {
+    assert.equal(document.querySelector('#login-password'), null);
+    assert.equal(document.querySelector('p[class*="bg-cyan-300"]'), null);
+    assert.ok(document.querySelector('#login-account'));
+    assert.ok(document.querySelector('#login-role'));
   } finally { await unmount(); }
 });

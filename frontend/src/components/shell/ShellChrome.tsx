@@ -169,7 +169,7 @@ export function DrawingContextHeader({
 }) {
   const review = reviewed ? { text: "검토 완료", tone: "ok" as const } : reviewLabel({ review_status: revision ? "pending" : null, ocr_status: drawing.ocr_status });
   return (
-    <div className="shrink-0 space-y-2 border-b border-dx-line bg-dx-panel px-3 py-2.5 text-xs text-dx-text">
+    <div className="drawing-context-header shrink-0 space-y-1 border-b border-dx-line bg-dx-panel px-2 py-1.5 text-xs text-dx-text">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[11px] text-dx-faint">
@@ -187,6 +187,9 @@ export function DrawingContextHeader({
           3D로
         </button>
       </div>
+      {(siblings.length > 1 || extra) && <details className="drawing-context-options">
+        <summary className="cursor-pointer py-1 text-[11px] text-dx-muted">도면 변경·관리</summary>
+        <div className="space-y-2 pt-1">
       {siblings.length > 1 && (
         <label className="flex items-center gap-2">
           <span className="shrink-0 text-[11px] text-dx-muted">같은 부품 도면</span>
@@ -207,6 +210,8 @@ export function DrawingContextHeader({
         </label>
       )}
       {extra}
+        </div>
+      </details>}
     </div>
   );
 }

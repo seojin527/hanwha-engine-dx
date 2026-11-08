@@ -168,14 +168,6 @@ const DRAFT_FIELD: Partial<Record<keyof Draft, string>> = {
   criteria: "gauge_criteria",
 };
 
-function formatReviewedAt(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 export default function DrawingReviewPanel({
   source,
   selectedItemId,
@@ -242,15 +234,6 @@ export default function DrawingReviewPanel({
     }
     return map;
   }, [points, source.review.gdt]);
-
-  const reviewedInfo = useMemo(() => {
-    if (source.result.review_status !== "reviewed") return null;
-    const last = source.result.review_history?.[source.result.review_history.length - 1];
-    return {
-      reviewer: source.result.reviewer || last?.log.reviewer || "",
-      at: formatReviewedAt(last?.log.reviewed_at),
-    };
-  }, [source.result]);
 
   const generalEvidence = source.general_tolerance;
 
@@ -330,7 +313,7 @@ export default function DrawingReviewPanel({
     setConfirmed(initial);
     setConfirmBlocked(null);
     setShowProblems(false);
-    setReviewer(source.result.reviewer || defaultReviewer);
+    setReviewer(defaultReviewer);
     setAdded([]);
     setError("");
   }, [source]);
@@ -773,8 +756,8 @@ export default function DrawingReviewPanel({
   const blocked = selected && confirmBlocked?.itemId === selected.id ? selectedIssues : [];
 
   return (
-    <section className="admin-review flex min-h-full flex-col bg-slate-50 text-slate-900">
-      <div className="sticky top-0 z-10 shadow-sm">
+    <section className="admin-review flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-900">
+      <div className="review-panel-header z-10 shrink-0 shadow-sm">
         {selected && (
           <ItemHeader
             number={selectedIndex + 1}
@@ -798,31 +781,29 @@ export default function DrawingReviewPanel({
         )}
         {/* 확인 동작: 스크롤 없이 「확인 후 다음」을 반복할 수 있게 상단에 고정 */}
         {selected && (
-          <div className="border-b border-slate-200 bg-white px-3 pb-2">
+          <div className="review-panel-actions flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-2 py-1.5">
             {allConfirmed ? (
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-xs font-semibold text-emerald-700">✓ 전체 {points.length}개 항목 확인 완료</span>
-                <button type="button" disabled={saving || picking} onClick={() => void save()} className="btn btn-primary btn-lg">
-                  {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
-                </button>
+
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-[11px] text-slate-500">
+                <span className="sr-only">
                   {confirmed[selected.id] ? "이 항목은 확인했습니다. 값을 바꾸면 다시 확인해야 합니다." : "값이 맞으면 확인하고 다음 미확인 항목으로 넘어갑니다."}
                 </span>
                 <button
                   type="button"
                   disabled={saving || picking}
                   onClick={() => confirmAndNext(selected)}
-              className="btn btn-primary btn-lg w-full"
+              className="btn btn-primary btn-lg ml-auto shrink-0"
                 >
                   {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
                 </button>
               </div>
             )}
-            <div className="mt-1.5 flex items-center justify-end gap-2">
-              <span className="text-[11px] text-slate-500">
+            <div className="flex items-center justify-end gap-2">
+              <span className="sr-only">
                 {excluded[selected.id] ? "측정 항목에서 제외했습니다. 작업자 화면에 나오지 않습니다." : "치수가 아닌 기호·글자를 잘못 읽었다면"}
               </span>
               <button type="button" disabled={saving || picking} onClick={() => toggleExcluded(selected)} className="btn btn-secondary">
@@ -830,7 +811,7 @@ export default function DrawingReviewPanel({
               </button>
             </div>
             {blocked.length > 0 && (
-              <ul role="alert" className="note note-error mt-2 space-y-0.5 text-[11px]">
+              <ul role="alert" className="note note-error mt-2 w-full space-y-0.5 text-[11px]">
                 <li className="font-semibold">입력 오류가 있어 확인하지 않았습니다. 고친 뒤 다시 눌러주세요.</li>
                 {blocked.map((issue) => <li key={issue}>• {issue}</li>)}
               </ul>
@@ -861,15 +842,10 @@ export default function DrawingReviewPanel({
             </>
           }
         />
-        {reviewedInfo && (
-          <p className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
-            저장된 검토 · {reviewedInfo.reviewer || "검토자 미기록"}
-            {reviewedInfo.at ? ` · ${reviewedInfo.at}` : ""} — 값이나 기준을 바꾼 항목은 다시 확인해야 합니다.
-          </p>
-        )}
+
       </div>
 
-      <fieldset disabled={saving || picking} className="flex-1 space-y-3 p-3">
+      <fieldset disabled={saving || picking} className="review-panel-body min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
         <details className="review-guidance rounded border border-slate-200 bg-white">
           <summary className={`cursor-pointer px-2 py-1.5 text-xs font-medium ${source.review.warnings.length ? "text-amber-800" : "text-slate-600"}`}>
             검토 안내{source.review.warnings.length ? ` · 경고 ${source.review.warnings.length}건` : " · 기본 공차·추천 기준"}
@@ -1060,7 +1036,7 @@ export default function DrawingReviewPanel({
         </details>
       </fieldset>
 
-      <footer className="sticky bottom-0 z-10 space-y-2 border-t border-slate-300 bg-white px-3 py-2.5">
+      <footer className="review-panel-footer z-10 shrink-0 space-y-2 border-t border-slate-300 bg-white px-3 py-2.5">
         {problems.length > 0 && (
           <div role="alert" className="note note-error space-y-1">
             <p className="font-semibold">저장하지 않았습니다 — 아래 {problems.length}건을 고쳐주세요. 항목을 누르면 이동합니다.</p>
@@ -1107,7 +1083,7 @@ export default function DrawingReviewPanel({
             {saving ? "저장 중…" : "검토 완료 및 서버 저장"}
           </button>
         </div>
-        <p className="text-[11px] text-slate-500">
+        <p className="sr-only">
           {allConfirmed
             ? `전체 ${points.length}개 항목을 확인했습니다. 저장해야 검토 완료가 되고 작업자에게 공개됩니다.`
             : `모든 항목을 확인해야 저장할 수 있습니다 · 미확인 ${unconfirmedItems.length}개 (확인은 서버에 저장되지 않습니다)`}
@@ -1378,42 +1354,13 @@ function SelectedItem({
           {draft.mode === "numeric" && !isGdt ? (
             <fieldset className="space-y-1.5">
               <legend className="mb-1 text-xs text-slate-600">허용 공차</legend>
-              {([
-                [
-                  "drawing",
-                  "도면 공차",
-                  parsed.drawing ? formatDeviationPair(parsed.drawing.upper, parsed.drawing.lower) : "도면에 없음",
-                  !!parsed.drawing,
-                ],
-                [
-                  "general",
-                  GENERAL_LABEL,
-                  parsed.general !== null ? `±${formatNumber(parsed.general)}` : "적용 범위 밖",
-                  parsed.general !== null,
-                ],
-                ["special", "특별 공차", "직접 입력", true],
-              ] as Array<[ToleranceSource, string, string, boolean]>).map(([value, label, detail, available]) => (
-                <label
-                  key={value}
-                  className={`flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs ${
-                    draft.toleranceSource === value ? "border-cyan-600 bg-cyan-50" : "border-slate-200 hover:bg-slate-50"
-                  } ${available ? "cursor-pointer" : "opacity-40"}`}
-                >
-                  <input
-                    type="radio"
-                    name={`tolerance-${item.id}`}
-                    disabled={!available}
-                    checked={draft.toleranceSource === value}
-                    onChange={() => onDraft({ toleranceSource: value })}
-                  />
-                  <span className="font-semibold">{label}</span>
-                  {value === "general" && draft.toleranceSource === "general" && draft.defaults.includes("tolerance_source") && (
-                    <span className="tag bg-amber-50 text-amber-800">{generalBasis}</span>
-                  )}
-                  {value === "drawing" && <span className="text-[10px] text-slate-400">도면 표기에서 읽음</span>}
-                  <span className="flex-1 text-right font-mono text-slate-600">{detail}</span>
-                </label>
-              ))}
+              <select aria-label="공차 출처" className={editClass} value={draft.toleranceSource} onChange={(event) => onDraft({ toleranceSource: event.target.value as ToleranceSource })}>
+                <option value="" disabled>공차 출처 선택</option>
+                <option value="drawing" disabled={!parsed.drawing}>도면 공차 · {parsed.drawing ? formatDeviationPair(parsed.drawing.upper, parsed.drawing.lower) : "도면에 없음"}</option>
+                <option value="general" disabled={parsed.general === null}>{GENERAL_LABEL} · {parsed.general !== null ? `±${formatNumber(parsed.general)}` : "적용 범위 밖"}</option>
+                <option value="special">특별 공차 · 직접 입력</option>
+              </select>
+              {draft.toleranceSource === "general" && <p className="text-[10px] text-slate-500">{generalBasis}</p>}
               {draft.toleranceSource === "special" && (
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <label className="space-y-1 text-xs">
