@@ -40,6 +40,7 @@ import OcrCrop, { dimensionCropBox, gdtCropBox } from "./review/OcrCrop";
 
 interface Props {
   source: DrawingReviewSource;
+  readOnly?: boolean;
   onSaved: (result: DrawingReviewResponse) => void;
   onSelectItem?: (itemId: string) => void;
   onPickPosition?: () => Promise<{ x: number; y: number } | null>;
@@ -177,6 +178,7 @@ export default function DrawingReviewPanel({
   onPreviewChange,
   imageUrl,
   defaultReviewer = "",
+  readOnly = false,
 }: Props) {
   const points = source.result.items;
   const documentUnit = source.result.unit || "mm";
@@ -667,6 +669,7 @@ export default function DrawingReviewPanel({
    * 서버도 같은 내용을 다시 검증하며, 저장이 성공해야 검토 완료가 된다.
    */
   async function save() {
+    if (readOnly) return;
     setError("");
     if (saving) return;
     if (picking) {
@@ -757,6 +760,7 @@ export default function DrawingReviewPanel({
 
   return (
     <section className="admin-review flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-900">
+      {readOnly && <p className="shrink-0 border-b border-slate-200 px-2 py-1 text-[11px] text-slate-600">관리자 화면 · 조회 전용</p>}
       <div className="review-panel-header z-10 shrink-0 shadow-sm">
         {selected && (
           <ItemHeader
@@ -796,14 +800,14 @@ export default function DrawingReviewPanel({
                   미확인 {unconfirmedItems.length} → 이동
                 </Chip>
               )}
-            {!allConfirmed && <button type="button" disabled={saving || picking} onClick={() => confirmAndNext(selected)} className="btn btn-primary">
+            {!allConfirmed && <button type="button" disabled={readOnly || saving || picking} onClick={() => confirmAndNext(selected)} className="btn btn-primary">
               {confirmed[selected.id] ? "다음 미확인으로" : "확인 후 다음"}
             </button>}
             <div className="flex items-center justify-end gap-2">
               <span className="sr-only">
                 {excluded[selected.id] ? "측정 항목에서 제외했습니다. 작업자 화면에 나오지 않습니다." : "치수가 아닌 기호·글자를 잘못 읽었다면"}
               </span>
-              <button type="button" disabled={saving || picking} onClick={() => toggleExcluded(selected)} className="btn btn-secondary">
+              <button type="button" disabled={readOnly || saving || picking} onClick={() => toggleExcluded(selected)} className="btn btn-secondary">
                 {excluded[selected.id] ? "제외 취소" : "오인식 제외"}
               </button>
             </div>
@@ -819,7 +823,7 @@ export default function DrawingReviewPanel({
 
       </div>
 
-      <fieldset disabled={saving || picking} className="review-panel-body min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
+      <fieldset disabled={readOnly || saving || picking} className="review-panel-body min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
 
 
         {selected && (
@@ -1046,13 +1050,13 @@ export default function DrawingReviewPanel({
             aria-label="검토자"
             className={`${inputClass} h-9 min-w-0 flex-1`}
             value={reviewer}
-            disabled={saving}
+            disabled={readOnly || saving}
             onChange={(event) => setReviewer(event.target.value)}
             placeholder="검토자 이름"
           />
           <button
             type="button"
-            disabled={saving || picking}
+            disabled={readOnly || saving || picking}
             onClick={() => void save()}
             className="btn btn-primary btn-lg"
           >

@@ -323,11 +323,11 @@ test('휴대폰 관리자 메뉴에서 도면 관리·엑셀 오류 DB·작업 �
   }
 });
 
-test('일반 사용자도 관리자 메뉴에서 DB와 작업 현황을 조회한다', async () => {
+test('일반 접속자가 관리자 역할을 고르면 DB와 작업 현황을 조회한다', async () => {
   dom.reconfigure({ url: 'https://dx.165-245-178-152.sslip.io/' });
   globalThis.fetch = async () => new Response('{"parts":[]}');
   let target = '';
-  await mount(<MobileShell {...mobileProps} isAdmin={false} trial onNavigateAdmin={view => { target = view; }} />);
+  await mount(<MobileShell {...mobileProps} isAdmin trial onNavigateAdmin={view => { target = view; }} />);
   try {
     await act(async () => (document.querySelector('[aria-label="메뉴"]') as HTMLButtonElement).click());
     assert.equal(document.querySelector('a'), null);
@@ -362,12 +362,12 @@ test('태블릿 관리자 진입은 브라우저 인증 팝업 대신 아이디�
   } finally { await unmount(); }
 });
 
-test('일반 사용자 메뉴 레일에서 관리자 DB 조회와 작업 현황에 접근한다', async () => {
+test('작업자 역할에는 DB와 작업 현황 메뉴를 표시하지 않는다', async () => {
   await mount(<ShellRail view="engine" isAdmin={false} drawingAvailable={false} onNavigate={() => {}} onLogout={() => {}} />);
   try {
     assert.equal(document.querySelector('a'), null);
-    assert.ok(document.querySelector('[aria-label="관리자 · 오류 DB 조회"]'));
-    assert.ok(document.querySelector('[aria-label="작업 진행 현황"]'));
+    assert.equal(document.querySelector('[aria-label="관리자 · 오류 DB 조회"]'), null);
+    assert.equal(document.querySelector('[aria-label="작업 진행 현황"]'), null);
     assert.equal(document.querySelector('[aria-label="관리자 페이지"]'), null);
   } finally { await unmount(); }
 });
@@ -514,5 +514,35 @@ test('태블릿 가공 단계는 앞 단계 미완료 상태에서도 중삭·�
     await act(async () => { stages[1].click(); stages[2].click(); });
     assert.deepEqual(transitions, ['2', '3']);
     assert.equal(machining.plan.status['1'].passed, 0, '단계 탐색은 측정 완료를 만들지 않는다');
+  } finally { await unmount(); }
+});
+
+test('관리자 인증 없이도 네 역할을 선택하고 관리자 편집 로그인은 별도로 제공한다', async () => {
+  const roles: string[] = [];
+  await mount(<EvaluationRoleSelect readOnly onSelect={(_, role) => roles.push(role.kind === 'admin' ? 'admin' : role.purpose)} onSignOut={() => {}} />);
+  try {
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[aria-label="평가 역할 선택"] button');
+    assert.equal(buttons.length, 4);
+    assert.ok(document.body.textContent?.includes('조회 전용'));
+    assert.equal(document.querySelector('a')?.getAttribute('href'), '/admin-login');
+    for (const button of buttons) await act(async () => button.click());
+    assert.deepEqual(roles, ['admin', 'manufacturing', 'assembly', 'verification']);
+    assert.ok(!document.body.textContent?.includes('관리자 인증 완료'));
+  } finally { await unmount(); }
+});
+
+test('일반 접속자의 관리자 도면 검토는 입력·저장을 막고 항목 탐색을 허용한다', async () => {
+  const items = doc.items.map((item, index) => ({ ...item, id: `dimension_${index + 1}` }));
+  const source: any = { drawing_id: doc.drawing_id, revision: 'rev-1', result: { ...doc, items }, review: { gdt: [], dimensions: items.map((item, index) => ({ item_id: item.id, no: index + 1, text: item.raw_text, position: item.position, position_image: item.position })), warnings: [] } };
+  let navigated = '';
+  await mount(<UnsavedChangesProvider registry={registry}><DrawingReviewPanel source={source} readOnly onSaved={() => assert.fail('read-only review must not save')} onSelectItem={id => { navigated = id; }} selectedItemId="dimension_1" /></UnsavedChangesProvider>);
+  try {
+    assert.ok(document.body.textContent?.includes('조회 전용'));
+    const save = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent === '검토 완료 및 서버 저장')!;
+    assert.equal(save.disabled, true);
+    assert.equal((document.querySelector('[aria-label="검토자"]') as HTMLInputElement).disabled, true);
+    assert.ok(document.querySelector('fieldset')?.disabled);
+    await act(async () => (document.querySelector('[aria-label="다음 항목"]') as HTMLButtonElement).click());
+    assert.equal(navigated, 'dimension_2');
   } finally { await unmount(); }
 });
